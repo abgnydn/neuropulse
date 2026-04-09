@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "neural-pulse",
+      "runtimeExecutable": "/Users/ahmetbarisgunaydin2/.nvm/versions/node/v24.5.0/bin/npx",
+      "runtimeArgs": ["vite", "--port", "4000"],
+      "port": 4000
+    }
+  ]
+}

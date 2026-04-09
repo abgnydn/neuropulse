@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural Pulse — Watch an AI Think</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #050510; color: #e2e8f0; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; height: 100vh; }
+
+.container { display: grid; grid-template-columns: 1fr 420px; grid-template-rows: auto 1fr auto; height: 100vh; gap: 0; }
+
+/* Header */
+.header { grid-column: 1 / -1; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.04); flex-wrap: wrap; gap: 8px; }
+.logo { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; }
+.logo span { background: linear-gradient(135deg, #6366f1, #06b6d4, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stats { display: flex; gap: 16px; font-size: 0.68rem; font-family: 'JetBrains Mono', monospace; color: #64748b; flex-wrap: wrap; }
+.stats .live { color: #10b981; }
+
+/* Brain canvas */
+.brain-wrap { grid-column: 1; grid-row: 2; position: relative; display: flex; align-items: center; justify-content: center; background: #050510; overflow: hidden; }
+#brainCanvas { width: 100%; height: 100%; display: block; }
+
+/* Side panel */
+.side { grid-column: 2; grid-row: 2 / 4; display: flex; flex-direction: column; border-left: 1px solid rgba(255,255,255,0.04); background: #080812; }
+.side-header { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.68rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+.output-area { flex: 1; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: #cbd5e1; white-space: pre-wrap; word-wrap: break-word; }
+.output-area .token { display: inline; transition: opacity 0.3s; }
+.output-area .token.new { color: #fff; text-shadow: 0 0 20px rgba(99,102,241,0.5); }
+.cursor { display: inline-block; width: 2px; height: 1em; background: #6366f1; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Input bar */
+.input-wrap { grid-column: 1; grid-row: 3; padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.04); display: flex; gap: 10px; align-items: center; }
+.input-wrap input[type=text] { flex: 1; background: #0c0c1a; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-size: 0.85rem; outline: none; font-family: inherit; min-width: 0; }
+.input-wrap input[type=text]:focus { border-color: rgba(99,102,241,0.4); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.input-wrap input[type=text]::placeholder { color: #475569; }
+.speed-control { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+.speed-control input[type=range] { width: 70px; accent-color: #6366f1; cursor: pointer; }
+.speed-control span { min-width: 22px; color: #a5b4fc; }
+.input-wrap button { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 600; cursor: pointer; font-size: 0.82rem; white-space: nowrap; }
+.input-wrap button:hover { filter: brightness(1.1); }
+.input-wrap button:disabled { opacity: 0.4; cursor: default; }
+
+/* Tool buttons */
+.tool-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px; cursor: pointer; font-size: 0.9rem; line-height: 1; color: #64748b; }
+.tool-btn:hover { background: rgba(255,255,255,0.08); color: #a5b4fc; }
+
+/* Legend */
+.legend { display: flex; gap: 12px; padding: 10px 18px; border-top: 1px solid rgba(255,255,255,0.04); flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.58rem; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+.legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .container { grid-template-columns: 1fr; grid-template-rows: auto 50vh auto 1fr; }
+  .side { grid-column: 1; grid-row: 4; border-left: none; border-top: 1px solid rgba(255,255,255,0.04); max-height: 40vh; }
+  .brain-wrap { grid-row: 2; }
+  .input-wrap { grid-column: 1; grid-row: 3; flex-wrap: wrap; }
+  .stats { font-size: 0.6rem; gap: 8px; }
+  .header { padding: 8px 12px; }
+  .input-wrap { padding: 8px 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo"><span>Neural Pulse</span> — Watch an AI Think</div>
+    <div class="stats">
+      <span>Model: <strong style="color:#e2e8f0">Phi-3 3.6B</strong></span>
+      <span>Layers: <strong style="color:#e2e8f0">32</strong></span>
+      <span id="dispatchStat">Dispatch: <strong style="color:#a5b4fc">0/292</strong></span>
+      <span id="speedStat">Speed: <strong class="live">—</strong></span>
+      <span id="tokenStat">Tokens: <strong style="color:#e2e8f0">0</strong></span>
+    </div>
+  </div>
+
+  <div class="brain-wrap">
+    <canvas id="brainCanvas"></canvas>
+  </div>
+
+  <div class="side">
+    <div class="side-header">AI Output</div>
+    <div class="output-area" id="output"><span class="cursor"></span></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>Attention Heads (32)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>FFN Groups (16)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e2e8f0"></div>Residual Stream</div>
+      <div class="legend-item" style="color:#475569">Real GPU activations</div>
+    </div>
+  </div>
+
+  <div class="input-wrap">
+    <input type="text" id="promptInput" placeholder="Ask anything... (e.g. What is consciousness?)" autofocus>
+    <div class="speed-control">
+      <label for="speedSlider">Speed</label>
+      <input type="range" id="speedSlider" min="1" max="20" value="5" step="1">
+      <span id="speedLabel">5x</span>
+    </div>
+    <button class="tool-btn" id="soundBtn" title="Toggle sound">🔊</button>
+    <button class="tool-btn" id="screenshotBtn" title="Screenshot">📷</button>
+    <button id="goBtn">Think</button>
+  </div>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
