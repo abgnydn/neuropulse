@@ -18,6 +18,7 @@ import addNormSrc from './shaders/add_norm.wgsl?raw'
 import ropeSrc from './shaders/rope.wgsl?raw'
 import kvAppendSrc from './shaders/kv_append.wgsl?raw'
 import attentionSrc from './shaders/attention.wgsl?raw'
+import attentionScoresSrc from './shaders/attention_scores.wgsl?raw'
 import fusedFfnSrc from './shaders/fused_ffn.wgsl?raw'
 import embeddingSrc from './shaders/embedding.wgsl?raw'
 import argmaxSrc from './shaders/argmax.wgsl?raw'
@@ -57,6 +58,7 @@ interface Pipelines {
   rope: GPUComputePipeline
   kvAppend: GPUComputePipeline
   attention: GPUComputePipeline
+  attentionScores: GPUComputePipeline // viz-only: post-softmax scores per (head, slot)
   oProjMatmul: GPUComputePipeline     // int4 matmul, K=3072→3072
   addNorm: GPUComputePipeline
   fusedFfn: GPUComputePipeline        // gate+up+SiLU fused
@@ -155,6 +157,7 @@ export function compile(device: GPUDevice): { pipelines: Pipelines; buffers: Buf
     rope: createPipeline(device, ropeSrc, 'rope_kernel'),
     kvAppend: createPipeline(device, kvAppendSrc, 'kv_append'),
     attention: createPipeline(device, attentionSrc, 'attention'),
+    attentionScores: createPipeline(device, attentionScoresSrc, 'attention_scores'),
     oProjMatmul: createPipeline(device, int4MatmulSrc, 'int4_matmul'),
     addNorm: createPipeline(device, addNormSrc, 'add_norm'),
     fusedFfn: createPipeline(device, fusedFfnSrc, 'fused_ffn_kernel'),

@@ -6,55 +6,142 @@
 <title>Neural Pulse — Watch an AI Think</title>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #050510; color: #e2e8f0; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; height: 100vh; }
+body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; height: 100vh; }
 
 .container { display: grid; grid-template-columns: 1fr 420px; grid-template-rows: auto 1fr auto; height: 100vh; gap: 0; }
 
 /* Header */
-.header { grid-column: 1 / -1; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.04); flex-wrap: wrap; gap: 8px; }
+.header { grid-column: 1 / -1; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,229,255,0.06); flex-wrap: wrap; gap: 8px; background: rgba(2,2,16,0.8); backdrop-filter: blur(12px); }
 .logo { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; }
-.logo span { background: linear-gradient(135deg, #6366f1, #06b6d4, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.stats { display: flex; gap: 16px; font-size: 0.68rem; font-family: 'JetBrains Mono', monospace; color: #64748b; flex-wrap: wrap; }
-.stats .live { color: #10b981; }
+.logo span { background: linear-gradient(135deg, #00e5ff, #7c3aed, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stats { display: flex; gap: 16px; font-size: 0.68rem; font-family: 'JetBrains Mono', monospace; color: #475569; flex-wrap: wrap; }
+.stats .live { color: #2dd4bf; }
 
 /* Brain canvas */
-.brain-wrap { grid-column: 1; grid-row: 2; position: relative; display: flex; align-items: center; justify-content: center; background: #050510; overflow: hidden; }
+.brain-wrap { grid-column: 1; grid-row: 2; position: relative; display: flex; align-items: center; justify-content: center; background: #020210; overflow: hidden; }
 #brainCanvas { width: 100%; height: 100%; display: block; }
 
-/* Side panel */
-.side { grid-column: 2; grid-row: 2 / 4; display: flex; flex-direction: column; border-left: 1px solid rgba(255,255,255,0.04); background: #080812; }
-.side-header { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.68rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
-.output-area { flex: 1; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: #cbd5e1; white-space: pre-wrap; word-wrap: break-word; }
-.output-area .token { display: inline; transition: opacity 0.3s; }
-.output-area .token.new { color: #fff; text-shadow: 0 0 20px rgba(99,102,241,0.5); }
-.cursor { display: inline-block; width: 2px; height: 1em; background: #6366f1; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; }
+/* Side panel — glass morphism */
+.side { grid-column: 2; grid-row: 2 / 4; display: flex; flex-direction: column; border-left: 1px solid rgba(0,229,255,0.06); background: rgba(2,2,16,0.85); backdrop-filter: blur(16px); overflow-y: auto; }
+.side-header { padding: 14px 18px; border-bottom: 1px solid rgba(0,229,255,0.06); font-size: 0.68rem; color: #67e8f9; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
+.output-area { flex: 1; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: #cbd5e1; white-space: pre-wrap; word-wrap: break-word; min-height: 120px; }
+.output-area .token { display: inline; transition: opacity 0.3s, text-shadow 0.5s; }
+.output-area .token.new { color: #fff; text-shadow: 0 0 25px rgba(0,229,255,0.6), 0 0 50px rgba(124,58,237,0.3); }
+.cursor { display: inline-block; width: 2px; height: 1em; background: #00e5ff; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; box-shadow: 0 0 8px rgba(0,229,255,0.5); }
 @keyframes blink { 50% { opacity: 0; } }
 
 /* Input bar */
-.input-wrap { grid-column: 1; grid-row: 3; padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.04); display: flex; gap: 10px; align-items: center; }
-.input-wrap input[type=text] { flex: 1; background: #0c0c1a; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-size: 0.85rem; outline: none; font-family: inherit; min-width: 0; }
-.input-wrap input[type=text]:focus { border-color: rgba(99,102,241,0.4); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-.input-wrap input[type=text]::placeholder { color: #475569; }
-.speed-control { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: #64748b; font-family: 'JetBrains Mono', monospace; }
-.speed-control input[type=range] { width: 70px; accent-color: #6366f1; cursor: pointer; }
-.speed-control span { min-width: 22px; color: #a5b4fc; }
-.input-wrap button { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 600; cursor: pointer; font-size: 0.82rem; white-space: nowrap; }
-.input-wrap button:hover { filter: brightness(1.1); }
-.input-wrap button:disabled { opacity: 0.4; cursor: default; }
+.input-wrap { grid-column: 1; grid-row: 3; padding: 12px 20px; border-top: 1px solid rgba(0,229,255,0.06); display: flex; gap: 10px; align-items: center; background: rgba(2,2,16,0.6); backdrop-filter: blur(8px); }
+.input-wrap input[type=text] { flex: 1; background: rgba(2,2,20,0.8); border: 1px solid rgba(0,229,255,0.1); border-radius: 10px; padding: 10px 14px; color: #e2e8f0; font-size: 0.85rem; outline: none; font-family: inherit; min-width: 0; }
+.input-wrap input[type=text]:focus { border-color: rgba(0,229,255,0.3); box-shadow: 0 0 0 3px rgba(0,229,255,0.08), 0 0 20px rgba(0,229,255,0.05); }
+.input-wrap input[type=text]::placeholder { color: #334155; }
+.speed-control { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: #475569; font-family: 'JetBrains Mono', monospace; }
+.speed-control input[type=range] { width: 70px; accent-color: #00e5ff; cursor: pointer; }
+.speed-control span { min-width: 22px; color: #67e8f9; }
+.input-wrap button { background: linear-gradient(135deg, #7c3aed, #00b4d8); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; font-size: 0.82rem; white-space: nowrap; box-shadow: 0 4px 15px rgba(0,229,255,0.15); transition: all 0.2s; }
+.input-wrap button:hover { filter: brightness(1.15); box-shadow: 0 4px 25px rgba(0,229,255,0.25); }
+.input-wrap button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
 
 /* Tool buttons */
-.tool-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px; cursor: pointer; font-size: 0.9rem; line-height: 1; color: #64748b; }
-.tool-btn:hover { background: rgba(255,255,255,0.08); color: #a5b4fc; }
+.tool-btn { background: rgba(0,229,255,0.04); border: 1px solid rgba(0,229,255,0.1); border-radius: 8px; padding: 8px; cursor: pointer; font-size: 0.9rem; line-height: 1; color: #475569; transition: all 0.2s; }
+.tool-btn:hover { background: rgba(0,229,255,0.08); color: #67e8f9; box-shadow: 0 0 12px rgba(0,229,255,0.1); }
+
+/* Top-K Probabilities */
+.topk-panel { padding: 10px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.topk-header { font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+.topk-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; }
+.topk-token { min-width: 70px; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topk-bar-bg { flex: 1; height: 5px; background: rgba(0,229,255,0.04); border-radius: 3px; overflow: hidden; }
+.topk-bar-fill { height: 100%; border-radius: 3px; transition: width 0.2s; box-shadow: 0 0 6px currentColor; }
+.topk-pct { min-width: 36px; text-align: right; color: #475569; }
+
+/* KV Cache */
+.kv-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.kv-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #67e8f9; margin-bottom: 4px; }
+.kv-bar-bg { width: 100%; height: 4px; background: rgba(0,229,255,0.06); border-radius: 2px; overflow: hidden; }
+.kv-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #2dd4bf, #00e5ff); transition: width 0.3s; border-radius: 2px; box-shadow: 0 0 8px rgba(0,229,255,0.3); }
+
+/* Prefill overlay */
+.prefill-overlay { position: absolute; bottom: 60px; left: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #67e8f9; pointer-events: none; background: rgba(2,2,16,0.85); padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(0,229,255,0.12); backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(0,229,255,0.08); }
+.prefill-token { display: inline; color: #2dd4bf; font-weight: 600; text-shadow: 0 0 8px rgba(45,212,191,0.4); }
+.prefill-bar-bg { width: 200px; height: 3px; background: rgba(0,229,255,0.06); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+.prefill-bar-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #00e5ff); border-radius: 2px; transition: width 0.05s; box-shadow: 0 0 6px rgba(0,229,255,0.3); }
+
+/* Confidence meter */
+.confidence-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.confidence-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; margin-bottom: 4px; }
+.confidence-bar-bg { width: 100%; height: 6px; background: rgba(0,229,255,0.04); border-radius: 3px; overflow: hidden; }
+.confidence-bar-fill { height: 100%; border-radius: 3px; transition: width 0.2s, background 0.3s; box-shadow: 0 0 10px currentColor; }
+
+/* Head activity heatmap */
+.heatmap-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.heatmap-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
+.heatmap-grid { display: flex; flex-direction: column; gap: 1px; }
+.heatmap-row { display: flex; gap: 1px; }
+.heatmap-cell { width: 10px; height: 4px; border-radius: 1px; background: rgba(0,229,255,0.02); transition: background 0.15s, box-shadow 0.15s; }
+
+/* Residual chart */
+.residual-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.residual-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
+.residual-canvas { width: 100%; height: 32px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); }
+
+/* Layer delta */
+.delta-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.delta-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
+.delta-canvas { width: 100%; height: 32px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); }
+
+/* Residual stream strip (3072-wide × 32 layers heatmap) */
+.resstrip-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.resstrip-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.resstrip-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
+.resstrip-canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); image-rendering: pixelated; }
+
+/* Per-head attention pattern (L=31, 32 heads × kvLen) */
+.attn-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.attn-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.attn-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
+.attn-canvas { width: 100%; height: 96px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); image-rendering: pixelated; }
+
+/* Logit lens — per-layer predicted tokens */
+.lens-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.lens-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.lens-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
+.lens-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; font-family: 'JetBrains Mono', monospace; }
+.lens-cell { background: rgba(0,229,255,0.03); border: 1px solid rgba(0,229,255,0.08); border-radius: 4px; padding: 4px 3px; text-align: center; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; min-height: 30px; }
+.lens-cell.fresh { background: rgba(0,229,255,0.12); border-color: rgba(0,229,255,0.4); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+.lens-cell .lens-lay { font-size: 0.48rem; color: #64748b; display: block; }
+.lens-cell .lens-tok { font-size: 0.58rem; color: #e2e8f0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.lens-cell.fresh .lens-tok { color: #67e8f9; text-shadow: 0 0 6px rgba(0,229,255,0.4); }
 
 /* Legend */
-.legend { display: flex; gap: 12px; padding: 10px 18px; border-top: 1px solid rgba(255,255,255,0.04); flex-wrap: wrap; }
-.legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.58rem; color: #64748b; font-family: 'JetBrains Mono', monospace; }
-.legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+.legend { display: flex; gap: 12px; padding: 10px 18px; border-top: 1px solid rgba(0,229,255,0.06); flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.58rem; color: #475569; font-family: 'JetBrains Mono', monospace; }
+.legend-dot { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 4px currentColor; }
+
+/* Raw values panel (only visible in strict mode) */
+.raw-panel { display: none; padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); font-family: 'JetBrains Mono', monospace; }
+body.strict .raw-panel { display: block; }
+.raw-title { font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
+.raw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 8px; font-size: 0.58rem; color: #94a3b8; }
+.raw-grid .k { color: #64748b; }
+.raw-grid .v { color: #e2e8f0; text-align: right; }
+.raw-row { padding: 2px 0; display: flex; justify-content: space-between; }
+.raw-vec { margin-top: 6px; font-size: 0.55rem; color: #94a3b8; line-height: 1.45; word-break: break-all; max-height: 5.2em; overflow: hidden; }
+.raw-vec b { color: #67e8f9; font-weight: normal; }
+
+/* Hide purely decorative legend chips in strict mode */
+body.strict .legend { display: none; }
+
+/* Scrollbar */
+.side::-webkit-scrollbar { width: 4px; }
+.side::-webkit-scrollbar-track { background: transparent; }
+.side::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
+.side::-webkit-scrollbar-thumb:hover { background: rgba(0,229,255,0.25); }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
   .container { grid-template-columns: 1fr; grid-template-rows: auto 50vh auto 1fr; }
-  .side { grid-column: 1; grid-row: 4; border-left: none; border-top: 1px solid rgba(255,255,255,0.04); max-height: 40vh; }
+  .side { grid-column: 1; grid-row: 4; border-left: none; border-top: 1px solid rgba(0,229,255,0.06); max-height: 40vh; }
   .brain-wrap { grid-row: 2; }
   .input-wrap { grid-column: 1; grid-row: 3; flex-wrap: wrap; }
   .stats { font-size: 0.6rem; gap: 8px; }
@@ -84,11 +171,93 @@ body { background: #050510; color: #e2e8f0; font-family: 'Inter', -apple-system,
   <div class="side">
     <div class="side-header">AI Output</div>
     <div class="output-area" id="output"><span class="cursor"></span></div>
+
+    <!-- Top-K Probabilities -->
+    <div id="topkPanel" class="topk-panel">
+      <div class="topk-header">Token Probabilities</div>
+      <div id="topkBars"></div>
+    </div>
+
+    <!-- Confidence Meter -->
+    <div class="confidence-panel">
+      <div class="confidence-label">
+        <span style="color:#a5b4fc">Confidence</span>
+        <span id="confidenceVal" style="color:#64748b">—</span>
+      </div>
+      <div class="confidence-bar-bg">
+        <div id="confidenceBar" class="confidence-bar-fill" style="width:0%;background:#10b981"></div>
+      </div>
+    </div>
+
+    <!-- KV Cache -->
+    <div id="kvPanel" class="kv-panel">
+      <div class="kv-label">
+        <span>KV Cache</span>
+        <span id="kvInfo" style="color:#64748b">0 / 0 pages</span>
+      </div>
+      <div class="kv-bar-bg">
+        <div id="kvBar" class="kv-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- Head Activity Heatmap -->
+    <div class="heatmap-panel">
+      <div class="heatmap-title">Head Activity (32 layers × 32 heads)</div>
+      <div id="heatmapGrid" class="heatmap-grid"></div>
+    </div>
+
+    <!-- Residual Stream Magnitude -->
+    <div class="residual-panel">
+      <div class="residual-title">Residual Stream Norm (per layer)</div>
+      <canvas id="residualChart" class="residual-canvas" width="384" height="32"></canvas>
+    </div>
+
+    <!-- Layer Contribution Delta -->
+    <div class="delta-panel">
+      <div class="delta-title">Layer Contribution Δ (change per layer)</div>
+      <canvas id="deltaChart" class="delta-canvas" width="384" height="32"></canvas>
+    </div>
+
+    <!-- Residual Stream Strip (3072 dims × 32 layers) -->
+    <div class="resstrip-panel">
+      <div class="resstrip-title">
+        <span>Residual Stream (3072 dims × 32 layers)</span>
+        <span id="resStripInfo">— / cyan=+, magenta=−</span>
+      </div>
+      <canvas id="resStripCanvas" class="resstrip-canvas" width="768" height="64"></canvas>
+    </div>
+
+    <!-- Per-Head Attention (Layer 31) -->
+    <div class="attn-panel">
+      <div class="attn-title">
+        <span>Attention Patterns — Layer 31 (32 heads × past tokens)</span>
+        <span id="attnInfo">kv=0</span>
+      </div>
+      <canvas id="attnCanvas" class="attn-canvas" width="256" height="96"></canvas>
+    </div>
+
+    <!-- Logit Lens -->
+    <div class="lens-panel">
+      <div class="lens-title">
+        <span>Logit Lens (what each layer would predict next)</span>
+        <span id="lensInfo">—</span>
+      </div>
+      <div id="lensGrid" class="lens-grid"></div>
+    </div>
+
+    <!-- Raw GPU State (strict mode only) -->
+    <div class="raw-panel" id="rawPanel">
+      <div class="raw-title">Raw GPU State (f32, strict mode)</div>
+      <div class="raw-grid" id="rawGrid"></div>
+      <div class="raw-vec" id="rawVec">residual[0..15]: —</div>
+    </div>
+
     <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>Attention Heads (32)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>FFN Groups (16)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#e2e8f0"></div>Residual Stream</div>
-      <div class="legend-item" style="color:#475569">Real GPU activations</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00e5ff;color:#00e5ff"></div>Attention Heads (32)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f0abfc;color:#f0abfc"></div>FFN Groups (16)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#99f6e4;color:#99f6e4"></div>Residual Stream</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#a78bfa;color:#a78bfa"></div>Attention Beams</div>
+      <div class="legend-item" style="color:#334155">Real GPU activations</div>
     </div>
   </div>
 
@@ -101,6 +270,8 @@ body { background: #050510; color: #e2e8f0; font-family: 'Inter', -apple-system,
     </div>
     <button class="tool-btn" id="soundBtn" title="Toggle sound">🔊</button>
     <button class="tool-btn" id="screenshotBtn" title="Screenshot">📷</button>
+    <button class="tool-btn" id="shareBtn" title="Share link">🔗</button>
+    <button class="tool-btn" id="accurateBtn" title="Accurate mode (no idle breathing, raw magnitudes)">🔬</button>
     <button id="goBtn">Think</button>
   </div>
 </div>

@@ -102,9 +102,21 @@ async function fetchWithCache(
     }
   } catch { /* no Cache API */ }
 
-  // 3. Stream-download with byte progress
-  const resp = await fetch(url)
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${url}`)
+  // 3. Stream-download with byte progress — retry on transient network errors
+  let resp: Response | null = null
+  let lastErr: unknown
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      resp = await fetch(url)
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${url}`)
+      break
+    } catch (e) {
+      lastErr = e
+      resp = null
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)))
+    }
+  }
+  if (!resp) throw lastErr instanceof Error ? lastErr : new Error(`fetch failed: ${url}`)
 
   const reader = resp.body!.getReader()
   const chunks: Uint8Array[] = []
@@ -216,9 +228,23 @@ export async function loadWeights(
   const report = (p: Partial<LoadProgress> & { message: string }) =>
     onProgress?.({ phase: 'downloading', bytesLoaded: 0, bytesTotal: 0, percent: 0, ...p })
 
-  // 1. Fetch manifest
+  // 1. Fetch manifest (with retry for transient network errors)
   report({ phase: 'manifest', message: 'Fetching model manifest...' })
   const manifestUrl = baseUrl + 'ndarray-cache.json'
+  const fetchManifest = async (): Promise<ArrayBuffer> => {
+    let lastErr: unknown
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const resp = await fetch(manifestUrl)
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching manifest`)
+        return await resp.arrayBuffer()
+      } catch (e) {
+        lastErr = e
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)))
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error('manifest fetch failed')
+  }
   let manifestBuf: ArrayBuffer
   try {
     const store = await caches.open(CACHE_NAME)
@@ -226,15 +252,11 @@ export async function loadWeights(
     if (cached) {
       manifestBuf = await cached.arrayBuffer()
     } else {
-      const resp = await fetch(manifestUrl)
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      manifestBuf = await resp.arrayBuffer()
+      manifestBuf = await fetchManifest()
       await store.put(manifestUrl, new Response(manifestBuf.slice(0)))
     }
   } catch {
-    const resp = await fetch(manifestUrl)
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching manifest`)
-    manifestBuf = await resp.arrayBuffer()
+    manifestBuf = await fetchManifest()
   }
 
   const cacheJson: NDArrayCache = JSON.parse(new TextDecoder().decode(manifestBuf))

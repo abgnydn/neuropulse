@@ -109,6 +109,35 @@ export function reduceForResidual(raw: Float32Array): number {
   return Math.tanh(rms * 0.5)
 }
 
+/**
+ * Normalize a raw f32 array to 0..1 by absolute value, with optional contrast.
+ * Used for the high-density "real geometry" path (residual column, FFN slab).
+ *
+ * contrast=true applies a soft pow(.., 0.55) curve to make weak signals visible.
+ * contrast=false leaves magnitudes proportional (the "raw / accurate" toggle).
+ */
+export function normalizeFull(values: Float32Array, contrast = true): Float32Array {
+  let max = 0
+  for (let i = 0; i < values.length; i++) {
+    const a = Math.abs(values[i])
+    if (a > max) max = a
+  }
+  const out = new Float32Array(values.length)
+  if (max > 1e-8) {
+    const inv = 1 / max
+    if (contrast) {
+      for (let i = 0; i < values.length; i++) {
+        out[i] = Math.pow(Math.abs(values[i]) * inv, 0.55)
+      }
+    } else {
+      for (let i = 0; i < values.length; i++) {
+        out[i] = Math.abs(values[i]) * inv
+      }
+    }
+  }
+  return out
+}
+
 /** Generic fallback reducer */
 export function reduceActivations(raw: Float32Array, neuronCount: number): Float32Array {
   const chunkSize = Math.floor(raw.length / neuronCount)

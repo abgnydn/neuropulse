@@ -52,9 +52,27 @@ async function fetchText(url: string): Promise<string> {
     }
   } catch { /* no Cache API */ }
 
-  const resp = await fetch(url)
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching tokenizer.json`)
-  return resp.text()
+  // Retry with exponential backoff — HF CDN can drop connections
+  let lastErr: unknown
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const resp = await fetch(url, { cache: 'force-cache' })
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching tokenizer.json`)
+      const text = await resp.text()
+      // Persist into our cache so next load is instant & offline-safe
+      try {
+        const store = await caches.open('neural-pulse-phi3-weights')
+        await store.put(url, new Response(text, {
+          headers: { 'Content-Type': 'application/json' },
+        }))
+      } catch { /* ok */ }
+      return text
+    } catch (e) {
+      lastErr = e
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)))
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('tokenizer fetch failed')
 }
 
 // ============================================================
@@ -70,6 +88,9 @@ export interface Tokenizer {
 
 // The metaspace character (▁, U+2581) is used as space prefix in SentencePiece
 const METASPACE = '\u2581'
+
+// Shared encoder for UTF-8 byte fallback path.
+const utf8Encoder = new TextEncoder()
 
 export async function loadTokenizer(onProgress?: (msg: string) => void): Promise<Tokenizer> {
   onProgress?.('Loading tokenizer.json...')
@@ -187,10 +208,17 @@ export async function loadTokenizer(onProgress?: (msg: string) => void): Promise
           if (id !== undefined) {
             result.push(id)
           } else {
-            // Unknown token: try byte fallback
-            for (const ch of [...tok]) {
-              const byteId = vocab[ch] ?? vocab['<unk>'] ?? 0
-              result.push(byteId)
+            // Unknown token: LLaMA/Phi-3 byte fallback. The vocab contains
+            // <0x00>..<0xFF> as special tokens; emit the token's UTF-8 bytes
+            // one at a time so e.g. "🚀" → <0xF0><0x9F><0x9A><0x80>. Splitting
+            // by codepoint and looking up e.g. vocab["🚀"] is useless because
+            // only ASCII codepoints exist as single-char vocab entries.
+            const bytes = utf8Encoder.encode(tok)
+            for (let b = 0; b < bytes.length; b++) {
+              const hex = bytes[b].toString(16).toUpperCase().padStart(2, '0')
+              const byteTok = `<0x${hex}>`
+              const byteId = vocab[byteTok]
+              result.push(byteId ?? vocab['<unk>'] ?? 0)
             }
           }
         }
