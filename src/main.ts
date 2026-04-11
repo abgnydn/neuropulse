@@ -748,13 +748,10 @@ function tokenize(text: string): string[] {
 function appendToken(text: string) {
   const cursor = output.querySelector('.cursor')
   const span = document.createElement('span')
-  // In strict mode skip the .new class (which triggers a CSS glow
-  // animation) so the output area has no transient cosmetic state.
-  span.className = viz.cinematicMode ? 'token new' : 'token'
+  span.className = 'token'
   span.textContent = text
   if (cursor) output.insertBefore(span, cursor)
   else output.appendChild(span)
-  if (viz.cinematicMode) setTimeout(() => span.classList.remove('new'), 800)
   output.scrollTop = output.scrollHeight
 }
 
@@ -874,16 +871,14 @@ async function runRealInference(prompt: string) {
               ffnGroups: new Float32Array(16),
               residual: 0.2,
             }
-            // Update heatmap + show attention beams
+            // Update per-head attention heatmap (the heatmap IS the full
+            // attention visualization; we no longer draw decorative beams).
             updateHeatmapLayer(layer, heads)
-            if (layer > 0) {
-              viz.showAttentionBeams(layer - 1, layer, heads)
-            }
             break
           }
           case 5: { // Add+Norm (attn): 3072 → residual + dense column
             const resVal = reduceForResidual(activations)
-            const residualVec = normalizeFull(activations, viz.contrastMode)
+            const residualVec = normalizeFull(activations, false)
             data = {
               attnHeads: new Float32Array(32),
               ffnGroups: reduceForFFNGroups(new Float32Array(0)),
@@ -895,7 +890,7 @@ async function runRealInference(prompt: string) {
             break
           }
           case 6: { // FFN Gate+Up: 8192 → dense FFN slab + 16-group fallback
-            const ffnVec = normalizeFull(activations, viz.contrastMode)
+            const ffnVec = normalizeFull(activations, false)
             data = {
               attnHeads: new Float32Array(32),
               ffnGroups: reduceForFFNGroups(activations),
@@ -906,7 +901,7 @@ async function runRealInference(prompt: string) {
           }
           case 8: { // Add+Norm (FFN): 3072 → residual + dense column
             const resVal = reduceForResidual(activations)
-            const residualVec = normalizeFull(activations, viz.contrastMode)
+            const residualVec = normalizeFull(activations, false)
             data = {
               attnHeads: new Float32Array(32),
               ffnGroups: reduceForFFNGroups(new Float32Array(0)),
@@ -974,8 +969,9 @@ async function runRealInference(prompt: string) {
       viz.setEmbedding(tokenId, embedding)
     },
     onAllAttentionScores(scores, kvLen) {
-      viz.setAllAttentionScores(scores, kvLen)
       // Per-head attention canvas for layer 31 (final decision layer).
+      // The 3D scene no longer draws beams — the DOM heatmap is the full
+      // visualization of the attention tensor.
       updateAttentionHeatmap(scores, kvLen)
     },
     onLayerLogitLens(layer, tokenId, token) {

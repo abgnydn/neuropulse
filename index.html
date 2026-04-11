@@ -113,14 +113,13 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
 .lens-cell .lens-tok { font-size: 0.58rem; color: #e2e8f0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .lens-cell.fresh .lens-tok { color: #67e8f9; text-shadow: 0 0 6px rgba(0,229,255,0.4); }
 
-/* Legend */
-.legend { display: flex; gap: 12px; padding: 10px 18px; border-top: 1px solid rgba(0,229,255,0.06); flex-wrap: wrap; }
-.legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.58rem; color: #475569; font-family: 'JetBrains Mono', monospace; }
-.legend-dot { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 4px currentColor; }
+/* Legend: hidden in strict mode (the only mode) because the color chips
+   don't encode any real state — real role/layer colors are visible in the
+   3D scene itself. */
+.legend { display: none; }
 
-/* Raw values panel (only visible in strict mode) */
-.raw-panel { display: none; padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); font-family: 'JetBrains Mono', monospace; }
-body.strict .raw-panel { display: block; }
+/* Raw values panel — always visible (strict 1:1 mode is permanent). */
+.raw-panel { display: block; padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); font-family: 'JetBrains Mono', monospace; }
 .raw-title { font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
 .raw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 8px; font-size: 0.58rem; color: #94a3b8; }
 .raw-grid .k { color: #64748b; }
@@ -128,9 +127,6 @@ body.strict .raw-panel { display: block; }
 .raw-row { padding: 2px 0; display: flex; justify-content: space-between; }
 .raw-vec { margin-top: 6px; font-size: 0.55rem; color: #94a3b8; line-height: 1.45; word-break: break-all; max-height: 5.2em; overflow: hidden; }
 .raw-vec b { color: #67e8f9; font-weight: normal; }
-
-/* Hide purely decorative legend chips in strict mode */
-body.strict .legend { display: none; }
 
 /* Scrollbar */
 .side::-webkit-scrollbar { width: 4px; }
@@ -271,7 +267,7 @@ body.strict .legend { display: none; }
     <button class="tool-btn" id="soundBtn" title="Toggle sound">🔊</button>
     <button class="tool-btn" id="screenshotBtn" title="Screenshot">📷</button>
     <button class="tool-btn" id="shareBtn" title="Share link">🔗</button>
-    <button class="tool-btn" id="accurateBtn" title="Accurate mode (no idle breathing, raw magnitudes)">🔬</button>
+    <button class="tool-btn" id="accurateBtn" title="Run HF cross-validation suite (prints accuracy report to console)">🧪</button>
     <button id="goBtn">Think</button>
   </div>
 </div>
