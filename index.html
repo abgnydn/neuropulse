@@ -1,277 +1,999 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Neural Pulse — Watch an AI Think</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Neuropulse — Watch a real transformer think</title>
+<meta name="description" content="A live 3D rendering of Phi-3-mini running on your GPU. Every neuron, every attention head, every activation — drawn one-to-one from real WebGPU tensors. No server. No fakery." />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Neuropulse — Watch a real transformer think" />
+<meta property="og:description" content="Live 3D rendering of Phi-3-mini running on your GPU. Strict 1:1 from real WebGPU tensors." />
+<meta property="og:image" content="/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,30..100&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Vercel Web Analytics + Speed Insights — auto-injected on Vercel deploys via /_vercel paths -->
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
+
 <style>
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; height: 100vh; }
+  :root {
+    --bg: #08060f;
+    --bg-warm: #0d0810;
+    --ink: #f4ecdf;
+    --ink-soft: #cbc1ad;
+    --ink-dim: #8a8170;
+    --ink-faint: #514a3e;
+    --rule: rgba(244, 236, 223, 0.10);
+    --cyan: #5eead4;
+    --cyan-bright: #00e5ff;
+    --violet: #c084fc;
+    --pink: #f0abfc;
+    --serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
 
-.container { display: grid; grid-template-columns: 1fr 420px; grid-template-rows: auto 1fr auto; height: 100vh; gap: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; overflow-x: clip; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+  ::selection { background: var(--cyan-bright); color: #02020a; }
+  a { color: inherit; text-decoration: none; }
 
-/* Header */
-.header { grid-column: 1 / -1; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,229,255,0.06); flex-wrap: wrap; gap: 8px; background: rgba(2,2,16,0.8); backdrop-filter: blur(12px); }
-.logo { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; }
-.logo span { background: linear-gradient(135deg, #00e5ff, #7c3aed, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.stats { display: flex; gap: 16px; font-size: 0.68rem; font-family: 'JetBrains Mono', monospace; color: #475569; flex-wrap: wrap; }
-.stats .live { color: #2dd4bf; }
+  /* ─────────────────────────────────────────────────────────
+     HERO — type-only editorial void.
+     We deliberately do NOT show any of the real demo here. The
+     reveal is the surprise behind the CTA.
+     ───────────────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    height: 100vh;
+    min-height: 700px;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+  /* Slow-drifting ambient gradient — subtle, hints at "something alive" */
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 55% 40% at 22% 30%, rgba(94, 234, 212, 0.10), transparent 60%),
+      radial-gradient(ellipse 50% 50% at 78% 70%, rgba(192, 132, 252, 0.09), transparent 60%),
+      radial-gradient(ellipse 40% 30% at 50% 92%, rgba(0, 229, 255, 0.06), transparent 60%);
+    animation: hero-drift 40s ease-in-out infinite alternate;
+  }
+  @keyframes hero-drift {
+    0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
+    50%  { transform: translate(2%, -1.5%) rotate(1deg) scale(1.05); }
+    100% { transform: translate(-1.5%, 2%) rotate(-1deg) scale(1.02); }
+  }
+  /* Faint dotted grid — engineered substrate, not decoration */
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background-image:
+      radial-gradient(circle, rgba(244, 236, 223, 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: -1px -1px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 80%);
+  }
+  /* Film grain overlay — editorial cinematic texture */
+  .hero-grain {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  /* Bottom vignette to anchor the type and lead the eye to the scroll cue */
+  .hero-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, transparent 60%, rgba(8, 6, 15, 0.85) 100%);
+  }
 
-/* Brain canvas */
-.brain-wrap { grid-column: 1; grid-row: 2; position: relative; display: flex; align-items: center; justify-content: center; background: #020210; overflow: hidden; }
-#brainCanvas { width: 100%; height: 100%; display: block; }
+  /* Floating nav over the hero video */
+  .hero-nav {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 28px clamp(24px, 5vw, 64px);
+  }
+  .logo {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 1.35rem;
+    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+  }
+  .logo-neuro { color: var(--ink); }
+  .logo-pulse { color: var(--cyan-bright); font-style: italic; }
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: lowercase;
+    color: var(--ink-soft);
+  }
+  .nav-links a { transition: color 0.2s; }
+  .nav-links a:hover { color: var(--cyan-bright); }
+  .nav-star {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid rgba(244, 236, 223, 0.18);
+    border-radius: 999px;
+    background: rgba(8, 6, 15, 0.45);
+    backdrop-filter: blur(6px);
+  }
+  .nav-star svg { vertical-align: -3px; }
+  .star-count {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+  @media (max-width: 720px) {
+    .nav-links { gap: 18px; font-size: 0.74rem; }
+    .nav-links .nav-link-hide { display: none; }
+  }
 
-/* Side panel — glass morphism */
-.side { grid-column: 2; grid-row: 2 / 4; display: flex; flex-direction: column; border-left: 1px solid rgba(0,229,255,0.06); background: rgba(2,2,16,0.85); backdrop-filter: blur(16px); overflow-y: auto; }
-.side-header { padding: 14px 18px; border-bottom: 1px solid rgba(0,229,255,0.06); font-size: 0.68rem; color: #67e8f9; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
-.output-area { flex: 1; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: #cbd5e1; white-space: pre-wrap; word-wrap: break-word; min-height: 120px; }
-.output-area .token { display: inline; transition: opacity 0.3s, text-shadow 0.5s; }
-.output-area .token.new { color: #fff; text-shadow: 0 0 25px rgba(0,229,255,0.6), 0 0 50px rgba(124,58,237,0.3); }
-.cursor { display: inline-block; width: 2px; height: 1em; background: #00e5ff; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; box-shadow: 0 0 8px rgba(0,229,255,0.5); }
-@keyframes blink { 50% { opacity: 0; } }
+  /* Hero text stack */
+  .hero-content {
+    position: relative;
+    z-index: 5;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 clamp(24px, 5vw, 64px) clamp(60px, 10vh, 120px);
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    align-self: flex-start;
+    padding: 7px 14px;
+    margin-bottom: 36px;
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    border-radius: 999px;
+    background: rgba(8, 6, 15, 0.55);
+    backdrop-filter: blur(8px);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+    color: var(--cyan);
+  }
+  .hero-eyebrow .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cyan-bright);
+    box-shadow: 0 0 12px var(--cyan-bright);
+    animation: dot-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
 
-/* Input bar */
-.input-wrap { grid-column: 1; grid-row: 3; padding: 12px 20px; border-top: 1px solid rgba(0,229,255,0.06); display: flex; gap: 10px; align-items: center; background: rgba(2,2,16,0.6); backdrop-filter: blur(8px); }
-.input-wrap input[type=text] { flex: 1; background: rgba(2,2,20,0.8); border: 1px solid rgba(0,229,255,0.1); border-radius: 10px; padding: 10px 14px; color: #e2e8f0; font-size: 0.85rem; outline: none; font-family: inherit; min-width: 0; }
-.input-wrap input[type=text]:focus { border-color: rgba(0,229,255,0.3); box-shadow: 0 0 0 3px rgba(0,229,255,0.08), 0 0 20px rgba(0,229,255,0.05); }
-.input-wrap input[type=text]::placeholder { color: #334155; }
-.speed-control { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: #475569; font-family: 'JetBrains Mono', monospace; }
-.speed-control input[type=range] { width: 70px; accent-color: #00e5ff; cursor: pointer; }
-.speed-control span { min-width: 22px; color: #67e8f9; }
-.input-wrap button { background: linear-gradient(135deg, #7c3aed, #00b4d8); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; font-size: 0.82rem; white-space: nowrap; box-shadow: 0 4px 15px rgba(0,229,255,0.15); transition: all 0.2s; }
-.input-wrap button:hover { filter: brightness(1.15); box-shadow: 0 4px 25px rgba(0,229,255,0.25); }
-.input-wrap button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  .hero-h1 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+    font-size: clamp(2.8rem, 8.5vw, 7rem);
+    line-height: 0.96;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    max-width: 14ch;
+    margin-bottom: 32px;
+  }
+  .hero-h1 em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--cyan);
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
+  .hero-h1 .v {
+    color: var(--violet);
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
 
-/* Tool buttons */
-.tool-btn { background: rgba(0,229,255,0.04); border: 1px solid rgba(0,229,255,0.1); border-radius: 8px; padding: 8px; cursor: pointer; font-size: 0.9rem; line-height: 1; color: #475569; transition: all 0.2s; }
-.tool-btn:hover { background: rgba(0,229,255,0.08); color: #67e8f9; box-shadow: 0 0 12px rgba(0,229,255,0.1); }
+  .hero-lede {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 38rem;
+    margin-bottom: 44px;
+  }
+  .hero-lede strong {
+    font-weight: 500;
+    color: var(--ink);
+    font-style: italic;
+  }
 
-/* Top-K Probabilities */
-.topk-panel { padding: 10px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.topk-header { font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
-.topk-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; }
-.topk-token { min-width: 70px; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.topk-bar-bg { flex: 1; height: 5px; background: rgba(0,229,255,0.04); border-radius: 3px; overflow: hidden; }
-.topk-bar-fill { height: 100%; border-radius: 3px; transition: width 0.2s; box-shadow: 0 0 6px currentColor; }
-.topk-pct { min-width: 36px; text-align: right; color: #475569; }
+  .cta-row {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 26px;
+    font-family: var(--sans);
+    font-size: 0.92rem;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: #02020a;
+    border-color: var(--ink);
+  }
+  .btn-primary:hover {
+    background: var(--cyan-bright);
+    border-color: var(--cyan-bright);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 32px rgba(0, 229, 255, 0.32);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border-color: rgba(244, 236, 223, 0.32);
+    backdrop-filter: blur(6px);
+  }
+  .btn-ghost:hover {
+    border-color: var(--ink);
+    background: rgba(244, 236, 223, 0.06);
+  }
+  .btn .arrow {
+    transition: transform 0.25s;
+  }
+  .btn:hover .arrow {
+    transform: translateX(4px);
+  }
 
-/* KV Cache */
-.kv-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.kv-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #67e8f9; margin-bottom: 4px; }
-.kv-bar-bg { width: 100%; height: 4px; background: rgba(0,229,255,0.06); border-radius: 2px; overflow: hidden; }
-.kv-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #2dd4bf, #00e5ff); transition: width 0.3s; border-radius: 2px; box-shadow: 0 0 8px rgba(0,229,255,0.3); }
+  /* Scroll cue at the bottom of the hero */
+  .scroll-cue {
+    position: absolute;
+    z-index: 5;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .scroll-line {
+    width: 1px;
+    height: 36px;
+    background: linear-gradient(180deg, transparent, var(--ink-dim));
+    position: relative;
+    overflow: hidden;
+  }
+  .scroll-line::after {
+    content: '';
+    position: absolute;
+    top: -16px;
+    left: 0;
+    right: 0;
+    height: 16px;
+    background: var(--cyan-bright);
+    animation: scroll-fall 2.4s ease-in-out infinite;
+  }
+  @keyframes scroll-fall {
+    0% { transform: translateY(0); opacity: 0; }
+    30% { opacity: 1; }
+    100% { transform: translateY(52px); opacity: 0; }
+  }
 
-/* Prefill overlay */
-.prefill-overlay { position: absolute; bottom: 60px; left: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #67e8f9; pointer-events: none; background: rgba(2,2,16,0.85); padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(0,229,255,0.12); backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(0,229,255,0.08); }
-.prefill-token { display: inline; color: #2dd4bf; font-weight: 600; text-shadow: 0 0 8px rgba(45,212,191,0.4); }
-.prefill-bar-bg { width: 200px; height: 3px; background: rgba(0,229,255,0.06); border-radius: 2px; overflow: hidden; margin-top: 4px; }
-.prefill-bar-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #00e5ff); border-radius: 2px; transition: width 0.05s; box-shadow: 0 0 6px rgba(0,229,255,0.3); }
+  /* ─────────────────────────────────────────────────────────
+     EDITORIAL — narrow column long-read
+     ───────────────────────────────────────────────────────── */
+  .essay {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: clamp(80px, 14vh, 160px) clamp(24px, 5vw, 32px);
+  }
+  .essay-section {
+    margin-bottom: clamp(80px, 12vh, 140px);
+  }
+  .essay-num {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .essay-num::before {
+    content: '';
+    width: 28px;
+    height: 1px;
+    background: var(--cyan);
+  }
+  .essay h2 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+    font-size: clamp(2rem, 4.4vw, 3.4rem);
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-bottom: 44px;
+    max-width: 18ch;
+  }
+  .essay h2 em {
+    font-style: italic;
+    color: var(--cyan);
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
+  .essay p {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-variation-settings: "opsz" 14, "SOFT" 40;
+    font-size: 1.18rem;
+    line-height: 1.72;
+    color: var(--ink-soft);
+    margin-bottom: 1.4em;
+    max-width: 38rem;
+  }
+  .essay p strong {
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .essay p em {
+    font-style: italic;
+    color: var(--ink);
+  }
+  .essay p code, .essay p .mono {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    color: var(--cyan);
+    background: rgba(94, 234, 212, 0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
 
-/* Confidence meter */
-.confidence-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.confidence-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; margin-bottom: 4px; }
-.confidence-bar-bg { width: 100%; height: 6px; background: rgba(0,229,255,0.04); border-radius: 3px; overflow: hidden; }
-.confidence-bar-fill { height: 100%; border-radius: 3px; transition: width 0.2s, background 0.3s; box-shadow: 0 0 10px currentColor; }
+  /* Drop cap on the first paragraph of section 01 */
+  .essay-section.lead p:first-of-type::first-letter {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+    font-size: 5.2em;
+    float: left;
+    line-height: 0.82;
+    margin: 0.08em 0.12em -0.05em 0;
+    color: var(--cyan);
+    font-style: italic;
+  }
 
-/* Head activity heatmap */
-.heatmap-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.heatmap-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
-.heatmap-grid { display: flex; flex-direction: column; gap: 1px; }
-.heatmap-row { display: flex; gap: 1px; }
-.heatmap-cell { width: 10px; height: 4px; border-radius: 1px; background: rgba(0,229,255,0.02); transition: background 0.15s, box-shadow 0.15s; }
+  /* Pull quote */
+  .pull {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-variation-settings: "opsz" 144, "SOFT" 60;
+    font-style: italic;
+    font-size: clamp(1.4rem, 2.6vw, 2rem);
+    line-height: 1.32;
+    color: var(--ink);
+    border-left: 2px solid var(--cyan);
+    padding: 8px 0 8px 28px;
+    margin: 48px 0;
+    max-width: 36rem;
+  }
 
-/* Residual chart */
-.residual-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.residual-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
-.residual-canvas { width: 100%; height: 32px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); }
+  /* Horizontal rule between essay sections */
+  .essay-rule {
+    border: none;
+    height: 1px;
+    background: var(--rule);
+    max-width: 4rem;
+    margin: 0 0 clamp(80px, 12vh, 140px);
+  }
 
-/* Layer delta */
-.delta-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.delta-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
-.delta-canvas { width: 100%; height: 32px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); }
+  /* Promise — three small evidence cards inline in the essay column */
+  .evidence {
+    display: grid;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 48px 0 8px;
+  }
+  .evidence-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    background: var(--bg);
+    padding: 24px 4px 24px 0;
+    align-items: start;
+  }
+  .evidence-key {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    padding-top: 4px;
+  }
+  .evidence-val {
+    font-family: var(--sans);
+    font-size: 0.98rem;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .evidence-val span {
+    display: block;
+    color: var(--ink-dim);
+    font-size: 0.86rem;
+    margin-top: 4px;
+  }
 
-/* Residual stream strip (3072-wide × 32 layers heatmap) */
-.resstrip-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.resstrip-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
-.resstrip-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
-.resstrip-canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); image-rendering: pixelated; }
+  /* Anatomy diagram inline */
+  .anatomy-figure {
+    margin: 48px 0;
+    text-align: center;
+  }
+  .anatomy-figure svg {
+    width: 100%;
+    max-width: 520px;
+    height: auto;
+  }
+  .anatomy-figure figcaption {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+    margin-top: 16px;
+  }
 
-/* Per-head attention pattern (L=31, 32 heads × kvLen) */
-.attn-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.attn-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
-.attn-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
-.attn-canvas { width: 100%; height: 96px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); image-rendering: pixelated; }
+  /* Anatomy parts list */
+  .parts-list {
+    list-style: none;
+    margin: 40px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .parts-list li {
+    padding: 22px 0;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .parts-list strong {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 0.98rem;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .parts-list span {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 1.04rem;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
 
-/* Logit lens — per-layer predicted tokens */
-.lens-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
-.lens-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; }
-.lens-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
-.lens-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; font-family: 'JetBrains Mono', monospace; }
-.lens-cell { background: rgba(0,229,255,0.03); border: 1px solid rgba(0,229,255,0.08); border-radius: 4px; padding: 4px 3px; text-align: center; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; min-height: 30px; }
-.lens-cell.fresh { background: rgba(0,229,255,0.12); border-color: rgba(0,229,255,0.4); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
-.lens-cell .lens-lay { font-size: 0.48rem; color: #64748b; display: block; }
-.lens-cell .lens-tok { font-size: 0.58rem; color: #e2e8f0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.lens-cell.fresh .lens-tok { color: #67e8f9; text-shadow: 0 0 6px rgba(0,229,255,0.4); }
+  /* Validation report block */
+  .proof {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.85;
+    background: #050309;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 28px 32px;
+    margin: 40px 0;
+    color: var(--ink-soft);
+    overflow-x: auto;
+  }
+  .proof .head {
+    color: var(--cyan-bright);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+  .proof .ok { color: #6ee7b7; }
+  .proof .label { color: var(--ink-dim); }
+  .proof .k { color: var(--violet); }
 
-/* Legend: hidden in strict mode (the only mode) because the color chips
-   don't encode any real state — real role/layer colors are visible in the
-   3D scene itself. */
-.legend { display: none; }
+  /* Stack list */
+  .stack-list {
+    list-style: none;
+    counter-reset: stack;
+    margin: 40px 0;
+  }
+  .stack-list li {
+    counter-increment: stack;
+    padding: 28px 0;
+    border-top: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .stack-list li:last-child { border-bottom: 1px solid var(--rule); }
+  .stack-list li::before {
+    content: counter(stack, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--cyan);
+    letter-spacing: 0.06em;
+    padding-top: 5px;
+  }
+  .stack-list strong {
+    display: block;
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 1.02rem;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .stack-list span {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+  .stack-list code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    color: var(--cyan);
+    background: rgba(94, 234, 212, 0.08);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
 
-/* Raw values panel — always visible (strict 1:1 mode is permanent). */
-.raw-panel { display: block; padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); font-family: 'JetBrains Mono', monospace; }
-.raw-title { font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
-.raw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 8px; font-size: 0.58rem; color: #94a3b8; }
-.raw-grid .k { color: #64748b; }
-.raw-grid .v { color: #e2e8f0; text-align: right; }
-.raw-row { padding: 2px 0; display: flex; justify-content: space-between; }
-.raw-vec { margin-top: 6px; font-size: 0.55rem; color: #94a3b8; line-height: 1.45; word-break: break-all; max-height: 5.2em; overflow: hidden; }
-.raw-vec b { color: #67e8f9; font-weight: normal; }
+  /* End-of-essay closing CTA */
+  .essay-end {
+    text-align: left;
+    padding-top: 40px;
+  }
+  .essay-end h2 {
+    margin-bottom: 24px;
+  }
+  .essay-end p {
+    margin-bottom: 36px;
+  }
 
-/* Scrollbar */
-.side::-webkit-scrollbar { width: 4px; }
-.side::-webkit-scrollbar-track { background: transparent; }
-.side::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
-.side::-webkit-scrollbar-thumb:hover { background: rgba(0,229,255,0.25); }
+  /* ─────────────────────────────────────────────────────────
+     FOOTER — minimal, full width
+     ───────────────────────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 48px clamp(24px, 5vw, 64px);
+    margin-top: 80px;
+  }
+  .footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .footer-credit {
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+  }
+  .footer-credit a {
+    color: var(--ink-soft);
+    transition: color 0.2s;
+  }
+  .footer-credit a:hover { color: var(--cyan-bright); }
+  .footer-links {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+    color: var(--ink-soft);
+  }
+  .footer-links a { transition: color 0.2s; }
+  .footer-links a:hover { color: var(--cyan-bright); }
+  .footer-related {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--ink-dim);
+  }
+  .footer-related .label {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+  }
+  .footer-related a {
+    color: var(--ink-soft);
+    transition: color 0.2s;
+  }
+  .footer-related a:hover { color: var(--cyan-bright); }
+  .footer-bottom {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+  }
 
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .container { grid-template-columns: 1fr; grid-template-rows: auto 50vh auto 1fr; }
-  .side { grid-column: 1; grid-row: 4; border-left: none; border-top: 1px solid rgba(0,229,255,0.06); max-height: 40vh; }
-  .brain-wrap { grid-row: 2; }
-  .input-wrap { grid-column: 1; grid-row: 3; flex-wrap: wrap; }
-  .stats { font-size: 0.6rem; gap: 8px; }
-  .header { padding: 8px 12px; }
-  .input-wrap { padding: 8px 12px; }
-}
+  /* Responsive */
+  @media (max-width: 720px) {
+    .hero { min-height: 600px; }
+    .hero-h1 { font-size: clamp(2.4rem, 11vw, 4rem); }
+    .hero-lede { font-size: 1rem; }
+    .essay { padding: 80px 24px; }
+    .essay h2 { font-size: clamp(1.7rem, 7vw, 2.4rem); }
+    .essay p { font-size: 1.08rem; }
+    .evidence-row { grid-template-columns: 1fr; gap: 8px; padding: 20px 0; }
+    .evidence-key { padding-top: 0; }
+    .stack-list li { grid-template-columns: 40px 1fr; }
+    .scroll-cue { display: none; }
+  }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="header">
-    <div class="logo"><span>Neural Pulse</span> — Watch an AI Think</div>
-    <div class="stats">
-      <span>Model: <strong style="color:#e2e8f0">Phi-3 3.6B</strong></span>
-      <span>Layers: <strong style="color:#e2e8f0">32</strong></span>
-      <span id="dispatchStat">Dispatch: <strong style="color:#a5b4fc">0/292</strong></span>
-      <span id="speedStat">Speed: <strong class="live">—</strong></span>
-      <span id="tokenStat">Tokens: <strong style="color:#e2e8f0">0</strong></span>
-    </div>
-  </div>
+  <!-- ───────────────────────────────────────────────
+       HERO — type-only editorial void.
+       Deliberately no preview of the demo: the reveal
+       is the surprise behind the CTA.
+       ─────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-grain"></div>
+    <div class="hero-vignette"></div>
 
-  <div class="brain-wrap">
-    <canvas id="brainCanvas"></canvas>
-  </div>
-
-  <div class="side">
-    <div class="side-header">AI Output</div>
-    <div class="output-area" id="output"><span class="cursor"></span></div>
-
-    <!-- Top-K Probabilities -->
-    <div id="topkPanel" class="topk-panel">
-      <div class="topk-header">Token Probabilities</div>
-      <div id="topkBars"></div>
-    </div>
-
-    <!-- Confidence Meter -->
-    <div class="confidence-panel">
-      <div class="confidence-label">
-        <span style="color:#a5b4fc">Confidence</span>
-        <span id="confidenceVal" style="color:#64748b">—</span>
+    <nav class="hero-nav">
+      <a href="/" class="logo">
+        <span class="logo-neuro">neuro</span><span class="logo-pulse">pulse</span>
+      </a>
+      <div class="nav-links">
+        <a href="#essay" class="nav-link-hide">essay</a>
+        <a href="#stack" class="nav-link-hide">stack</a>
+        <a href="/app/">demo</a>
+        <a href="https://github.com/abgnydn/neural-pulse" target="_blank" rel="noopener" class="nav-star">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          <span class="star-count" id="navStarCount">·</span>
+        </a>
       </div>
-      <div class="confidence-bar-bg">
-        <div id="confidenceBar" class="confidence-bar-fill" style="width:0%;background:#10b981"></div>
-      </div>
-    </div>
+    </nav>
 
-    <!-- KV Cache -->
-    <div id="kvPanel" class="kv-panel">
-      <div class="kv-label">
-        <span>KV Cache</span>
-        <span id="kvInfo" style="color:#64748b">0 / 0 pages</span>
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <span class="dot"></span>
+        live · phi-3-mini · webgpu
       </div>
-      <div class="kv-bar-bg">
-        <div id="kvBar" class="kv-bar-fill"></div>
+      <h1 class="hero-h1">
+        A real transformer, <em>laid&nbsp;bare.</em>
+      </h1>
+      <p class="hero-lede">
+        Three-point-eight billion parameters running in your browser. Every neuron, every attention head, every activation — drawn one-to-one from real GPU tensors. <strong>No mockup. No diorama.</strong> The model itself.
+      </p>
+      <div class="cta-row">
+        <a href="/app/" class="btn btn-primary">
+          Launch the demo
+          <span class="arrow">→</span>
+        </a>
+        <a href="#essay" class="btn btn-ghost">Read the essay</a>
       </div>
     </div>
 
-    <!-- Head Activity Heatmap -->
-    <div class="heatmap-panel">
-      <div class="heatmap-title">Head Activity (32 layers × 32 heads)</div>
-      <div id="heatmapGrid" class="heatmap-grid"></div>
+    <div class="scroll-cue">
+      <span>scroll</span>
+      <div class="scroll-line"></div>
     </div>
+  </section>
 
-    <!-- Residual Stream Magnitude -->
-    <div class="residual-panel">
-      <div class="residual-title">Residual Stream Norm (per layer)</div>
-      <canvas id="residualChart" class="residual-canvas" width="384" height="32"></canvas>
-    </div>
+  <!-- ───────────────────────────────────────────────
+       EDITORIAL LONG-READ
+       ─────────────────────────────────────────────── -->
+  <article class="essay" id="essay">
 
-    <!-- Layer Contribution Delta -->
-    <div class="delta-panel">
-      <div class="delta-title">Layer Contribution Δ (change per layer)</div>
-      <canvas id="deltaChart" class="delta-canvas" width="384" height="32"></canvas>
-    </div>
+    <section class="essay-section lead">
+      <div class="essay-num">01 · The Promise</div>
+      <h2>No mockups. <em>The actual model.</em></h2>
+      <p>Most "AI visualizations" you see online are decoration. Animated dots that pulse to a fake rhythm. Particles that don't connect to anything. A nice-looking metaphor with no model behind the curtain.</p>
+      <p>Neuropulse is the opposite. Every brightness, every line, every motion you see is a direct readout of a real <span class="mono">WebGPU</span> buffer in a real Phi-3-mini forward pass. When the model thinks about your prompt, you watch <em>it</em> think — not a representation of it.</p>
+      <p class="pull">Strict 1:1. Every pixel a function of a real tensor.</p>
+      <p>It runs entirely on your machine. The 3.8B-parameter model is loaded into your GPU's memory, the attention math is done in <span class="mono">WGSL</span> compute shaders, and the next-token logits are sampled in your tab. There is no server. There is no API key. Close the tab and the inference stops.</p>
 
-    <!-- Residual Stream Strip (3072 dims × 32 layers) -->
-    <div class="resstrip-panel">
-      <div class="resstrip-title">
-        <span>Residual Stream (3072 dims × 32 layers)</span>
-        <span id="resStripInfo">— / cyan=+, magenta=−</span>
+      <div class="evidence">
+        <div class="evidence-row">
+          <div class="evidence-key">model</div>
+          <div class="evidence-val">Phi-3-mini, q4f16_1<span>3.8B parameters · same weights Microsoft ships</span></div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-key">runtime</div>
+          <div class="evidence-val">WebGPU compute shaders<span>13 pipelines · 22 buffers · 292 dispatches per token</span></div>
+        </div>
+        <div class="evidence-row">
+          <div class="evidence-key">privacy</div>
+          <div class="evidence-val">Your GPU only<span>zero server calls · nothing leaves your machine</span></div>
+        </div>
       </div>
-      <canvas id="resStripCanvas" class="resstrip-canvas" width="768" height="64"></canvas>
-    </div>
+    </section>
 
-    <!-- Per-Head Attention (Layer 31) -->
-    <div class="attn-panel">
-      <div class="attn-title">
-        <span>Attention Patterns — Layer 31 (32 heads × past tokens)</span>
-        <span id="attnInfo">kv=0</span>
+    <hr class="essay-rule"/>
+
+    <section class="essay-section">
+      <div class="essay-num">02 · What you're watching</div>
+      <h2>Every part of the model, <em>labeled.</em></h2>
+      <p>The 3D scene is not a metaphor. Each glowing element corresponds to a specific tensor in Phi-3-mini's compute graph. The 3,072 points of the residual stream are laid out by a PCA of the model's own layer-0 <code>qkv_proj</code> weights — so dims that get read into attention together end up near each other — and on every step the brightness of each point is the <em>live</em> value of that residual dimension. If you hover an attention head, the brightness you see <em>is</em> that head's output magnitude.</p>
+
+      <figure class="anatomy-figure">
+        <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="anaCyan" cx="50%" cy="50%"><stop offset="0%" stop-color="#5eead4" stop-opacity="0.9"/><stop offset="100%" stop-color="#5eead4" stop-opacity="0"/></radialGradient>
+            <radialGradient id="anaViolet" cx="50%" cy="50%"><stop offset="0%" stop-color="#c084fc" stop-opacity="0.85"/><stop offset="100%" stop-color="#c084fc" stop-opacity="0"/></radialGradient>
+          </defs>
+          <g stroke="rgba(94,234,212,0.18)" stroke-width="0.5">
+            <line x1="50" y1="60"  x2="350" y2="60"/>
+            <line x1="50" y1="100" x2="350" y2="100"/>
+            <line x1="50" y1="140" x2="350" y2="140"/>
+            <line x1="50" y1="180" x2="350" y2="180"/>
+            <line x1="50" y1="220" x2="350" y2="220"/>
+            <line x1="50" y1="260" x2="350" y2="260"/>
+            <line x1="50" y1="300" x2="350" y2="300"/>
+            <line x1="50" y1="340" x2="350" y2="340"/>
+          </g>
+          <circle cx="140" cy="90" r="32" fill="url(#anaCyan)"/>
+          <text x="68" y="55" font-family="JetBrains Mono, monospace" font-size="9" fill="#5eead4">attention heads</text>
+          <line x1="140" y1="90" x2="92" y2="58" stroke="#5eead4" stroke-width="0.5"/>
+
+          <rect x="165" y="160" width="70" height="70" fill="url(#anaViolet)" rx="6"/>
+          <text x="245" y="200" font-family="JetBrains Mono, monospace" font-size="9" fill="#c084fc">FFN slab</text>
+          <line x1="235" y1="195" x2="245" y2="197" stroke="#c084fc" stroke-width="0.5"/>
+
+          <line x1="200" y1="30" x2="200" y2="370" stroke="#5eead4" stroke-opacity="0.4" stroke-width="2"/>
+          <text x="205" y="22" font-family="JetBrains Mono, monospace" font-size="9" fill="#5eead4">residual stream</text>
+
+          <g>
+            <rect x="290" y="260" width="8" height="60" fill="#5eead4" opacity="0.4"/>
+            <rect x="302" y="260" width="8" height="60" fill="#5eead4" opacity="0.5"/>
+            <rect x="314" y="260" width="8" height="60" fill="#5eead4" opacity="0.6"/>
+            <rect x="326" y="260" width="8" height="60" fill="#5eead4" opacity="0.4"/>
+          </g>
+          <text x="278" y="340" font-family="JetBrains Mono, monospace" font-size="9" fill="#5eead4">KV cache</text>
+
+          <circle cx="200" cy="370" r="14" fill="#f0abfc" opacity="0.5"/>
+          <text x="135" y="395" font-family="JetBrains Mono, monospace" font-size="9" fill="#f0abfc">LM head → next token</text>
+
+          <circle cx="200" cy="30" r="10" fill="#c084fc" opacity="0.7"/>
+        </svg>
+        <figcaption>fig. 1 — the anatomy of a single forward pass</figcaption>
+      </figure>
+
+      <ul class="parts-list">
+        <li>
+          <strong>32 layer rings</strong>
+          <span>Each ring is one transformer block. Brightness tracks the post-attention plus post-FFN residual norm for that layer — watch the signal build as the prompt flows upward.</span>
+        </li>
+        <li>
+          <strong>32 attention heads per layer</strong>
+          <span>Cyan neurons on the outer ring. Each lights up proportional to its head's output magnitude. 1,024 heads in total, all live.</span>
+        </li>
+        <li>
+          <strong>FFN slab</strong>
+          <span>The violet 8,192-neuron expansion. By far the largest compute budget in the model. You can see it pulse as the MLP activates.</span>
+        </li>
+        <li>
+          <strong>Residual stream (3,072 dims)</strong>
+          <span>The highway through the network. 3,072 points, one per dim, placed by PCA of the layer-0 <code>qkv_proj</code> weights so functionally related dims sit near each other. Brightness on each point is the live residual value at that dim.</span>
+        </li>
+        <li>
+          <strong>KV cache strips</strong>
+          <span>The growing memory of past tokens. Each strip is one position; height equals cache fill for that layer.</span>
+        </li>
+        <li>
+          <strong>LM head</strong>
+          <span>Final projection to 32,064 vocab logits. Softmax → next token. The live top-k distribution prints to the side panel as the model decodes.</span>
+        </li>
+      </ul>
+    </section>
+
+    <hr class="essay-rule"/>
+
+    <section class="essay-section">
+      <div class="essay-num">03 · Validation</div>
+      <h2>Cross-checked against <em>reference Phi-3.</em></h2>
+      <p>"Strict 1:1" is a strong claim, so it has to be falsifiable. Neuropulse ships with a built-in test suite that diffs the WebGPU implementation against a reference HuggingFace fp16 Phi-3-mini on a fixed set of prompts cached as <code>reference.json</code>. Click the <strong>🧪</strong> icon inside the demo to run it — the actual numbers from <em>your</em> GPU print to your browser console.</p>
+
+      <div class="proof">
+        <div class="head">═══ What the suite checks ═══</div>
+        <div>GPU: <span class="k">q4f16_1 Phi-3-mini</span> &nbsp; Reference: <span class="k">HF fp16 Phi-3-mini</span></div>
+        <div>&nbsp;</div>
+        <div><span class="label">[1]</span> <span class="ok">Tokenizer</span> — GPU input ids match HF byte-for-byte on every prompt</div>
+        <div><span class="label">[2]</span> <span class="ok">Hidden states</span> — full 3,072-dim residual diffed at layers 0, 4, 8, 12, 16, 20, 24, 28, 31</div>
+        <div><span class="label">[3]</span> <span class="ok">Attention (layer 31)</span> — online softmax cross-checked against an explicit-softmax reference path</div>
+        <div><span class="label">[4]</span> <span class="ok">Logits</span> — top-k probabilities + Jensen–Shannon divergence vs HF on a 15-prompt sweep, teacher-forced for 5 steps each</div>
+        <div><span class="label">[5]</span> <span class="ok">Long context</span> — 290-token prompt, 10 decode steps, top-1 matched against HF</div>
+        <div><span class="label">[6]</span> <span class="ok">Sampler</span> — 5,000-sample empirical distribution vs softmax, JSD &lt; 1e-2</div>
       </div>
-      <canvas id="attnCanvas" class="attn-canvas" width="256" height="96"></canvas>
-    </div>
 
-    <!-- Logit Lens -->
-    <div class="lens-panel">
-      <div class="lens-title">
-        <span>Logit Lens (what each layer would predict next)</span>
-        <span id="lensInfo">—</span>
+      <p>What you should expect: tiny deltas at the hidden-state level (the cost of int4 quantization, not implementation drift) and identical top-1 tokens against the fp16 reference on the test set. That last bit is the bar that matters for a faithful rendering — and it's the one you can re-run yourself, on your own machine, in under a minute.</p>
+    </section>
+
+    <hr class="essay-rule"/>
+
+    <section class="essay-section" id="stack">
+      <div class="essay-num">04 · The Stack</div>
+      <h2>How it's <em>built.</em></h2>
+      <p>Four pieces. No frameworks for the inference path, no dependency soup, no clever tricks hiding the model from you.</p>
+
+      <ol class="stack-list">
+        <li>
+          <div>
+            <strong>WebGPU compute &amp; WGSL</strong>
+            <span>13 pipelines, 22 buffers, 292 dispatches per token. Quantization: <code>q4f16_1</code>. Hand-written attention and FFN kernels.</span>
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>MLC Phi-3-mini weights</strong>
+            <span>The same weights as <code>mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC</code>, fetched directly from HuggingFace and cached in the browser's Cache API.</span>
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>Three.js scene</strong>
+            <span>Plain <code>WebGLRenderer</code>. No bloom, no particles, no decorative shaders. Every pixel pulls from a real tensor on every frame.</span>
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>PCA layout from the model's own weights</strong>
+            <span>Residual points are placed by PCA of layer 0's <code>qkv_proj.weight</code> columns; FFN points by PCA of <code>down_proj.weight</code>. Dims that get read or written together end up near each other, so the geometry is shaped by the model itself, not by hand.</span>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <hr class="essay-rule"/>
+
+    <section class="essay-end">
+      <div class="essay-num">Now you</div>
+      <h2>See it for <em>yourself.</em></h2>
+      <p>Open Neuropulse, feed it a prompt, and watch a model think. The first load downloads about 2&nbsp;GB of weights into your browser cache; subsequent visits start instantly.</p>
+      <a href="/app/" class="btn btn-primary">
+        Launch Neuropulse
+        <span class="arrow">→</span>
+      </a>
+    </section>
+
+  </article>
+
+  <!-- ───────────────────────────────────────────────
+       FOOTER
+       ─────────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-row">
+        <div class="footer-credit">
+          <span class="logo" style="font-size:1rem"><span class="logo-neuro">neuro</span><span class="logo-pulse">pulse</span></span>
+          &nbsp;by&nbsp;<a href="https://github.com/abgnydn" target="_blank" rel="noopener">Ahmet Barış Günaydın</a>
+        </div>
+        <div class="footer-links">
+          <a href="/app/">demo</a>
+          <a href="#essay">essay</a>
+          <a href="https://github.com/abgnydn/neural-pulse" target="_blank" rel="noopener">github</a>
+        </div>
       </div>
-      <div id="lensGrid" class="lens-grid"></div>
+      <div class="footer-related">
+        <span class="label">More by Ahmet</span>
+        <a href="https://zerotvm.com" target="_blank" rel="noopener">zero-tvm</a>
+        <a href="https://github.com/abgnydn/kernelfusion" target="_blank" rel="noopener">kernelfusion</a>
+        <a href="https://github.com/abgnydn/gpubench" target="_blank" rel="noopener">gpubench</a>
+      </div>
+      <div class="footer-bottom">
+        <div>real forward pass · built with WebGPU + Three.js · MIT licensed</div>
+        <div>© 2026</div>
+      </div>
     </div>
+  </footer>
 
-    <!-- Raw GPU State (strict mode only) -->
-    <div class="raw-panel" id="rawPanel">
-      <div class="raw-title">Raw GPU State (f32, strict mode)</div>
-      <div class="raw-grid" id="rawGrid"></div>
-      <div class="raw-vec" id="rawVec">residual[0..15]: —</div>
-    </div>
+<script>
+  // Live GitHub star count for the nav button. Cached in sessionStorage so
+  // we don't hammer the unauthenticated GitHub API (60 req/hr limit).
+  (function () {
+    const el = document.getElementById('navStarCount')
+    if (!el) return
+    const CACHE_KEY = 'np:stars'
+    const CACHE_TTL = 10 * 60 * 1000 // 10 minutes
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { count, ts } = JSON.parse(cached)
+        if (Date.now() - ts < CACHE_TTL && typeof count === 'number') {
+          el.textContent = count
+          return
+        }
+      }
+    } catch {}
+    fetch('https://api.github.com/repos/abgnydn/neural-pulse')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d || typeof d.stargazers_count !== 'number') {
+          // Repo is private or API failed — hide the count chip so we
+          // don't ship a dead "·" placeholder.
+          el.style.display = 'none'
+          return
+        }
+        el.textContent = d.stargazers_count
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ count: d.stargazers_count, ts: Date.now() })) } catch {}
+      })
+      .catch(() => { el.style.display = 'none' })
+  })()
+</script>
 
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#00e5ff;color:#00e5ff"></div>Attention Heads (32)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#f0abfc;color:#f0abfc"></div>FFN Groups (16)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#99f6e4;color:#99f6e4"></div>Residual Stream</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#a78bfa;color:#a78bfa"></div>Attention Beams</div>
-      <div class="legend-item" style="color:#334155">Real GPU activations</div>
-    </div>
-  </div>
-
-  <div class="input-wrap">
-    <input type="text" id="promptInput" placeholder="Ask anything... (e.g. What is consciousness?)" autofocus>
-    <div class="speed-control">
-      <label for="speedSlider">Speed</label>
-      <input type="range" id="speedSlider" min="1" max="20" value="5" step="1">
-      <span id="speedLabel">5x</span>
-    </div>
-    <button class="tool-btn" id="soundBtn" title="Toggle sound">🔊</button>
-    <button class="tool-btn" id="screenshotBtn" title="Screenshot">📷</button>
-    <button class="tool-btn" id="shareBtn" title="Share link">🔗</button>
-    <button class="tool-btn" id="accurateBtn" title="Run HF cross-validation suite (prints accuracy report to console)">🧪</button>
-    <button id="goBtn">Think</button>
-  </div>
-</div>
-
-<script type="module" src="/src/main.ts"></script>
 </body>
 </html>

@@ -6,3 +6,4 @@ dist/
 tools/.venv/
 tools/pca-layout.json
 tools/reference.json
+.vercel

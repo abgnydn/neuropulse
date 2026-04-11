@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neuropulse — A real forward pass, in your browser</title>
+<meta name="description" content="Watch a real Phi-3-mini transformer run, pulse by pulse, on your own GPU. Every layer, head, and activation rendered 1:1 from live WebGPU tensors.">
+<meta property="og:title" content="Neuropulse — A real forward pass, in your browser">
+<meta property="og:description" content="Watch a real Phi-3-mini transformer run on your GPU. Every layer, head, and activation rendered 1:1 from live WebGPU tensors.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<!-- Vercel Web Analytics + Speed Insights — auto-injected on Vercel deploys via /_vercel paths -->
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
+<script>
+// Capture-mode RAF polyfill: when running headlessly (?capture=1), the
+// browser pauses requestAnimationFrame because the tab has no compositor
+// frames. Replace RAF with a setTimeout-based pump so the Three.js render
+// loop keeps running and the canvas can be sampled with toDataURL().
+// Gated by query string so it has zero effect on normal users.
+if (new URLSearchParams(location.search).has('capture')) {
+  const _orig = window.requestAnimationFrame.bind(window);
+  let _id = 0;
+  const _cbs = new Map();
+  window.requestAnimationFrame = function (cb) {
+    const id = ++_id;
+    const t = setTimeout(() => { _cbs.delete(id); cb(performance.now()); }, 16);
+    _cbs.set(id, t);
+    return id;
+  };
+  window.cancelAnimationFrame = function (id) {
+    const t = _cbs.get(id);
+    if (t) { clearTimeout(t); _cbs.delete(id); }
+  };
+}
+</script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; height: 100vh; }
+
+.container { display: grid; grid-template-columns: 1fr 420px; grid-template-rows: auto 1fr auto; height: 100vh; gap: 0; }
+
+/* Header */
+.header { grid-column: 1 / -1; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,229,255,0.06); flex-wrap: wrap; gap: 8px; background: rgba(2,2,16,0.8); backdrop-filter: blur(12px); }
+.logo { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; font-family: 'JetBrains Mono', ui-monospace, monospace; display: flex; align-items: baseline; gap: 8px; }
+.logo-link { text-decoration: none; display: inline-flex; align-items: baseline; }
+.logo-link:hover .logo-neuro { filter: brightness(1.25); }
+.logo-link:hover .logo-pulse { filter: brightness(1.25); }
+.logo-neuro { color: #00e5ff; text-shadow: 0 0 20px rgba(0,229,255,0.3); }
+.logo-pulse { color: #c084fc; text-shadow: 0 0 20px rgba(192,132,252,0.3); }
+.logo-sep { color: #334155; font-weight: 400; }
+.logo-sub { color: #64748b; font-weight: 400; font-size: 0.82rem; letter-spacing: 0; }
+.stats { display: flex; gap: 16px; font-size: 0.68rem; font-family: 'JetBrains Mono', monospace; color: #475569; flex-wrap: wrap; align-items: center; }
+.stats .live { color: #2dd4bf; }
+.header-credit { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: #475569; margin-left: 6px; }
+.header-credit a { color: #94a3b8; text-decoration: none; border-bottom: 1px dotted #334155; transition: all 0.15s; }
+.header-credit a:hover { color: #67e8f9; border-bottom-color: #67e8f9; }
+.header-star { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px 4px 8px; border: 1px solid rgba(0,229,255,0.18); border-radius: 6px; background: rgba(255,255,255,0.02); color: #94a3b8; font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; text-decoration: none; transition: all 0.18s; line-height: 1; }
+.header-star:hover { background: rgba(0,229,255,0.06); border-color: #67e8f9; color: #67e8f9; }
+.header-star svg { width: 11px; height: 11px; fill: currentColor; }
+.header-star .star-count { color: #e2e8f0; font-weight: 600; padding-left: 5px; border-left: 1px solid rgba(0,229,255,0.18); }
+
+/* Brain canvas */
+.brain-wrap { grid-column: 1; grid-row: 2; position: relative; display: flex; align-items: center; justify-content: center; background: #020210; overflow: hidden; }
+#brainCanvas { width: 100%; height: 100%; display: block; }
+
+/* Side panel — glass morphism */
+.side { grid-column: 2; grid-row: 2 / 4; display: flex; flex-direction: column; border-left: 1px solid rgba(0,229,255,0.06); background: rgba(2,2,16,0.85); backdrop-filter: blur(16px); overflow-y: auto; }
+.side-header { padding: 14px 18px; border-bottom: 1px solid rgba(0,229,255,0.06); font-size: 0.68rem; color: #67e8f9; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
+.output-area { flex: 1; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: #cbd5e1; white-space: pre-wrap; word-wrap: break-word; min-height: 120px; }
+.output-area .token { display: inline; transition: opacity 0.3s, text-shadow 0.5s; }
+.output-area .token.new { color: #fff; text-shadow: 0 0 25px rgba(0,229,255,0.6), 0 0 50px rgba(124,58,237,0.3); }
+.cursor { display: inline-block; width: 2px; height: 1em; background: #00e5ff; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; box-shadow: 0 0 8px rgba(0,229,255,0.5); }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Input bar */
+.input-wrap { grid-column: 1; grid-row: 3; padding: 12px 20px; border-top: 1px solid rgba(0,229,255,0.06); display: flex; gap: 10px; align-items: center; background: rgba(2,2,16,0.6); backdrop-filter: blur(8px); }
+.input-wrap input[type=text] { flex: 1; background: rgba(2,2,20,0.8); border: 1px solid rgba(0,229,255,0.1); border-radius: 10px; padding: 10px 14px; color: #e2e8f0; font-size: 0.85rem; outline: none; font-family: inherit; min-width: 0; }
+.input-wrap input[type=text]:focus { border-color: rgba(0,229,255,0.3); box-shadow: 0 0 0 3px rgba(0,229,255,0.08), 0 0 20px rgba(0,229,255,0.05); }
+.input-wrap input[type=text]::placeholder { color: #334155; }
+.speed-control { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: #475569; font-family: 'JetBrains Mono', monospace; }
+.speed-control input[type=range] { width: 70px; accent-color: #00e5ff; cursor: pointer; }
+.speed-control span { min-width: 22px; color: #67e8f9; }
+.input-wrap button { background: linear-gradient(135deg, #7c3aed, #00b4d8); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; font-size: 0.82rem; white-space: nowrap; box-shadow: 0 4px 15px rgba(0,229,255,0.15); transition: all 0.2s; }
+.input-wrap button:hover { filter: brightness(1.15); box-shadow: 0 4px 25px rgba(0,229,255,0.25); }
+.input-wrap button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+
+/* Tool buttons — selector deliberately scoped under .input-wrap so it
+   beats `.input-wrap button` (the goBtn gradient) on specificity. */
+.input-wrap .tool-btn {
+  background: rgba(0,229,255,0.04);
+  border: 1px solid rgba(0,229,255,0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #94a3b8;
+  font-weight: 400;
+  box-shadow: none;
+  transition: background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s, transform 0.12s;
+}
+.input-wrap .tool-btn:hover {
+  background: rgba(0,229,255,0.1);
+  border-color: rgba(0,229,255,0.3);
+  color: #67e8f9;
+  box-shadow: 0 0 14px rgba(0,229,255,0.12);
+}
+.input-wrap .tool-btn:active { transform: translateY(1px); }
+.input-wrap .tool-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: rgba(0,229,255,0.02);
+  color: #475569;
+  box-shadow: none;
+}
+.input-wrap .tool-btn:disabled:hover {
+  background: rgba(0,229,255,0.02);
+  border-color: rgba(0,229,255,0.12);
+  color: #475569;
+  box-shadow: none;
+}
+
+/* Top-K Probabilities */
+.topk-panel { padding: 10px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.topk-header { font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+.topk-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; }
+.topk-token { min-width: 70px; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topk-bar-bg { flex: 1; height: 5px; background: rgba(0,229,255,0.04); border-radius: 3px; overflow: hidden; }
+.topk-bar-fill { height: 100%; border-radius: 3px; transition: width 0.2s; box-shadow: 0 0 6px currentColor; }
+.topk-pct { min-width: 36px; text-align: right; color: #475569; }
+
+/* KV Cache */
+.kv-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.kv-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #67e8f9; margin-bottom: 4px; }
+.kv-bar-bg { width: 100%; height: 4px; background: rgba(0,229,255,0.06); border-radius: 2px; overflow: hidden; }
+.kv-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #2dd4bf, #00e5ff); transition: width 0.3s; border-radius: 2px; box-shadow: 0 0 8px rgba(0,229,255,0.3); }
+
+/* Prefill overlay */
+.prefill-overlay { position: absolute; bottom: 60px; left: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #67e8f9; pointer-events: none; background: rgba(2,2,16,0.85); padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(0,229,255,0.12); backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(0,229,255,0.08); }
+.prefill-token { display: inline; color: #2dd4bf; font-weight: 600; text-shadow: 0 0 8px rgba(45,212,191,0.4); }
+.prefill-bar-bg { width: 200px; height: 3px; background: rgba(0,229,255,0.06); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+.prefill-bar-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #00e5ff); border-radius: 2px; transition: width 0.05s; box-shadow: 0 0 6px rgba(0,229,255,0.3); }
+
+/* Confidence meter */
+.confidence-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.confidence-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; margin-bottom: 4px; }
+.confidence-bar-bg { width: 100%; height: 6px; background: rgba(0,229,255,0.04); border-radius: 3px; overflow: hidden; }
+.confidence-bar-fill { height: 100%; border-radius: 3px; transition: width 0.2s, background 0.3s; box-shadow: 0 0 10px currentColor; }
+
+/* Head activity heatmap */
+.heatmap-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.heatmap-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
+.heatmap-grid { display: flex; flex-direction: column; gap: 1px; }
+.heatmap-row { display: flex; gap: 1px; }
+.heatmap-cell { width: 10px; height: 4px; border-radius: 1px; background: rgba(0,229,255,0.02); transition: background 0.15s, box-shadow 0.15s; }
+
+/* Residual chart */
+.residual-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.residual-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
+.residual-canvas { width: 100%; height: 32px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); }
+
+/* Layer delta */
+.delta-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.delta-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
+.delta-canvas { width: 100%; height: 32px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); }
+
+/* Residual stream strip (3072-wide × 32 layers heatmap) */
+.resstrip-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.resstrip-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.resstrip-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
+.resstrip-canvas { width: 100%; height: 64px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); image-rendering: pixelated; }
+
+/* Per-head attention pattern (L=31, 32 heads × kvLen) */
+.attn-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.attn-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.attn-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
+.attn-canvas { width: 100%; height: 96px; display: block; border-radius: 6px; background: rgba(0,229,255,0.02); image-rendering: pixelated; }
+
+/* Logit lens — per-layer predicted tokens */
+.lens-panel { padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); }
+.lens-title { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.lens-title span:last-child { color: #334155; text-transform: none; letter-spacing: 0; }
+.lens-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; font-family: 'JetBrains Mono', monospace; }
+.lens-cell { background: rgba(0,229,255,0.03); border: 1px solid rgba(0,229,255,0.08); border-radius: 4px; padding: 4px 3px; text-align: center; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; min-height: 30px; }
+.lens-cell.fresh { background: rgba(0,229,255,0.12); border-color: rgba(0,229,255,0.4); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+.lens-cell .lens-lay { font-size: 0.48rem; color: #64748b; display: block; }
+.lens-cell .lens-tok { font-size: 0.58rem; color: #e2e8f0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.lens-cell.fresh .lens-tok { color: #67e8f9; text-shadow: 0 0 6px rgba(0,229,255,0.4); }
+
+/* Legend: hidden in strict mode (the only mode) because the color chips
+   don't encode any real state — real role/layer colors are visible in the
+   3D scene itself. */
+.legend { display: none; }
+
+/* Raw values panel — always visible (strict 1:1 mode is permanent). */
+.raw-panel { display: block; padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); font-family: 'JetBrains Mono', monospace; }
+.raw-title { font-size: 0.6rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 4px; }
+.raw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 8px; font-size: 0.58rem; color: #94a3b8; }
+.raw-grid .k { color: #64748b; }
+.raw-grid .v { color: #e2e8f0; text-align: right; }
+.raw-row { padding: 2px 0; display: flex; justify-content: space-between; }
+.raw-vec { margin-top: 6px; font-size: 0.55rem; color: #94a3b8; line-height: 1.45; word-break: break-all; max-height: 5.2em; overflow: hidden; }
+.raw-vec b { color: #67e8f9; font-weight: normal; }
+
+/* Scrollbar */
+.side::-webkit-scrollbar { width: 4px; }
+.side::-webkit-scrollbar-track { background: transparent; }
+.side::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
+.side::-webkit-scrollbar-thumb:hover { background: rgba(0,229,255,0.25); }
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .container { grid-template-columns: 1fr; grid-template-rows: auto 50vh auto 1fr; }
+  .side { grid-column: 1; grid-row: 4; border-left: none; border-top: 1px solid rgba(0,229,255,0.06); max-height: 40vh; }
+  .brain-wrap { grid-row: 2; }
+  .input-wrap { grid-column: 1; grid-row: 3; flex-wrap: wrap; }
+  .stats { font-size: 0.6rem; gap: 8px; }
+  .header { padding: 8px 12px; }
+  .input-wrap { padding: 8px 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <a href="/" class="logo-link"><span class="logo-neuro">neuro</span><span class="logo-pulse">pulse</span></a>
+      <span class="logo-sep">·</span>
+      <span class="logo-sub">a real forward pass</span>
+      <span class="header-credit">by <a href="https://github.com/abgnydn" target="_blank" rel="noopener">Ahmet Barış Günaydın</a></span>
+    </div>
+    <div class="stats">
+      <span>Model: <strong style="color:#e2e8f0">Phi-3 3.8B</strong></span>
+      <span>Layers: <strong style="color:#e2e8f0">32</strong></span>
+      <span id="dispatchStat">Dispatch: <strong style="color:#a5b4fc">0/292</strong></span>
+      <span id="speedStat">Speed: <strong class="live">—</strong></span>
+      <span id="tokenStat">Tokens: <strong style="color:#e2e8f0">0</strong></span>
+      <a class="header-star" href="https://github.com/abgnydn/neural-pulse" target="_blank" rel="noopener" aria-label="Star on GitHub">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/></svg>
+        <span>Star</span>
+        <span class="star-count" id="appStarCount">·</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="brain-wrap">
+    <canvas id="brainCanvas"></canvas>
+  </div>
+
+  <div class="side">
+    <div class="side-header">AI Output</div>
+    <div class="output-area" id="output"><span class="cursor"></span></div>
+
+    <!-- Top-K Probabilities -->
+    <div id="topkPanel" class="topk-panel">
+      <div class="topk-header">Token Probabilities</div>
+      <div id="topkBars"></div>
+    </div>
+
+    <!-- Confidence Meter -->
+    <div class="confidence-panel">
+      <div class="confidence-label">
+        <span style="color:#a5b4fc">Confidence</span>
+        <span id="confidenceVal" style="color:#64748b">—</span>
+      </div>
+      <div class="confidence-bar-bg">
+        <div id="confidenceBar" class="confidence-bar-fill" style="width:0%;background:#10b981"></div>
+      </div>
+    </div>
+
+    <!-- KV Cache -->
+    <div id="kvPanel" class="kv-panel">
+      <div class="kv-label">
+        <span>KV Cache</span>
+        <span id="kvInfo" style="color:#64748b">0 / 0 pages</span>
+      </div>
+      <div class="kv-bar-bg">
+        <div id="kvBar" class="kv-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- Head Activity Heatmap -->
+    <div class="heatmap-panel">
+      <div class="heatmap-title">Head Activity (32 layers × 32 heads)</div>
+      <div id="heatmapGrid" class="heatmap-grid"></div>
+    </div>
+
+    <!-- Residual Stream Magnitude -->
+    <div class="residual-panel">
+      <div class="residual-title">Residual Stream Norm (per layer)</div>
+      <canvas id="residualChart" class="residual-canvas" width="384" height="32"></canvas>
+    </div>
+
+    <!-- Layer Contribution Delta -->
+    <div class="delta-panel">
+      <div class="delta-title">Layer Contribution Δ (change per layer)</div>
+      <canvas id="deltaChart" class="delta-canvas" width="384" height="32"></canvas>
+    </div>
+
+    <!-- Residual Stream Strip (3072 dims × 32 layers) -->
+    <div class="resstrip-panel">
+      <div class="resstrip-title">
+        <span>Residual Stream (3072 dims × 32 layers)</span>
+        <span id="resStripInfo">— / cyan=+, magenta=−</span>
+      </div>
+      <canvas id="resStripCanvas" class="resstrip-canvas" width="768" height="64"></canvas>
+    </div>
+
+    <!-- Per-Head Attention (Layer 31) -->
+    <div class="attn-panel">
+      <div class="attn-title">
+        <span>Attention Patterns — Layer 31 (32 heads × past tokens)</span>
+        <span id="attnInfo">kv=0</span>
+      </div>
+      <canvas id="attnCanvas" class="attn-canvas" width="256" height="96"></canvas>
+    </div>
+
+    <!-- Logit Lens -->
+    <div class="lens-panel">
+      <div class="lens-title">
+        <span>Logit Lens (what each layer would predict next)</span>
+        <span id="lensInfo">—</span>
+      </div>
+      <div id="lensGrid" class="lens-grid"></div>
+    </div>
+
+    <!-- Raw GPU State (strict mode only) -->
+    <div class="raw-panel" id="rawPanel">
+      <div class="raw-title">Raw GPU State (f32, strict mode)</div>
+      <div class="raw-grid" id="rawGrid"></div>
+      <div class="raw-vec" id="rawVec">residual[0..15]: —</div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#00e5ff;color:#00e5ff"></div>Attention Heads (32)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f0abfc;color:#f0abfc"></div>FFN Groups (16)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#99f6e4;color:#99f6e4"></div>Residual Stream</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#a78bfa;color:#a78bfa"></div>Attention Beams</div>
+      <div class="legend-item" style="color:#334155">Real GPU activations</div>
+    </div>
+  </div>
+
+  <div class="input-wrap">
+    <input type="text" id="promptInput" placeholder="Ask anything... (e.g. What is consciousness?)" autofocus>
+    <div class="speed-control">
+      <label for="speedSlider">Speed</label>
+      <input type="range" id="speedSlider" min="1" max="20" value="5" step="1">
+      <span id="speedLabel">5x</span>
+    </div>
+    <button class="tool-btn" id="soundBtn" title="Toggle sound">🔊</button>
+    <button class="tool-btn" id="screenshotBtn" title="Screenshot">📷</button>
+    <button class="tool-btn" id="shareBtn" title="Share link">🔗</button>
+    <button class="tool-btn" id="accurateBtn" title="Run HF cross-validation suite (prints accuracy report to console)">🧪</button>
+    <button id="goBtn">Think</button>
+  </div>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+<script>
+  // Live GitHub star count for the header button. Cached per session so we
+  // don't hit the unauthenticated GitHub API rate limit (60/hr) on reload.
+  (function () {
+    const el = document.getElementById('appStarCount')
+    if (!el) return
+    const CACHE_KEY = 'np:stars'
+    const CACHE_TTL = 10 * 60 * 1000
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { count, ts } = JSON.parse(cached)
+        if (Date.now() - ts < CACHE_TTL && typeof count === 'number') {
+          el.textContent = count
+          return
+        }
+      }
+    } catch {}
+    fetch('https://api.github.com/repos/abgnydn/neural-pulse')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d || typeof d.stargazers_count !== 'number') {
+          el.style.display = 'none'
+          return
+        }
+        el.textContent = d.stargazers_count
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ count: d.stargazers_count, ts: Date.now() })) } catch {}
+      })
+      .catch(() => { el.style.display = 'none' })
+  })()
+</script>
+</body>
+</html>

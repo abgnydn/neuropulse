@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// Neural Pulse — Brain Visualization
+// Neuropulse — Brain Visualization
 // Strict 1:1 mode: every pixel on screen is a deterministic function
 // of a real GPU-side state value. No decorative particles, no bloom,
 // no cinematic camera, no breathing — activations only.
@@ -157,8 +157,13 @@ export class BrainVisualizer {
   constructor(canvas: HTMLCanvasElement) {
     this.audio = new AudioEngine()
 
-    // Renderer
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
+    // Renderer.
+    // preserveDrawingBuffer is enabled only in capture mode (?capture=1)
+    // because it forces an extra full-frame copy on every render. Normal
+    // visitors don't pay that cost — it's purely for headless hero-video
+    // capture, where canvas.toDataURL() needs the buffer to still be there.
+    const _captureMode = new URLSearchParams(location.search).has('capture')
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: _captureMode })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = 0.9

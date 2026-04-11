@@ -1,7 +1,7 @@
 {
-  "name": "neural-pulse",
-  "version": "0.1.0",
-  "description": "Watch an AI think — real-time visualization of LLM inference on WebGPU",
+  "name": "neuropulse",
+  "version": "0.2.0",
+  "description": "Neuropulse — a real forward pass of Phi-3-mini, rendered 1:1 from live WebGPU tensors, in your browser.",
   "type": "module",
   "scripts": {
     "dev": "vite",

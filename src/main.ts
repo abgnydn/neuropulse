@@ -3,7 +3,7 @@ import { createInferenceEngine, InferenceEngine, LoadProgress, TopKEntry } from 
 import { reduceQKVForAttnHeads, reduceForAttnHeads, reduceForFFNGroups, reduceForResidual, normalizeFull } from './engine/activation-reducer'
 
 // ═══════════════════════════════════════════════════════════════
-// Neural Pulse — Main v4 (Real Phi-3 Inference)
+// Neuropulse — Main v4 (Real Phi-3 Inference)
 // ═══════════════════════════════════════════════════════════════
 
 const canvas = document.getElementById('brainCanvas') as HTMLCanvasElement
@@ -26,12 +26,15 @@ speedSlider.addEventListener('input', () => {
   speedLabel.textContent = speedSlider.value + 'x'
 })
 
-// Sound toggle
+// Sound toggle — sync icon with persisted mute state on load
 const soundBtn = document.getElementById('soundBtn') as HTMLButtonElement
 if (soundBtn) {
+  soundBtn.textContent = viz.audio.isMuted() ? '🔇' : '🔊'
+  soundBtn.title = viz.audio.isMuted() ? 'Unmute' : 'Mute'
   soundBtn.addEventListener('click', () => {
     const muted = viz.audio.toggleMute()
     soundBtn.textContent = muted ? '🔇' : '🔊'
+    soundBtn.title = muted ? 'Unmute' : 'Mute'
   })
 }
 
@@ -97,7 +100,7 @@ async function runValidationSilently() {
 
   const lines: string[] = []
   const m = report.main
-  lines.push('═══════════════ Neural Pulse — Accuracy Report ═══════════════')
+  lines.push('═══════════════ Neuropulse — Accuracy Report ═══════════════')
   lines.push('GPU: q4f16_1 Phi-3-mini   Reference: HF fp16 Phi-3-mini')
   lines.push('')
   lines.push('[1] Tokenizer (GPU buildChatPrompt == HF apply_chat_template):')
@@ -679,9 +682,9 @@ function createLoadingOverlay() {
 
   overlay.innerHTML = `
     <div style="font-size:1.3rem;font-weight:700;margin-bottom:6px;color:#e2e8f0;">
-      <span style="background:linear-gradient(135deg,#6366f1,#06b6d4,#10b981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Neural Pulse</span>
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:-0.01em;"><span style="color:#00e5ff;text-shadow:0 0 20px rgba(0,229,255,0.3);">neuro</span><span style="color:#c084fc;text-shadow:0 0 20px rgba(192,132,252,0.3);">pulse</span></span>
     </div>
-    <div style="font-size:0.7rem;color:#64748b;margin-bottom:28px;">Loading Phi-3 3.6B — 10 WGSL shaders, no frameworks</div>
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:28px;">Loading Phi-3 3.8B — 11 WGSL shaders, no frameworks</div>
 
     <div style="width:360px;margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:6px;">
@@ -1093,4 +1096,92 @@ function startDemo() {
 // PCA is the permanent, accurate layout — load independently of engine init
 // so it applies even if engine initialization fails and we fall back to demo mode.
 loadPcaLayoutPermanent()
-initEngine()
+
+// ─── Download gate ───
+// First-time visitors get a confirmation screen before the ~2 GB Phi-3 weights
+// start streaming. Returning visitors with a populated cache (or no Cache API
+// support) skip straight to initEngine().
+async function modelIsCached(): Promise<boolean> {
+  if (typeof caches === 'undefined') return false
+  try {
+    // Look at every cache the page has ever opened. If any of them holds an
+    // entry whose URL points at the Phi-3 repo, we already have weights and
+    // can launch without prompting.
+    const names = await caches.keys()
+    for (const name of names) {
+      const store = await caches.open(name)
+      const keys = await store.keys()
+      for (const req of keys) {
+        if (req.url.includes('Phi-3-mini-4k-instruct-q4f16_1-MLC')) return true
+      }
+    }
+  } catch { /* Cache API blocked — fall through, show the gate */ }
+  return false
+}
+
+function showDownloadGate(): Promise<void> {
+  return new Promise((resolve) => {
+    const gate = document.createElement('div')
+    gate.id = 'downloadGate'
+    gate.style.cssText = `
+      position:fixed;inset:0;background:rgba(2,2,16,0.96);z-index:1100;
+      display:flex;align-items:center;justify-content:center;padding:24px;
+      font-family:'Inter',-apple-system,system-ui,sans-serif;color:#e2e8f0;
+      backdrop-filter:blur(8px);
+    `
+    gate.innerHTML = `
+      <div style="max-width:520px;text-align:center;">
+        <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:1.7rem;font-weight:700;letter-spacing:-0.01em;margin-bottom:14px;">
+          <span style="color:#00e5ff;text-shadow:0 0 22px rgba(0,229,255,0.35);">neuro</span><span style="color:#c084fc;text-shadow:0 0 22px rgba(192,132,252,0.35);">pulse</span>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:#94a3b8;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:26px;">
+          a real forward pass · in your browser
+        </div>
+        <h2 style="font-size:1.35rem;font-weight:700;line-height:1.35;margin:0 0 14px 0;color:#f1f5f9;">
+          This page downloads the real Phi-3-mini weights <span style="color:#c084fc">(~2 GB)</span> to your browser.
+        </h2>
+        <p style="font-size:0.92rem;line-height:1.6;color:#94a3b8;margin:0 0 8px 0;">
+          The download happens once. After that, the model is cached locally and runs
+          entirely on your GPU — no server, no API key, no telemetry.
+        </p>
+        <p style="font-size:0.78rem;line-height:1.6;color:#64748b;margin:0 0 30px 0;">
+          You'll need WebGPU (Chrome / Edge / Safari TP) and roughly 2 GB of free GPU memory.
+          On a fast connection the download takes 1–3 minutes.
+        </p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <button id="gateGo" style="
+            background:linear-gradient(135deg,#06b6d4,#8b5cf6);color:#fff;border:0;
+            padding:14px 28px;border-radius:10px;font-weight:700;font-size:0.95rem;
+            cursor:pointer;box-shadow:0 8px 24px rgba(139,92,246,0.35);
+            font-family:inherit;letter-spacing:-0.005em;
+          ">Download &amp; run →</button>
+          <a href="/" style="
+            background:transparent;color:#94a3b8;border:1px solid rgba(148,163,184,0.25);
+            padding:14px 24px;border-radius:10px;font-weight:600;font-size:0.95rem;
+            text-decoration:none;font-family:inherit;
+            display:inline-flex;align-items:center;
+          ">Back to landing</a>
+        </div>
+        <div style="margin-top:24px;font-size:0.68rem;color:#475569;font-family:'JetBrains Mono',monospace;">
+          host: huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC
+        </div>
+      </div>
+    `
+    document.body.appendChild(gate)
+    const goBtn = gate.querySelector('#gateGo') as HTMLButtonElement
+    goBtn.addEventListener('click', () => {
+      gate.style.transition = 'opacity 0.3s'
+      gate.style.opacity = '0'
+      setTimeout(() => { gate.remove(); resolve() }, 300)
+    }, { once: true })
+  })
+}
+
+;(async () => {
+  if (await modelIsCached()) {
+    initEngine()
+  } else {
+    await showDownloadGate()
+    initEngine()
+  }
+})()
