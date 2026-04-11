@@ -154,6 +154,13 @@ export class BrainVisualizer {
   // Global animation time (used for selection-ring pulse only)
   private time = 0
 
+  // Cinematic mode — when enabled, the camera tweens toward the active layer
+  // each frame, giving a slow-motion auto-flythrough of the forward pass.
+  private cinematicCamera = false
+  private cameraTargetLayer = -1
+  private _cameraTweenTarget = new THREE.Vector3(0, 1.2, 5.5)
+  private _cameraTweenLookAt = new THREE.Vector3(0, 0, 0)
+
   constructor(canvas: HTMLCanvasElement) {
     this.audio = new AudioEngine()
 
@@ -967,6 +974,30 @@ export class BrainVisualizer {
     return this.renderer.domElement.toDataURL('image/png')
   }
 
+  /** Cinematic mode: start/stop the auto-camera flythrough that tracks the
+   *  active layer. The OrbitControls user input is disabled while active so
+   *  the camera tween isn't fighting the mouse. */
+  setCinematicCamera(enabled: boolean) {
+    this.cinematicCamera = enabled
+    this.controls.enabled = !enabled
+    if (!enabled) {
+      // Restore the default vantage when leaving cinema mode
+      this._cameraTweenTarget.set(0, 1.2, 5.5)
+      this._cameraTweenLookAt.set(0, 0, 0)
+    }
+  }
+
+  /** Tell the cinematic camera which layer to track this frame. */
+  focusCameraOnLayer(layer: number) {
+    if (!this.cinematicCamera) return
+    this.cameraTargetLayer = layer
+    const lx = ((layer / 31) - 0.5) * TOTAL_WIDTH
+    // Sit just above the residual axis, looking down the chain at the
+    // active layer. Slight Z offset so the camera isn't INSIDE the slab.
+    this._cameraTweenTarget.set(lx, 0.6, 1.4)
+    this._cameraTweenLookAt.set(lx, 0, 0)
+  }
+
   private selectNeuron(n: NeuronData) {
     this.selectedNeuron = n
     if (this.selectedRing) {
@@ -1038,28 +1069,46 @@ export class BrainVisualizer {
 
     this.controls.update()
 
+    // Cinematic camera tween — tracks the active layer when enabled.
+    if (this.cinematicCamera) {
+      this.camera.position.lerp(this._cameraTweenTarget, 0.06)
+      this.camera.lookAt(this._cameraTweenLookAt)
+    }
+
     // ─── Update neurons (activation-driven only) ───
+    // When a neuron is locked via inspect, dim every other neuron so the
+    // selected one (and its layer) becomes visually unmissable.
+    const haveSelection = !!this.selectedNeuron
+    const selLayer = this.selectedNeuron ? this.selectedNeuron.layer : -1
     for (const n of this.neurons) {
       const mat = n.mesh.material as THREE.MeshStandardMaterial
       const glowMat = n.glowMesh.material as THREE.MeshBasicMaterial
       const act = n.activation
+      // Inspect dim factor: 1.0 when nothing selected, 0.18 for off-layer
+      // neurons, 1.0 for selected neuron + same-layer siblings.
+      let dim = 1.0
+      if (haveSelection) {
+        if (n === this.selectedNeuron) dim = 1.0
+        else if (n.layer === selLayer) dim = 0.55
+        else dim = 0.18
+      }
 
       if (act > 0.2) {
         mat.color.lerpColors(n.baseColor, n.brightColor, act * 0.8)
         mat.emissive.lerpColors(n.baseColor, n.brightColor, act * 0.5)
-        mat.emissiveIntensity = 0.15 + act * 0.8
-        mat.opacity = 0.5 + act * 0.5
+        mat.emissiveIntensity = (0.15 + act * 0.8) * dim
+        mat.opacity = (0.5 + act * 0.5) * dim
         n.mesh.scale.setScalar(1 + act * 0.5)
 
         glowMat.color.lerpColors(n.baseColor, n.brightColor, 0.5)
-        glowMat.opacity = act * 0.2
+        glowMat.opacity = act * 0.2 * dim
         n.glowMesh.scale.setScalar(1 + act * 1.5)
       } else {
         // Idle: flat baseline, no breathing
         mat.color.copy(n.baseColor)
         mat.emissive.copy(n.baseColor)
-        mat.emissiveIntensity = 0.08
-        mat.opacity = 0.25
+        mat.emissiveIntensity = 0.08 * dim
+        mat.opacity = 0.25 * dim
         n.mesh.scale.setScalar(1)
 
         glowMat.opacity = 0

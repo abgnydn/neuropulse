@@ -39,7 +39,17 @@ if (new URLSearchParams(location.search).has('capture')) {
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; height: 100vh; }
 
-.container { display: grid; grid-template-columns: 1fr 420px; grid-template-rows: auto 1fr auto; height: 100vh; gap: 0; }
+.container { display: grid; grid-template-columns: 1fr 380px; grid-template-rows: auto auto 1fr auto auto; height: 100vh; gap: 0; }
+
+/* Mode bar — sits between header and hero */
+.mode-bar { grid-column: 1 / -1; display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid rgba(0,229,255,0.06); background: rgba(2,2,16,0.7); backdrop-filter: blur(10px); align-items: center; }
+.mode-btn { background: rgba(0,229,255,0.025); border: 1px solid rgba(0,229,255,0.1); border-radius: 8px; padding: 6px 14px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.04em; transition: all 0.18s; display: inline-flex; align-items: center; gap: 6px; }
+.mode-btn:hover { background: rgba(0,229,255,0.08); border-color: rgba(0,229,255,0.28); color: #67e8f9; }
+.mode-btn .mode-icon { font-size: 0.85rem; opacity: 0.85; }
+.mode-btn.active { background: linear-gradient(135deg, rgba(124,58,237,0.18), rgba(0,229,255,0.18)); border-color: rgba(0,229,255,0.45); color: #e2e8f0; box-shadow: 0 0 18px rgba(0,229,255,0.12), inset 0 0 12px rgba(0,229,255,0.04); }
+.mode-bar-spacer { flex: 1; }
+.mode-hint { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; }
+.mode-hint b { color: #94a3b8; font-weight: 500; }
 
 /* Header */
 .header { grid-column: 1 / -1; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,229,255,0.06); flex-wrap: wrap; gap: 8px; background: rgba(2,2,16,0.8); backdrop-filter: blur(12px); }
@@ -61,12 +71,70 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
 .header-star svg { width: 11px; height: 11px; fill: currentColor; }
 .header-star .star-count { color: #e2e8f0; font-weight: 600; padding-left: 5px; border-left: 1px solid rgba(0,229,255,0.18); }
 
-/* Brain canvas */
-.brain-wrap { grid-column: 1; grid-row: 2; position: relative; display: flex; align-items: center; justify-content: center; background: #020210; overflow: hidden; }
+/* Hero area — holds brain canvas + per-mode hero overlays */
+.hero { grid-column: 1; grid-row: 3; position: relative; display: flex; align-items: center; justify-content: center; background: #020210; overflow: hidden; }
+.brain-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 #brainCanvas { width: 100%; height: 100%; display: block; }
 
-/* Side panel — glass morphism */
-.side { grid-column: 2; grid-row: 2 / 4; display: flex; flex-direction: column; border-left: 1px solid rgba(0,229,255,0.06); background: rgba(2,2,16,0.85); backdrop-filter: blur(16px); overflow-y: auto; }
+/* Mode-specific hero overlays — hidden by default, shown via body.mode-* */
+.hero-overlay { position: absolute; inset: 0; display: none; flex-direction: column; padding: 18px 22px; overflow: hidden; background: radial-gradient(ellipse at center, rgba(2,4,22,0.92), rgba(2,2,16,0.98)); }
+
+/* When in non-scene/non-cinema mode, dim the brain canvas instead of removing it (keeps GPU pipeline warm) */
+body.mode-attention .brain-wrap,
+body.mode-lens .brain-wrap { opacity: 0.06; pointer-events: none; }
+
+body.mode-attention .hero-attention,
+body.mode-lens .hero-lens { display: flex; }
+
+/* Cinema mode: brain canvas full bleed + cinema overlay control bar */
+body.mode-cinema .cinema-controls { display: flex; }
+
+/* === ATTENTION HERO === */
+.hero-attention .attn-hero-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
+.hero-attention .attn-hero-head h2 { font-size: 0.85rem; color: #67e8f9; font-weight: 600; letter-spacing: 0.02em; }
+.hero-attention .attn-hero-head .attn-hint { color: #475569; font-size: 0.62rem; }
+.hero-attention .attn-hero-body { flex: 1; display: grid; grid-template-columns: 1fr 280px; gap: 16px; min-height: 0; }
+.hero-attention .attn-grid-wrap { position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#attnGridCanvas { max-width: 100%; max-height: 100%; image-rendering: pixelated; border-radius: 8px; cursor: crosshair; box-shadow: 0 0 60px rgba(0,229,255,0.06), inset 0 0 0 1px rgba(0,229,255,0.08); }
+.hero-attention .attn-detail { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.attn-detail-head { font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; color: #94a3b8; padding: 8px 10px; background: rgba(0,229,255,0.04); border: 1px solid rgba(0,229,255,0.12); border-radius: 8px; }
+.attn-detail-head b { color: #67e8f9; }
+#attnDetailCanvas { width: 100%; height: 180px; display: block; image-rendering: pixelated; border-radius: 8px; background: rgba(0,229,255,0.02); border: 1px solid rgba(0,229,255,0.08); }
+.attn-detail-tokens { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #475569; padding: 8px 10px; background: rgba(2,2,16,0.4); border: 1px solid rgba(0,229,255,0.06); border-radius: 8px; max-height: 120px; overflow-y: auto; line-height: 1.6; word-break: break-word; }
+.attn-detail-tokens .tok { padding: 1px 4px; border-radius: 3px; transition: background 0.2s; }
+.attn-detail-tokens .tok-hot { background: rgba(0,229,255,0.18); color: #e0fbff; box-shadow: 0 0 6px rgba(0,229,255,0.25); }
+
+/* === LENS HERO === */
+.hero-lens .lens-hero-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
+.hero-lens .lens-hero-head h2 { font-size: 0.85rem; color: #c084fc; font-weight: 600; letter-spacing: 0.02em; }
+.hero-lens .lens-hero-head .lens-hint { color: #475569; font-size: 0.62rem; }
+.hero-lens .lens-hero-body { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-right: 6px; min-height: 0; }
+.lens-row { display: grid; grid-template-columns: 56px 1fr 80px; gap: 12px; align-items: center; padding: 6px 12px; background: rgba(0,229,255,0.025); border: 1px solid rgba(0,229,255,0.06); border-radius: 6px; transition: background 0.25s, border-color 0.25s, box-shadow 0.25s; min-height: 28px; }
+.lens-row.fresh { background: rgba(0,229,255,0.12); border-color: rgba(0,229,255,0.4); box-shadow: 0 0 16px rgba(0,229,255,0.18); }
+.lens-row.unsampled { opacity: 0.3; }
+.lens-row .lens-row-layer { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #64748b; font-weight: 600; }
+.lens-row.fresh .lens-row-layer { color: #67e8f9; }
+.lens-row.final .lens-row-layer { color: #c084fc; }
+.lens-row .lens-row-tok { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.lens-row .lens-row-bar { height: 4px; background: rgba(0,229,255,0.06); border-radius: 2px; overflow: hidden; }
+.lens-row .lens-row-bar > div { height: 100%; background: linear-gradient(90deg, #7c3aed, #00e5ff); border-radius: 2px; box-shadow: 0 0 6px rgba(0,229,255,0.4); transition: width 0.3s; }
+
+/* === CINEMA CONTROLS === */
+.cinema-controls { display: none; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); flex-direction: row; gap: 8px; padding: 10px 16px; background: rgba(2,2,16,0.85); border: 1px solid rgba(0,229,255,0.18); border-radius: 12px; backdrop-filter: blur(16px); box-shadow: 0 8px 30px rgba(0,0,0,0.6); align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #94a3b8; z-index: 10; }
+.cinema-btn { background: rgba(0,229,255,0.05); border: 1px solid rgba(0,229,255,0.15); color: #cbd5e1; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 0.75rem; transition: all 0.15s; line-height: 1; }
+.cinema-btn:hover { background: rgba(0,229,255,0.12); border-color: #67e8f9; color: #67e8f9; }
+.cinema-btn.primary { background: linear-gradient(135deg, #7c3aed, #00b4d8); border-color: rgba(0,229,255,0.4); color: #fff; }
+.cinema-scrub { display: flex; flex-direction: column; gap: 2px; min-width: 220px; }
+.cinema-scrub-bar { height: 4px; background: rgba(0,229,255,0.08); border-radius: 2px; overflow: hidden; }
+.cinema-scrub-bar > div { height: 100%; background: linear-gradient(90deg, #7c3aed, #00e5ff); border-radius: 2px; box-shadow: 0 0 6px rgba(0,229,255,0.4); width: 0%; transition: width 0.1s; }
+.cinema-scrub-label { display: flex; justify-content: space-between; font-size: 0.58rem; color: #475569; }
+.cinema-scrub-label span:last-child { color: #67e8f9; }
+
+/* Side panel — glass morphism, spans hero + token-strip + presets + input rows */
+.side { grid-column: 2; grid-row: 3 / 7; display: flex; flex-direction: column; border-left: 1px solid rgba(0,229,255,0.06); background: rgba(2,2,16,0.85); backdrop-filter: blur(16px); overflow-y: auto; }
+
+/* Side panel sections that only appear in scene mode */
+body:not(.mode-scene) .scene-only { display: none !important; }
 .side-header { padding: 14px 18px; border-bottom: 1px solid rgba(0,229,255,0.06); font-size: 0.68rem; color: #67e8f9; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
 .output-area { flex: 1; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: #cbd5e1; white-space: pre-wrap; word-wrap: break-word; min-height: 120px; }
 .output-area .token { display: inline; transition: opacity 0.3s, text-shadow 0.5s; }
@@ -74,8 +142,24 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
 .cursor { display: inline-block; width: 2px; height: 1em; background: #00e5ff; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; box-shadow: 0 0 8px rgba(0,229,255,0.5); }
 @keyframes blink { 50% { opacity: 0; } }
 
+/* Token strip — between hero and input */
+.token-strip { grid-column: 1; grid-row: 4; padding: 8px 18px; border-top: 1px solid rgba(0,229,255,0.06); background: rgba(2,2,16,0.5); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-height: 30px; max-height: 80px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
+.token-strip .ts-label { color: #475569; font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 6px; flex-shrink: 0; }
+.token-strip .ts-tok { display: inline-block; padding: 2px 6px; border-radius: 4px; background: rgba(0,229,255,0.04); border: 1px solid rgba(0,229,255,0.08); color: #cbd5e1; transition: all 0.2s; cursor: default; }
+.token-strip .ts-tok.prompt { background: rgba(124,58,237,0.08); border-color: rgba(124,58,237,0.2); color: #c4b5fd; }
+.token-strip .ts-tok.gen { background: rgba(0,229,255,0.06); border-color: rgba(0,229,255,0.18); color: #e2e8f0; }
+.token-strip .ts-tok.fresh { background: rgba(0,229,255,0.22); border-color: rgba(0,229,255,0.55); color: #fff; box-shadow: 0 0 10px rgba(0,229,255,0.35); }
+.token-strip .ts-tok.hot { background: rgba(0,229,255,0.18); color: #e0fbff; box-shadow: 0 0 6px rgba(0,229,255,0.25); }
+.token-strip .ts-sep { color: #334155; padding: 0 4px; flex-shrink: 0; }
+
+/* Prompt presets row — above input bar */
+.preset-row { grid-column: 1; grid-row: 5; padding: 6px 18px 0; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; background: rgba(2,2,16,0.6); border-top: 1px solid rgba(0,229,255,0.04); }
+.preset-row .preset-label { font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 4px; }
+.preset-chip { background: rgba(0,229,255,0.04); border: 1px solid rgba(0,229,255,0.1); color: #94a3b8; border-radius: 999px; padding: 4px 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; cursor: pointer; transition: all 0.15s; }
+.preset-chip:hover { background: rgba(0,229,255,0.1); border-color: #67e8f9; color: #67e8f9; }
+
 /* Input bar */
-.input-wrap { grid-column: 1; grid-row: 3; padding: 12px 20px; border-top: 1px solid rgba(0,229,255,0.06); display: flex; gap: 10px; align-items: center; background: rgba(2,2,16,0.6); backdrop-filter: blur(8px); }
+.input-wrap { grid-column: 1; grid-row: 6; padding: 8px 18px 12px; border-top: 1px solid rgba(0,229,255,0.06); display: flex; gap: 10px; align-items: center; background: rgba(2,2,16,0.6); backdrop-filter: blur(8px); }
 .input-wrap input[type=text] { flex: 1; background: rgba(2,2,20,0.8); border: 1px solid rgba(0,229,255,0.1); border-radius: 10px; padding: 10px 14px; color: #e2e8f0; font-size: 0.85rem; outline: none; font-family: inherit; min-width: 0; }
 .input-wrap input[type=text]:focus { border-color: rgba(0,229,255,0.3); box-shadow: 0 0 0 3px rgba(0,229,255,0.08), 0 0 20px rgba(0,229,255,0.05); }
 .input-wrap input[type=text]::placeholder { color: #334155; }
@@ -212,13 +296,19 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .container { grid-template-columns: 1fr; grid-template-rows: auto 50vh auto 1fr; }
-  .side { grid-column: 1; grid-row: 4; border-left: none; border-top: 1px solid rgba(0,229,255,0.06); max-height: 40vh; }
-  .brain-wrap { grid-row: 2; }
-  .input-wrap { grid-column: 1; grid-row: 3; flex-wrap: wrap; }
-  .stats { font-size: 0.6rem; gap: 8px; }
+  .container { grid-template-columns: 1fr; grid-template-rows: auto auto 45vh auto auto auto auto; }
   .header { padding: 8px 12px; }
-  .input-wrap { padding: 8px 12px; }
+  .mode-bar { padding: 4px 8px; overflow-x: auto; }
+  .mode-btn { padding: 5px 10px; font-size: 0.62rem; }
+  .mode-hint { display: none; }
+  .hero { grid-column: 1; grid-row: 3; }
+  .side { grid-column: 1; grid-row: 7; border-left: none; border-top: 1px solid rgba(0,229,255,0.06); max-height: 36vh; }
+  .token-strip { grid-column: 1; grid-row: 4; }
+  .preset-row { grid-column: 1; grid-row: 5; }
+  .input-wrap { grid-column: 1; grid-row: 6; flex-wrap: wrap; padding: 8px 12px; }
+  .stats { font-size: 0.6rem; gap: 8px; }
+  .hero-attention .attn-hero-body { grid-template-columns: 1fr; }
+  .hero-attention .attn-detail { display: none; }
 }
 </style>
 </head>
@@ -246,8 +336,60 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
     </div>
   </div>
 
-  <div class="brain-wrap">
-    <canvas id="brainCanvas"></canvas>
+  <div class="mode-bar">
+    <button class="mode-btn active" data-mode="scene"><span class="mode-icon">⊞</span> Scene</button>
+    <button class="mode-btn" data-mode="attention"><span class="mode-icon">▦</span> Attention</button>
+    <button class="mode-btn" data-mode="lens"><span class="mode-icon">≡</span> Logit Lens</button>
+    <button class="mode-btn" data-mode="cinema"><span class="mode-icon">▶</span> Cinematic</button>
+    <span class="mode-bar-spacer"></span>
+    <span class="mode-hint">Each mode picks <b>one</b> view to be the hero. Same forward pass, different lens.</span>
+  </div>
+
+  <div class="hero">
+    <div class="brain-wrap">
+      <canvas id="brainCanvas"></canvas>
+    </div>
+
+    <!-- Attention hero — full-screen 32×32 grid of per-head attention patterns -->
+    <div class="hero-overlay hero-attention">
+      <div class="attn-hero-head">
+        <h2>Attention — every head, every layer</h2>
+        <span class="attn-hint">Rows = layers (0→31). Cols = heads (0→31). Brightness = where this head is looking. <b>Click any cell</b> for the full pattern.</span>
+      </div>
+      <div class="attn-hero-body">
+        <div class="attn-grid-wrap">
+          <canvas id="attnGridCanvas" width="1024" height="1024"></canvas>
+        </div>
+        <div class="attn-detail">
+          <div class="attn-detail-head" id="attnDetailHead">Click a cell to inspect</div>
+          <canvas id="attnDetailCanvas" width="512" height="180"></canvas>
+          <div class="attn-detail-tokens" id="attnDetailTokens">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logit Lens hero — full-height stack of all 32 layers -->
+    <div class="hero-overlay hero-lens">
+      <div class="lens-hero-head">
+        <h2>Logit Lens — what would each layer say?</h2>
+        <span class="lens-hint">If the model stopped at layer N and ran <code>lm_head</code>, what token would it pick? Watch the answer crystallize from L0 to L31.</span>
+      </div>
+      <div class="lens-hero-body" id="lensHeroBody"></div>
+    </div>
+
+    <!-- Cinema controls — only visible in cinema mode -->
+    <div class="cinema-controls" id="cinemaControls">
+      <button class="cinema-btn" id="cinemaPlayBtn" title="Play / Pause">⏸</button>
+      <button class="cinema-btn" id="cinemaStepBtn" title="Step one layer">⇥</button>
+      <div class="cinema-scrub">
+        <div class="cinema-scrub-bar"><div id="cinemaScrubFill"></div></div>
+        <div class="cinema-scrub-label">
+          <span id="cinemaStepLabel">L— · —</span>
+          <span id="cinemaDispLabel">0 / 292</span>
+        </div>
+      </div>
+      <button class="cinema-btn" id="cinemaCamBtn" title="Camera flythrough">🎥</button>
+    </div>
   </div>
 
   <div class="side">
@@ -282,26 +424,26 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
       </div>
     </div>
 
-    <!-- Head Activity Heatmap -->
-    <div class="heatmap-panel">
+    <!-- Head Activity Heatmap (scene mode only — Attention mode has the hero) -->
+    <div class="heatmap-panel scene-only">
       <div class="heatmap-title">Head Activity (32 layers × 32 heads)</div>
       <div id="heatmapGrid" class="heatmap-grid"></div>
     </div>
 
     <!-- Residual Stream Magnitude -->
-    <div class="residual-panel">
+    <div class="residual-panel scene-only">
       <div class="residual-title">Residual Stream Norm (per layer)</div>
       <canvas id="residualChart" class="residual-canvas" width="384" height="32"></canvas>
     </div>
 
     <!-- Layer Contribution Delta -->
-    <div class="delta-panel">
+    <div class="delta-panel scene-only">
       <div class="delta-title">Layer Contribution Δ (change per layer)</div>
       <canvas id="deltaChart" class="delta-canvas" width="384" height="32"></canvas>
     </div>
 
     <!-- Residual Stream Strip (3072 dims × 32 layers) -->
-    <div class="resstrip-panel">
+    <div class="resstrip-panel scene-only">
       <div class="resstrip-title">
         <span>Residual Stream (3072 dims × 32 layers)</span>
         <span id="resStripInfo">— / cyan=+, magenta=−</span>
@@ -309,8 +451,8 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
       <canvas id="resStripCanvas" class="resstrip-canvas" width="768" height="64"></canvas>
     </div>
 
-    <!-- Per-Head Attention (Layer 31) -->
-    <div class="attn-panel">
+    <!-- Per-Head Attention (Layer 31) — kept hidden, the Attention mode hero replaces this -->
+    <div class="attn-panel scene-only" style="display:none">
       <div class="attn-title">
         <span>Attention Patterns — Layer 31 (32 heads × past tokens)</span>
         <span id="attnInfo">kv=0</span>
@@ -318,8 +460,8 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
       <canvas id="attnCanvas" class="attn-canvas" width="256" height="96"></canvas>
     </div>
 
-    <!-- Logit Lens -->
-    <div class="lens-panel">
+    <!-- Logit Lens — kept hidden, the Lens mode hero replaces this -->
+    <div class="lens-panel scene-only" style="display:none">
       <div class="lens-title">
         <span>Logit Lens (what each layer would predict next)</span>
         <span id="lensInfo">—</span>
@@ -343,6 +485,23 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
     </div>
   </div>
 
+  <div class="token-strip" id="tokenStrip">
+    <span class="ts-label">Tokens</span>
+    <span id="tokenStripBody" style="display:contents"></span>
+  </div>
+
+  <div class="preset-row">
+    <span class="preset-label">Try</span>
+    <button class="preset-chip" data-prompt="What is consciousness?">consciousness</button>
+    <button class="preset-chip" data-prompt="Write a haiku about transformers.">haiku</button>
+    <button class="preset-chip" data-prompt="Explain attention in one sentence.">attention</button>
+    <button class="preset-chip" data-prompt="def fibonacci(n):">code</button>
+    <button class="preset-chip" data-prompt="The capital of Japan is">fact</button>
+    <button class="preset-chip" data-prompt="日本語で挨拶してください。">日本語</button>
+    <button class="preset-chip" data-prompt='{"task": "summarize", "text":'>json</button>
+    <button class="preset-chip" data-prompt="Step by step, solve: 17 * 23 =">math</button>
+  </div>
+
   <div class="input-wrap">
     <input type="text" id="promptInput" placeholder="Ask anything... (e.g. What is consciousness?)" autofocus>
     <div class="speed-control">
@@ -351,12 +510,25 @@ body { background: #020210; color: #e2e8f0; font-family: 'Inter', -apple-system,
       <span id="speedLabel">5x</span>
     </div>
     <button class="tool-btn" id="soundBtn" title="Toggle sound">🔊</button>
-    <button class="tool-btn" id="screenshotBtn" title="Screenshot">📷</button>
+    <button class="tool-btn" id="screenshotBtn" title="Screenshot the current mode">📷</button>
+    <button class="tool-btn" id="recordBtn" title="Record 10s of the current mode (webm)">🎥</button>
     <button class="tool-btn" id="shareBtn" title="Share link">🔗</button>
     <button class="tool-btn" id="accurateBtn" title="Run HF cross-validation suite (prints accuracy report to console)">🧪</button>
     <button id="goBtn">Think</button>
   </div>
 </div>
+
+<!-- First-visit tutorial overlay (dismissed via localStorage) -->
+<div id="tutorialOverlay" style="display:none;position:fixed;inset:0;z-index:900;pointer-events:none;">
+  <div style="position:absolute;top:54px;left:50%;transform:translateX(-50%);background:rgba(2,2,16,0.95);border:1px solid rgba(0,229,255,0.4);border-radius:12px;padding:14px 22px;font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:#e2e8f0;backdrop-filter:blur(16px);box-shadow:0 12px 40px rgba(0,229,255,0.18);max-width:520px;text-align:center;line-height:1.5;pointer-events:auto;animation:tutFloat 1.6s ease-in-out infinite alternate;">
+    <div style="font-size:0.6rem;color:#67e8f9;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:8px;">Hey, click these ↑</div>
+    <div style="color:#cbd5e1;">Each mode picks <b style="color:#67e8f9">one</b> of the captured tensors and gives it the whole screen.<br>Same forward pass — totally different stories.</div>
+    <button id="tutorialDismiss" style="margin-top:10px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.25);color:#94a3b8;border-radius:6px;padding:5px 14px;font-family:inherit;font-size:0.7rem;cursor:pointer;">Got it</button>
+  </div>
+</div>
+<style>
+@keyframes tutFloat { from { transform: translate(-50%, 0); } to { transform: translate(-50%, -4px); } }
+</style>
 
 <script type="module" src="/src/main.ts"></script>
 <script>
