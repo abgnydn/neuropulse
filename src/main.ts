@@ -273,7 +273,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 // ─── Top-K display ───
 const topkBars = document.getElementById('topkBars')!
-const TOP_K_COLORS = ['#00e5ff', '#a78bfa', '#2dd4bf', '#f0abfc', '#f472b6']
+const TOP_K_COLORS = ['#00e5ff', '#c084fc', '#5eead4', '#f0abfc', '#f472b6']
 
 function updateTopK(entries: TopKEntry[]) {
   if (!topkBars) return
@@ -312,7 +312,7 @@ function showPrefillToken(index: number, total: number, token: string) {
   const pct = ((index + 1) / total * 100).toFixed(0)
   const display = token.replace(/</g, '&lt;').replace(/>/g, '&gt;')
   prefillOverlay.innerHTML = `
-    Prefill: <span class="prefill-token">${display}</span> <span style="color:#64748b">${index + 1}/${total}</span>
+    Prefill: <span class="prefill-token">${display}</span> <span style="color:#8a8170">${index + 1}/${total}</span>
     <div class="prefill-bar-bg"><div class="prefill-bar-fill" style="width:${pct}%"></div></div>
   `
   prefillOverlay.style.display = 'block'
@@ -347,13 +347,13 @@ function updateConfidence(topK: TopKEntry[]) {
 
   if (confidenceBar) {
     confidenceBar.style.width = `${pct}%`
-    if (confidence > 0.7) confidenceBar.style.background = '#2dd4bf'
+    if (confidence > 0.7) confidenceBar.style.background = '#5eead4'
     else if (confidence > 0.4) confidenceBar.style.background = '#f0abfc'
     else confidenceBar.style.background = '#f472b6'
   }
   if (confidenceVal) {
     confidenceVal.textContent = `${pct}%`
-    confidenceVal.style.color = confidence > 0.7 ? '#2dd4bf' : confidence > 0.4 ? '#f0abfc' : '#f472b6'
+    confidenceVal.style.color = confidence > 0.7 ? '#5eead4' : confidence > 0.4 ? '#f0abfc' : '#f472b6'
   }
 }
 
@@ -387,9 +387,9 @@ function updateHeatmapLayer(layer: number, heads: Float32Array) {
     const cell = document.getElementById(`hm-${layer}-${h}`)
     if (!cell) continue
     const v = heads[h]
-    if (v > 0.6) { cell.style.background = `rgba(0,229,255,${0.3 + v * 0.7})`; cell.style.boxShadow = `0 0 3px rgba(0,229,255,${v * 0.3})` }
+    if (v > 0.6) { cell.style.background = `rgba(94,234,212,${0.3 + v * 0.7})`; cell.style.boxShadow = `0 0 3px rgba(94,234,212,${v * 0.3})` }
     else if (v > 0.25) { cell.style.background = `rgba(124,58,237,${0.2 + v * 0.5})`; cell.style.boxShadow = 'none' }
-    else { cell.style.background = `rgba(0,229,255,${0.02 + v * 0.06})`; cell.style.boxShadow = 'none' }
+    else { cell.style.background = `rgba(94,234,212,${0.02 + v * 0.06})`; cell.style.boxShadow = 'none' }
   }
 }
 
@@ -420,7 +420,7 @@ function updateResidualChart(layer: number, value: number) {
     const r = Math.round(0 + t * 124)
     const g = Math.round(229 - t * 171)
     const b = Math.round(255)
-    residualCtx.fillStyle = i <= layer ? `rgba(${r},${g},${b},${0.3 + v * 0.7})` : 'rgba(0,229,255,0.03)'
+    residualCtx.fillStyle = i <= layer ? `rgba(${r},${g},${b},${0.3 + v * 0.7})` : 'rgba(244,236,223,0.04)'
     residualCtx.fillRect(i * barW, h - barH, barW - 1, barH)
   }
 }
@@ -451,10 +451,10 @@ function updateDeltaChart(layer: number, residualValue: number) {
     // High delta = warm color, low = cool
     if (i <= layer) {
       if (v > 0.6) deltaCtx.fillStyle = `rgba(240,171,252,${0.4 + v * 0.6})`
-      else if (v > 0.3) deltaCtx.fillStyle = `rgba(0,229,255,${0.3 + v * 0.5})`
+      else if (v > 0.3) deltaCtx.fillStyle = `rgba(94,234,212,${0.3 + v * 0.5})`
       else deltaCtx.fillStyle = `rgba(124,58,237,${0.2 + v * 0.4})`
     } else {
-      deltaCtx.fillStyle = 'rgba(0,229,255,0.03)'
+      deltaCtx.fillStyle = 'rgba(244,236,223,0.04)'
     }
     deltaCtx.fillRect(i * barW, h - barH, barW - 1, barH)
   }
@@ -475,7 +475,7 @@ let resStripImg: ImageData | null = null
 
 function clearResStrip() {
   if (!resStripCtx) return
-  resStripCtx.fillStyle = '#020210'
+  resStripCtx.fillStyle = '#08060f'
   resStripCtx.fillRect(0, 0, resStripCanvas.width, resStripCanvas.height)
   resStripImg = resStripCtx.getImageData(0, 0, resStripCanvas.width, resStripCanvas.height)
 }
@@ -547,7 +547,7 @@ function updateAttentionHeatmap(scores: Float32Array, kvLen: number) {
   if (currentMode === 'attention') renderAttentionGrid(scores, kvLen)
   // Fall through to the legacy mini canvas (still used in scene mode)
   if (!attnCtx) return
-  attnCtx.fillStyle = '#020210'
+  attnCtx.fillStyle = '#08060f'
   attnCtx.fillRect(0, 0, attnCanvas.width, attnCanvas.height)
   const cols = Math.min(kvLen, ATTN_MAX_SLOTS)
   if (cols === 0) return
@@ -653,7 +653,7 @@ function renderAttentionGrid(scores: Float32Array, kvLen: number) {
 
   // Overlay selection ring on top of the ImageData (stroke after putImageData)
   if (selectedHeadLayer >= 0 && selectedHeadIdx >= 0) {
-    attnGridCtx.strokeStyle = '#67e8f9'
+    attnGridCtx.strokeStyle = '#5eead4'
     attnGridCtx.lineWidth = 2
     attnGridCtx.strokeRect(
       selectedHeadIdx * cellW + 1,
@@ -673,7 +673,7 @@ function renderAttentionDetail(scores: Float32Array, kvLen: number, L: number, h
   if (!attnDetailCtx) return
   const W = attnDetailCanvas.width
   const H = attnDetailCanvas.height
-  attnDetailCtx.fillStyle = '#020210'
+  attnDetailCtx.fillStyle = '#08060f'
   attnDetailCtx.fillRect(0, 0, W, H)
 
   const cols = Math.max(1, Math.min(kvLen, ATTN_GRID_SLOTS))
@@ -694,7 +694,7 @@ function renderAttentionDetail(scores: Float32Array, kvLen: number, L: number, h
     const barH = v * (H - 12)
     const x = s * barW
     const grad = attnDetailCtx.createLinearGradient(0, H - barH, 0, H)
-    grad.addColorStop(0, `rgba(0,229,255,${0.3 + v * 0.7})`)
+    grad.addColorStop(0, `rgba(94,234,212,${0.3 + v * 0.7})`)
     grad.addColorStop(1, `rgba(124,58,237,${0.2 + v * 0.5})`)
     attnDetailCtx.fillStyle = grad
     attnDetailCtx.fillRect(x, H - barH, Math.max(1, barW - 1), barH)
@@ -884,8 +884,8 @@ if (cinemaStepBtn) {
 if (cinemaCamBtn) {
   cinemaCamBtn.addEventListener('click', () => {
     cinemaCameraFly = !cinemaCameraFly
-    cinemaCamBtn.style.background = cinemaCameraFly ? 'rgba(0,229,255,0.18)' : 'rgba(0,229,255,0.05)'
-    cinemaCamBtn.style.color = cinemaCameraFly ? '#67e8f9' : '#cbd5e1'
+    cinemaCamBtn.style.background = cinemaCameraFly ? 'rgba(244,236,223,0.18)' : 'rgba(244,236,223,0.06)'
+    cinemaCamBtn.style.color = cinemaCameraFly ? '#5eead4' : '#cbc1ad'
     viz.setCinematicCamera(cinemaCameraFly)
   })
 }
@@ -1129,27 +1129,27 @@ function createLoadingOverlay() {
   overlay.style.cssText = `
     position:fixed;inset:0;background:rgba(5,5,16,0.95);z-index:1000;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    font-family:'JetBrains Mono',monospace;color:#a5b4fc;
+    font-family:'JetBrains Mono',monospace;color:#cbc1ad;
   `
 
   overlay.innerHTML = `
-    <div style="font-size:1.3rem;font-weight:700;margin-bottom:6px;color:#e2e8f0;">
-      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:-0.01em;"><span style="color:#00e5ff;text-shadow:0 0 20px rgba(0,229,255,0.3);">neuro</span><span style="color:#c084fc;text-shadow:0 0 20px rgba(192,132,252,0.3);">pulse</span></span>
+    <div style="font-size:1.3rem;font-weight:700;margin-bottom:6px;color:#f4ecdf;">
+      <span style="font-family:'Fraunces',Georgia,serif;font-weight:400;letter-spacing:-0.01em;font-variation-settings:'opsz' 144,'SOFT' 50;"><span style="color:#f4ecdf;">neuro</span><span style="color:#00e5ff;font-style:italic;text-shadow:0 0 20px rgba(0,229,255,0.3);">pulse</span></span>
     </div>
-    <div style="font-size:0.7rem;color:#64748b;margin-bottom:28px;">Loading Phi-3 3.8B — 11 WGSL shaders, no frameworks</div>
+    <div style="font-size:0.7rem;color:#8a8170;margin-bottom:28px;">Loading Phi-3 3.8B — 11 WGSL shaders, no frameworks</div>
 
     <div style="width:360px;margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:6px;">
-        <span id="loadPct" style="color:#e2e8f0;font-weight:600;">0%</span>
-        <span id="loadSize" style="color:#64748b;">0 / 0 MB</span>
+        <span id="loadPct" style="color:#f4ecdf;font-weight:600;">0%</span>
+        <span id="loadSize" style="color:#8a8170;">0 / 0 MB</span>
       </div>
       <div style="width:100%;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
-        <div id="loadBar" style="width:0%;height:100%;background:linear-gradient(90deg,#6366f1,#06b6d4);transition:width 0.15s;border-radius:2px;"></div>
+        <div id="loadBar" style="width:0%;height:100%;background:linear-gradient(90deg,#c084fc,#06b6d4);transition:width 0.15s;border-radius:2px;"></div>
       </div>
     </div>
 
-    <div id="loadMsg" style="font-size:0.65rem;color:#64748b;max-width:400px;text-align:center;line-height:1.5;min-height:2em;"></div>
-    <div id="loadCache" style="font-size:0.6rem;color:#10b981;margin-top:8px;opacity:0;transition:opacity 0.3s;"></div>
+    <div id="loadMsg" style="font-size:0.65rem;color:#8a8170;max-width:400px;text-align:center;line-height:1.5;min-height:2em;"></div>
+    <div id="loadCache" style="font-size:0.6rem;color:#5eead4;margin-top:8px;opacity:0;transition:opacity 0.3s;"></div>
   `
 
   document.body.appendChild(overlay)
@@ -1235,7 +1235,7 @@ async function runDemoInference(prompt: string) {
 
   output.innerHTML = ''
   const promptEcho = document.createElement('div')
-  promptEcho.style.cssText = 'color:#6366f1;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
+  promptEcho.style.cssText = 'color:#c084fc;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
   promptEcho.textContent = `> ${prompt}`
   output.appendChild(promptEcho)
   const cursor = document.createElement('span')
@@ -1261,7 +1261,7 @@ async function runDemoInference(prompt: string) {
     document.getElementById('speedStat')!.innerHTML =
       `Speed: <strong class="live">${(totalTokens / elapsed).toFixed(1)} tok/s</strong>`
     document.getElementById('tokenStat')!.innerHTML =
-      `Tokens: <strong style="color:#e2e8f0">${totalTokens}</strong>`
+      `Tokens: <strong style="color:#f4ecdf">${totalTokens}</strong>`
   }
 
   viz.setDone()
@@ -1282,7 +1282,7 @@ async function runRealInference(prompt: string) {
 
   output.innerHTML = ''
   const promptEcho = document.createElement('div')
-  promptEcho.style.cssText = 'color:#6366f1;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
+  promptEcho.style.cssText = 'color:#c084fc;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
   promptEcho.textContent = `> ${prompt}`
   output.appendChild(promptEcho)
   const cursor = document.createElement('span')
@@ -1415,7 +1415,8 @@ async function runRealInference(prompt: string) {
     },
     onToken(delta, _id, _index, topK, logits) {
       appendToken(delta)
-      viz.addOutputToken(delta)
+      const topConfidence = topK?.[0]?.prob ?? 0
+      viz.addOutputToken(delta, topConfidence)
       totalTokens++
       tokenStripAppendGenerated(delta)
 
@@ -1423,7 +1424,7 @@ async function runRealInference(prompt: string) {
       document.getElementById('speedStat')!.innerHTML =
         `Speed: <strong class="live">${(totalTokens / elapsed).toFixed(1)} tok/s</strong>`
       document.getElementById('tokenStat')!.innerHTML =
-        `Tokens: <strong style="color:#e2e8f0">${totalTokens}</strong>`
+        `Tokens: <strong style="color:#f4ecdf">${totalTokens}</strong>`
 
       // Update top-k display + confidence meter (probs are full-vocab softmax)
       if (topK) {
@@ -1533,7 +1534,7 @@ async function initEngine() {
     // Update header to show real engine
     const dispatchStat = document.getElementById('dispatchStat')
     if (dispatchStat) {
-      dispatchStat.innerHTML = `Engine: <strong style="color:#10b981">ZeroTVM</strong>`
+      dispatchStat.innerHTML = `Engine: <strong style="color:#5eead4">ZeroTVM</strong>`
     }
 
     // The HF cross-validation suite no longer runs automatically on boot —
@@ -1597,27 +1598,27 @@ function showDownloadGate(): Promise<void> {
     const gate = document.createElement('div')
     gate.id = 'downloadGate'
     gate.style.cssText = `
-      position:fixed;inset:0;background:rgba(2,2,16,0.96);z-index:1100;
+      position:fixed;inset:0;background:rgba(8,6,15,0.96);z-index:1100;
       display:flex;align-items:center;justify-content:center;padding:24px;
-      font-family:'Inter',-apple-system,system-ui,sans-serif;color:#e2e8f0;
+      font-family:'Inter',-apple-system,system-ui,sans-serif;color:#f4ecdf;
       backdrop-filter:blur(8px);
     `
     gate.innerHTML = `
       <div style="max-width:520px;text-align:center;">
         <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:1.7rem;font-weight:700;letter-spacing:-0.01em;margin-bottom:14px;">
-          <span style="color:#00e5ff;text-shadow:0 0 22px rgba(0,229,255,0.35);">neuro</span><span style="color:#c084fc;text-shadow:0 0 22px rgba(192,132,252,0.35);">pulse</span>
+          <span style="color:#f4ecdf;">neuro</span><span style="color:#00e5ff;font-style:italic;text-shadow:0 0 22px rgba(0,229,255,0.35);">pulse</span>
         </div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:#94a3b8;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:26px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:#8a8170;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:26px;">
           a real forward pass · in your browser
         </div>
         <h2 style="font-size:1.35rem;font-weight:700;line-height:1.35;margin:0 0 14px 0;color:#f1f5f9;">
           This page downloads the real Phi-3-mini weights <span style="color:#c084fc">(~2 GB)</span> to your browser.
         </h2>
-        <p style="font-size:0.92rem;line-height:1.6;color:#94a3b8;margin:0 0 8px 0;">
+        <p style="font-size:0.92rem;line-height:1.6;color:#8a8170;margin:0 0 8px 0;">
           The download happens once. After that, the model is cached locally and runs
           entirely on your GPU — no server, no API key, no telemetry.
         </p>
-        <p style="font-size:0.78rem;line-height:1.6;color:#64748b;margin:0 0 30px 0;">
+        <p style="font-size:0.78rem;line-height:1.6;color:#8a8170;margin:0 0 30px 0;">
           You'll need WebGPU (Chrome / Edge / Safari TP) and roughly 2 GB of free GPU memory.
           On a fast connection the download takes 1–3 minutes.
         </p>
@@ -1629,13 +1630,13 @@ function showDownloadGate(): Promise<void> {
             font-family:inherit;letter-spacing:-0.005em;
           ">Download &amp; run →</button>
           <a href="/" style="
-            background:transparent;color:#94a3b8;border:1px solid rgba(148,163,184,0.25);
+            background:transparent;color:#8a8170;border:1px solid rgba(244,236,223,0.20);
             padding:14px 24px;border-radius:10px;font-weight:600;font-size:0.95rem;
             text-decoration:none;font-family:inherit;
             display:inline-flex;align-items:center;
           ">Back to landing</a>
         </div>
-        <div style="margin-top:24px;font-size:0.68rem;color:#475569;font-family:'JetBrains Mono',monospace;">
+        <div style="margin-top:24px;font-size:0.68rem;color:#514a3e;font-family:'JetBrains Mono',monospace;">
           host: huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC
         </div>
       </div>

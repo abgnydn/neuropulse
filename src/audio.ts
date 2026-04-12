@@ -1,17 +1,32 @@
 // ═══════════════════════════════════════════════════════════════
 // Neuropulse — Audio Engine
-// Warm ambient pad, soft pentatonic ticks, crystalline FM chimes.
-// Lazy init on first user gesture; mute state persists in localStorage.
+// Data-driven sonification: every sound maps to real GPU state.
+//
+// Drone pad pitch & filter = residual stream norm (how "excited"
+//   the representation is). Low norm → low rumble; high → bright.
+// Neuron ticks = attention entropy. High-entropy (confused) layers
+//   produce dissonant intervals; low-entropy (certain) → consonant.
+// Token chime pitch = top-1 probability. High confidence → bright
+//   high bell; low confidence → low muted tone.
 // ═══════════════════════════════════════════════════════════════
 
 const STORAGE_KEY = 'neuropulse:muted'
-// Legacy key from the pre-rename "Neural Pulse" era. On first load after
-// the rename, copy it forward so returning users don't lose their mute
-// preference. The old key is never written to again.
 const LEGACY_STORAGE_KEY = 'neural-pulse:muted'
-const MASTER_LEVEL = 0.32
-const RAMP_FAST = 0.15
-const RAMP_SLOW = 0.6
+const MASTER_LEVEL = 0.30
+const RAMP_FAST = 0.12
+const RAMP_SLOW = 0.55
+
+// Harmonic series rooted on A2 (110 Hz). Consonant intervals only.
+// Tick pitch is chosen from this based on attention entropy.
+const HARMONIC_FREQS = [
+  110.00,  // A2  — unison (high entropy / confused)
+  130.81,  // C3  — minor third
+  164.81,  // E3  — fifth
+  220.00,  // A3  — octave
+  261.63,  // C4  — tenth
+  329.63,  // E4  — twelfth
+  440.00,  // A4  — double octave (low entropy / certain)
+]
 
 export class AudioEngine {
   private ctx: AudioContext | null = null
@@ -33,12 +48,14 @@ export class AudioEngine {
   private tickCount = 0
   private lastChimeTime = 0
 
+  // Data state — fed from the real forward pass
+  private residualNorm = 0      // 0..1, how large the residual stream is
+  private lastEntropy = 0.5     // 0..1, attention entropy of the last layer processed
+  private lastConfidence = 0    // 0..1, top-1 softmax probability
+
   constructor() {
-    // Load persisted mute preference before any user interaction so the
-    // sound button reflects the user's last choice on page load.
     try {
       let v = localStorage.getItem(STORAGE_KEY)
-      // One-time migration from the legacy key.
       if (v === null) {
         const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
         if (legacy !== null) {
@@ -48,13 +65,10 @@ export class AudioEngine {
         }
       }
       this.muted = v === '1'
-    } catch { /* localStorage unavailable — ignore */ }
+    } catch { /* localStorage unavailable */ }
   }
 
-  /** Whether mute is currently active (sync-readable from UI). */
-  isMuted(): boolean {
-    return this.muted
-  }
+  isMuted(): boolean { return this.muted }
 
   init() {
     if (this.ctx) return
@@ -63,34 +77,31 @@ export class AudioEngine {
     this.masterGain.gain.value = this.muted ? 0 : MASTER_LEVEL
     this.masterGain.connect(this.ctx.destination)
 
-    // Dry path
     this.dryGain = this.ctx.createGain()
-    this.dryGain.gain.value = 0.6
+    this.dryGain.gain.value = 0.55
     this.dryGain.connect(this.masterGain)
 
-    // Reverb (algorithmic via feedback delay network)
     this.reverbGain = this.ctx.createGain()
-    this.reverbGain.gain.value = 0.4
+    this.reverbGain.gain.value = 0.45
     this.reverbSend = this.createReverb()
     this.reverbSend.connect(this.reverbGain)
     this.reverbGain.connect(this.masterGain)
   }
 
-  // Algorithmic reverb using impulse response
   private createReverb(): ConvolverNode {
     const conv = this.ctx!.createConvolver()
     const rate = this.ctx!.sampleRate
-    const length = rate * 2.5  // 2.5 second tail
+    const length = rate * 3  // 3 second tail — cathedral-ish
     const impulse = this.ctx!.createBuffer(2, length, rate)
 
     for (let ch = 0; ch < 2; ch++) {
       const data = impulse.getChannelData(ch)
       for (let i = 0; i < length; i++) {
         const t = i / rate
-        const decay = Math.exp(-t * 2.5)
-        const early = t < 0.08 ? Math.random() * 0.5 : 0
-        const late = Math.random() * decay
-        data[i] = (early + late) * 0.3
+        // Multi-stage decay: fast early reflections, slow diffuse tail
+        const early = t < 0.06 ? (Math.random() - 0.5) * 0.6 * (1 - t / 0.06) : 0
+        const late = (Math.random() - 0.5) * Math.exp(-t * 2.2) * 0.25
+        data[i] = early + late
       }
     }
     conv.buffer = impulse
@@ -113,8 +124,10 @@ export class AudioEngine {
   }
   toggleMute() { this.setMuted(!this.muted); return this.muted }
 
-  // ─── Warm ambient pad ───
-  // Detuned saws through a lowpass, plus a sub sine and bandpassed noise bed.
+  // ─── Ambient drone ───
+  // Detuned saws + sub sine + noise bed. The filter cutoff and pad pitch
+  // are driven by residual stream norm — when the representation is large
+  // (model is "activated"), the pad brightens and rises.
   startDrone() {
     if (!this.ctx || !this.dryGain || this.started) return
     this.started = true
@@ -124,43 +137,43 @@ export class AudioEngine {
 
     this.padFilter = this.ctx.createBiquadFilter()
     this.padFilter.type = 'lowpass'
-    this.padFilter.frequency.value = 110
-    this.padFilter.Q.value = 0.7
+    this.padFilter.frequency.value = 80
+    this.padFilter.Q.value = 0.6
 
-    // Warm pad: 4 detuned oscillators for chorus effect
+    // 4 detuned oscillators — chorus warmth
     const base = 55 // A1
-    const detunes = [-8, -3, 3, 7] // cents
+    const detunes = [-7, -2, 3, 8]
     for (const det of detunes) {
       const osc = this.ctx.createOscillator()
       osc.type = 'sawtooth'
       osc.frequency.value = base
       osc.detune.value = det
       const oscGain = this.ctx.createGain()
-      oscGain.gain.value = 0.07
+      oscGain.gain.value = 0.065
       osc.connect(oscGain)
       oscGain.connect(this.padFilter)
       osc.start()
       this.padOscs.push(osc)
     }
 
-    // Sub bass (pure sine)
+    // Sub bass
     const sub = this.ctx.createOscillator()
     sub.type = 'sine'
     sub.frequency.value = 27.5 // A0
     const subGain = this.ctx.createGain()
-    subGain.gain.value = 0.10
+    subGain.gain.value = 0.09
     sub.connect(subGain)
     subGain.connect(this.padFilter)
     sub.start()
     this.padOscs.push(sub)
 
-    // Filtered noise bed
+    // Filtered noise bed — adds texture
     this.noiseGain = this.ctx.createGain()
-    this.noiseGain.gain.value = 0.006
+    this.noiseGain.gain.value = 0.005
     const noiseFilter = this.ctx.createBiquadFilter()
     noiseFilter.type = 'bandpass'
-    noiseFilter.frequency.value = 220
-    noiseFilter.Q.value = 0.5
+    noiseFilter.frequency.value = 200
+    noiseFilter.Q.value = 0.4
 
     const noiseLen = this.ctx.sampleRate * 4
     const noiseBuf = this.ctx.createBuffer(1, noiseLen, this.ctx.sampleRate)
@@ -178,44 +191,61 @@ export class AudioEngine {
     this.padGain.connect(this.dryGain!)
     this.padGain.connect(this.reverbSend!)
 
-    // Gentle fade in (2.5s) so entering the drone is not abrupt.
-    this.padGain.gain.linearRampToValueAtTime(0.38, this.ctx.currentTime + 2.5)
+    // Gentle 3s fade in
+    this.padGain.gain.linearRampToValueAtTime(0.32, this.ctx.currentTime + 3)
   }
 
+  // ─── Drone intensity driven by residual norm ───
+  // v = 0..1 from the actual residual stream magnitude. Higher norm means
+  // the model's internal representation is more "excited" — the pad opens
+  // up, pitch rises slightly, noise bed thickens.
   setDroneIntensity(v: number) {
     if (!this.padGain || !this.padFilter || !this.noiseGain || !this.ctx) return
+    this.residualNorm = v
     const t = this.ctx.currentTime + RAMP_FAST
-    // Softer floor + narrower sweep than before — feels like ambience, not
-    // a car alarm ramping as confidence rises.
-    this.padGain.gain.linearRampToValueAtTime(0.22 + v * 0.24, t)
-    // Filter opens slightly — reveals more harmonics as thinking deepens.
-    this.padFilter.frequency.linearRampToValueAtTime(110 + v * 280, t)
-    // Noise bed tracks intensity.
-    this.noiseGain.gain.linearRampToValueAtTime(0.006 + v * 0.012, t)
-    // Pad pitch rises a few Hz at peak.
+
+    // Pad volume: quiet floor that swells with activation
+    this.padGain.gain.linearRampToValueAtTime(0.18 + v * 0.28, t)
+    // Filter: 80 Hz floor → up to 440 Hz when fully lit
+    this.padFilter.frequency.linearRampToValueAtTime(80 + v * 360, t)
+    // Noise bed tracks
+    this.noiseGain.gain.linearRampToValueAtTime(0.005 + v * 0.015, t)
+    // Pad pitch rises ~8 Hz at peak — subtle but perceptible shift
     if (this.padOscs[0]) {
-      this.padOscs[0].frequency.linearRampToValueAtTime(55 + v * 6, t)
+      this.padOscs[0].frequency.linearRampToValueAtTime(55 + v * 8, t)
     }
   }
 
-  // ─── Neural tick: soft water-drop pluck ───
+  // ─── Feed real attention entropy for the current layer ───
+  // entropy: 0 = one token has all attention (certain), 1 = uniform (confused).
+  // This controls the pitch of the next neuronTick.
+  setAttentionEntropy(entropy: number) {
+    this.lastEntropy = Math.max(0, Math.min(1, entropy))
+  }
+
+  // ─── Neural tick: tonal pluck whose pitch = attention certainty ───
+  // High entropy (confused) → low dissonant tone.
+  // Low entropy (attending sharply) → high consonant harmonic.
   neuronTick(layer: number) {
     if (!this.ctx || !this.dryGain || !this.reverbSend || this.muted) return
     const now = this.ctx.currentTime
-    if (now - this.lastTickTime < 0.08) return
+    if (now - this.lastTickTime < 0.09) return
     this.lastTickTime = now
     this.tickCount++
+    if (this.tickCount % 3 !== 0) return
 
-    // Only tick every 4th call to avoid density.
-    if (this.tickCount % 4 !== 0) return
+    // Certainty = 1 - entropy. Map to harmonic series index.
+    const certainty = 1 - this.lastEntropy
+    const idx = Math.min(HARMONIC_FREQS.length - 1, Math.floor(certainty * HARMONIC_FREQS.length))
+    const freq = HARMONIC_FREQS[idx]
 
-    // Major pentatonic across two octaves, spread by layer so deeper layers
-    // hit higher notes — gives the thinking process a rising arc.
-    const penta = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00]
-    const freq = penta[layer % penta.length] * (layer >= 16 ? 1.5 : 1.0)
+    // Layer depth modulates octave — deeper layers are slightly higher,
+    // giving the forward pass a rising contour.
+    const octaveShift = layer >= 24 ? 2.0 : layer >= 16 ? 1.5 : 1.0
+    const finalFreq = freq * octaveShift
 
-    // White-noise burst through a high-Q bandpass = tonal "plink".
-    const bufLen = Math.floor(this.ctx.sampleRate * 0.015)
+    // Filtered noise burst = tonal "plink"
+    const bufLen = Math.floor(this.ctx.sampleRate * 0.012)
     const buf = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate)
     const data = buf.getChannelData(0)
     for (let i = 0; i < bufLen; i++) {
@@ -227,59 +257,75 @@ export class AudioEngine {
 
     const bp = this.ctx.createBiquadFilter()
     bp.type = 'bandpass'
-    bp.frequency.value = freq
-    bp.Q.value = 32
+    bp.frequency.value = finalFreq
+    bp.Q.value = 28 + certainty * 20 // sharper resonance when certain
 
+    // Volume scales with certainty — uncertain ticks are quieter
+    const vol = 0.025 + certainty * 0.035
     const gain = this.ctx.createGain()
-    gain.gain.setValueAtTime(0.045, now)
-    gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.18)
+    gain.gain.setValueAtTime(vol, now)
+    gain.gain.exponentialRampToValueAtTime(0.0003, now + 0.16)
 
     src.connect(bp)
     bp.connect(gain)
     gain.connect(this.dryGain)
     gain.connect(this.reverbSend)
     src.start(now)
-    src.stop(now + 0.2)
+    src.stop(now + 0.18)
   }
 
-  // ─── Token chime: crystalline FM bell ───
+  // ─── Feed top-1 confidence for the next token chime ───
+  setTokenConfidence(confidence: number) {
+    this.lastConfidence = Math.max(0, Math.min(1, confidence))
+  }
+
+  // ─── Token chime: FM bell whose pitch & brightness = confidence ───
+  // High confidence → bright high bell, longer sustain.
+  // Low confidence → low muted tone, short.
   tokenChime() {
     if (!this.ctx || !this.dryGain || !this.reverbSend || this.muted) return
     const now = this.ctx.currentTime
-    // Rate-limit: never more than 6 chimes/sec even if tokens stream faster.
-    if (now - this.lastChimeTime < 0.17) return
+    if (now - this.lastChimeTime < 0.15) return
     this.lastChimeTime = now
 
-    // Pitch varies per chime but within a gentle major-6th window, not wild.
-    const choices = [660, 740, 784, 880, 988, 1046]
-    const baseFreq = choices[Math.floor(Math.random() * choices.length)]
+    const c = this.lastConfidence
+
+    // Pitch: 330 Hz (low confidence) → 1320 Hz (high confidence)
+    // This is E4 → E6, two octaves. Confident predictions ring bright.
+    const baseFreq = 330 + c * c * 990 // quadratic: clusters low freqs for uncertain tokens
 
     // Carrier
     const carrier = this.ctx.createOscillator()
     carrier.type = 'sine'
     carrier.frequency.value = baseFreq
 
-    // Modulator (FM). Inharmonic ratio → bell timbre.
+    // FM modulator — inharmonic ratio for bell timbre
+    // Higher confidence → less modulation depth → purer tone
     const mod = this.ctx.createOscillator()
     mod.type = 'sine'
     mod.frequency.value = baseFreq * 1.414
     const modGain = this.ctx.createGain()
-    modGain.gain.setValueAtTime(baseFreq * 0.45, now)
-    modGain.gain.exponentialRampToValueAtTime(1, now + 0.7)
+    const modDepth = baseFreq * (0.6 - c * 0.35) // less FM when confident
+    modGain.gain.setValueAtTime(modDepth, now)
+    modGain.gain.exponentialRampToValueAtTime(1, now + 0.5 + c * 0.3)
     mod.connect(modGain)
     modGain.connect(carrier.frequency)
 
-    // Envelope — softer peak, longer tail than before.
+    // Envelope — confident tokens sustain longer
+    const attackTime = 0.005
+    const peakVol = 0.022 + c * 0.018 // louder when confident
+    const decayTime = RAMP_SLOW + c * 0.3
+
     const env = this.ctx.createGain()
     env.gain.setValueAtTime(0, now)
-    env.gain.linearRampToValueAtTime(0.032, now + 0.006)
-    env.gain.exponentialRampToValueAtTime(0.0005, now + RAMP_SLOW + 0.2)
+    env.gain.linearRampToValueAtTime(peakVol, now + attackTime)
+    env.gain.exponentialRampToValueAtTime(0.0003, now + decayTime)
 
-    // High-shelf adds shimmer without harshness.
+    // High-shelf shimmer — more for confident tokens
     const shelf = this.ctx.createBiquadFilter()
     shelf.type = 'highshelf'
-    shelf.frequency.value = 2200
-    shelf.gain.value = 2.5
+    shelf.frequency.value = 2000
+    shelf.gain.value = 1.5 + c * 3
 
     carrier.connect(shelf)
     shelf.connect(env)
@@ -288,22 +334,25 @@ export class AudioEngine {
 
     carrier.start(now)
     mod.start(now)
-    carrier.stop(now + 1)
-    mod.stop(now + 1)
+    const duration = decayTime + 0.1
+    carrier.stop(now + duration)
+    mod.stop(now + duration)
 
-    // Inharmonic partial: adds bell sparkle without stepping on the root.
-    const p2 = this.ctx.createOscillator()
-    p2.type = 'sine'
-    p2.frequency.value = baseFreq * 3.01
-    const p2Gain = this.ctx.createGain()
-    p2Gain.gain.setValueAtTime(0, now)
-    p2Gain.gain.linearRampToValueAtTime(0.008, now + 0.004)
-    p2Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45)
-    p2.connect(p2Gain)
-    p2Gain.connect(this.dryGain)
-    p2Gain.connect(this.reverbSend)
-    p2.start(now)
-    p2.stop(now + 0.5)
+    // Inharmonic partial — sparkle. Only for confident tokens.
+    if (c > 0.3) {
+      const p2 = this.ctx.createOscillator()
+      p2.type = 'sine'
+      p2.frequency.value = baseFreq * 3.01
+      const p2Gain = this.ctx.createGain()
+      p2Gain.gain.setValueAtTime(0, now)
+      p2Gain.gain.linearRampToValueAtTime(0.005 + c * 0.006, now + 0.004)
+      p2Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35 + c * 0.15)
+      p2.connect(p2Gain)
+      p2Gain.connect(this.dryGain)
+      p2Gain.connect(this.reverbSend)
+      p2.start(now)
+      p2.stop(now + 0.5 + c * 0.15)
+    }
   }
 
   stopDrone() {

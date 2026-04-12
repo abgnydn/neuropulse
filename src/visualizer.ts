@@ -215,18 +215,18 @@ export class BrainVisualizer {
 
     // HUD overlay
     this.overlay = document.createElement('div')
-    this.overlay.style.cssText = 'position:absolute;bottom:12px;left:12px;pointer-events:none;font-family:JetBrains Mono,monospace;font-size:9px;color:#475569;line-height:1.6;'
+    this.overlay.style.cssText = 'position:absolute;bottom:12px;left:12px;pointer-events:none;font-family:JetBrains Mono,monospace;font-size:9px;color:#514a3e;line-height:1.6;'
     canvas.parentElement!.style.position = 'relative'
     canvas.parentElement!.appendChild(this.overlay)
 
     // Tooltip
     this.tooltip = document.createElement('div')
-    this.tooltip.style.cssText = 'position:absolute;pointer-events:none;background:rgba(2,2,16,0.85);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:8px 12px;font-family:JetBrains Mono,monospace;font-size:9px;color:#67e8f9;display:none;white-space:nowrap;z-index:10;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,229,255,0.1);'
+    this.tooltip.style.cssText = 'position:absolute;pointer-events:none;background:rgba(8,6,15,0.85);border:1px solid rgba(244,236,223,0.18);border-radius:8px;padding:8px 12px;font-family:JetBrains Mono,monospace;font-size:9px;color:#5eead4;display:none;white-space:nowrap;z-index:10;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(244,236,223,0.12);'
     canvas.parentElement!.appendChild(this.tooltip)
 
     // Inspect panel
     this.inspectPanel = document.createElement('div')
-    this.inspectPanel.style.cssText = 'position:absolute;top:12px;right:12px;background:rgba(2,2,16,0.85);border:1px solid rgba(0,229,255,0.15);border-radius:12px;padding:16px 20px;font-family:JetBrains Mono,monospace;font-size:10px;color:#cbd5e1;display:none;width:230px;z-index:10;line-height:1.8;backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,229,255,0.08);'
+    this.inspectPanel.style.cssText = 'position:absolute;top:12px;right:12px;background:rgba(8,6,15,0.85);border:1px solid rgba(244,236,223,0.16);border-radius:12px;padding:16px 20px;font-family:JetBrains Mono,monospace;font-size:10px;color:#cbc1ad;display:none;width:230px;z-index:10;line-height:1.8;backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(244,236,223,0.10);'
     canvas.parentElement!.appendChild(this.inspectPanel)
 
     // Selection ring
@@ -582,7 +582,7 @@ export class BrainVisualizer {
       for (let a = 0; a < 10; a++) {
         const ax = lx + (a / 9 - 0.5) * ANCHOR_W
         const mat = new THREE.MeshBasicMaterial({
-          color: 0x67e8f9,
+          color: 0x5eead4,
           transparent: true,
           opacity: 0.25,
         })
@@ -594,7 +594,7 @@ export class BrainVisualizer {
       }
       const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts)
       const lineMat = new THREE.LineBasicMaterial({
-        color: 0x67e8f9,
+        color: 0x5eead4,
         transparent: true,
         opacity: 0.12,
       })
@@ -791,10 +791,10 @@ export class BrainVisualizer {
     }
 
     if (this.currentStep === 0) this.audio.neuronTick(layer)
-    this.audio.setDroneIntensity(this.outputConfidence)
+    this.audio.setDroneIntensity(progress)
 
     if (this.dispatchEl) {
-      this.dispatchEl.innerHTML = `Dispatch: <strong style="color:#67e8f9">${this.dispatchCount}/${this.totalDispatches}</strong>`
+      this.dispatchEl.innerHTML = `Dispatch: <strong style="color:#5eead4">${this.dispatchCount}/${this.totalDispatches}</strong>`
     }
   }
 
@@ -841,11 +841,23 @@ export class BrainVisualizer {
     // Highlight current operation anchor
     this.highlightAnchor(layer, this.opStepToAnchor(step))
 
+    // Feed real GPU data into audio engine
+    if (data.attnHeads.length > 0) {
+      // Compute entropy of attention head activations (normalized)
+      const sum = data.attnHeads.reduce((a, b) => a + b, 0) || 1
+      let entropy = 0
+      for (const h of data.attnHeads) {
+        const p = h / sum
+        if (p > 1e-8) entropy -= p * Math.log2(p)
+      }
+      // Normalize to 0..1 (max entropy for 32 heads = log2(32) = 5)
+      this.audio.setAttentionEntropy(Math.min(1, entropy / 5))
+    }
+    this.audio.setDroneIntensity(data.residual)
     if (step === 0) this.audio.neuronTick(layer)
-    this.audio.setDroneIntensity(this.outputConfidence)
 
     if (this.dispatchEl) {
-      this.dispatchEl.innerHTML = `Dispatch: <strong style="color:#67e8f9">${this.dispatchCount}/${this.totalDispatches}</strong>`
+      this.dispatchEl.innerHTML = `Dispatch: <strong style="color:#5eead4">${this.dispatchCount}/${this.totalDispatches}</strong>`
     }
   }
 
@@ -864,11 +876,11 @@ export class BrainVisualizer {
       const m = list[a].material as THREE.MeshBasicMaterial
       if (a === anchorIdx) {
         m.opacity = 1.0
-        m.color.set(0xfff8a0)
+        m.color.set(0xf4ecdf)
         list[a].scale.setScalar(2.4)
       } else {
         m.opacity = 0.25
-        m.color.set(0x67e8f9)
+        m.color.set(0x5eead4)
         list[a].scale.setScalar(1.0)
       }
     }
@@ -959,7 +971,8 @@ export class BrainVisualizer {
     }
   }
 
-  addOutputToken(_token: string) {
+  addOutputToken(_token: string, confidence?: number) {
+    if (confidence !== undefined) this.audio.setTokenConfidence(confidence)
     this.audio.tokenChime()
   }
 
@@ -1031,31 +1044,31 @@ export class BrainVisualizer {
       ? `Group ${n.subIndex}/15 — 512 neurons, gate+up+SiLU activation`
       : 'Carries information between layers (skip connection + norm)'
 
-    const colorLabel = n.role === 'attn' ? '#67e8f9' : n.role === 'ffn' ? '#f0abfc' : '#99f6e4'
+    const colorLabel = n.role === 'attn' ? '#5eead4' : n.role === 'ffn' ? '#f0abfc' : '#5eead4'
     const connections = this.synapses.filter(s => s.fromIdx === this.neurons.indexOf(n) || s.toIdx === this.neurons.indexOf(n)).length
     const step = this.phase === 'thinking' ? STEP_NAMES[this.currentStep] : '—'
     const active = n.activation > 0.1
 
     this.inspectPanel.innerHTML = `
-      <div style="color:#67e8f9;font-weight:600;font-size:11px;margin-bottom:8px;border-bottom:1px solid rgba(0,229,255,0.12);padding-bottom:6px;">Component Inspector</div>
-      <div style="color:#475569">Component</div>
+      <div style="color:#5eead4;font-weight:600;font-size:11px;margin-bottom:8px;border-bottom:1px solid rgba(244,236,223,0.14);padding-bottom:6px;">Component Inspector</div>
+      <div style="color:#514a3e">Component</div>
       <div style="color:${colorLabel};margin-bottom:4px;font-weight:600">${roleLabel}</div>
-      <div style="color:#475569">Layer</div>
-      <div style="color:#e2e8f0;margin-bottom:4px"><strong>${n.layer}</strong> / 31</div>
-      <div style="color:#475569;font-size:9px;margin-bottom:6px">${roleDesc}</div>
-      <div style="color:#475569">Connections</div>
-      <div style="color:#e2e8f0;margin-bottom:4px">${connections}</div>
-      <div style="color:#475569">Real Activation</div>
+      <div style="color:#514a3e">Layer</div>
+      <div style="color:#f4ecdf;margin-bottom:4px"><strong>${n.layer}</strong> / 31</div>
+      <div style="color:#514a3e;font-size:9px;margin-bottom:6px">${roleDesc}</div>
+      <div style="color:#514a3e">Connections</div>
+      <div style="color:#f4ecdf;margin-bottom:4px">${connections}</div>
+      <div style="color:#514a3e">Real Activation</div>
       <div style="margin-bottom:4px">
         <div style="background:#0f172a;border-radius:3px;height:6px;width:100%;overflow:hidden">
           <div style="background:${active ? colorLabel : '#1e293b'};height:100%;width:${(n.activation * 100).toFixed(0)}%;transition:width 0.1s;box-shadow:${active ? '0 0 8px ' + colorLabel : 'none'}"></div>
         </div>
-        <span style="color:${active ? '#67e8f9' : '#334155'}">${(n.activation * 100).toFixed(0)}% (GPU readback)</span>
+        <span style="color:${active ? '#5eead4' : '#514a3e'}">${(n.activation * 100).toFixed(0)}% (GPU readback)</span>
       </div>
-      <div style="color:#475569">Current Op</div>
-      <div style="color:#e2e8f0;margin-bottom:4px">${step}</div>
-      <div style="color:#475569">Status</div>
-      <div style="color:${active ? '#2dd4bf' : '#334155'}">${active ? 'Firing' : 'Idle'}</div>
+      <div style="color:#514a3e">Current Op</div>
+      <div style="color:#f4ecdf;margin-bottom:4px">${step}</div>
+      <div style="color:#514a3e">Status</div>
+      <div style="color:${active ? '#5eead4' : '#514a3e'}">${active ? 'Firing' : 'Idle'}</div>
     `
   }
 
@@ -1155,14 +1168,14 @@ export class BrainVisualizer {
     if (this.phase === 'thinking') {
       const phaseIdx = Math.min(Math.floor(this.activeLayer / 3.2), PHASE_LABELS.length - 1)
       this.overlay.innerHTML = `
-        <span style="color:#67e8f9">${PHASE_LABELS[phaseIdx]}</span><br>
+        <span style="color:#5eead4">${PHASE_LABELS[phaseIdx]}</span><br>
         Layer ${this.activeLayer}/31 &bull; ${Math.round(this.outputConfidence * 100)}% &bull; ${STEP_NAMES[this.currentStep] || ''}<br>
         Dispatches: ${this.dispatchCount}/${this.totalDispatches}
       `
     } else if (this.phase === 'idle') {
       this.overlay.innerHTML = '<span style="color:#1e293b">Idle — type a question</span>'
     } else {
-      this.overlay.innerHTML = '<span style="color:#2dd4bf">Done</span>'
+      this.overlay.innerHTML = '<span style="color:#5eead4">Done</span>'
     }
 
     // Selection ring: billboard towards camera, subtle pulse for visibility.
