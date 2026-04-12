@@ -906,11 +906,49 @@ setInterval(() => {
 document.querySelectorAll<HTMLButtonElement>('.preset-chip').forEach((chip) => {
   chip.addEventListener('click', () => {
     const p = chip.dataset.prompt
-    if (!p || isRunning || isValidating) return
+    if (!p || isValidating) return
+    if (isRunning) {
+      // Fill the input so the user can see what will run, and pulse the chip
+      promptInput.value = p
+      chip.style.borderColor = '#f59e0b'
+      chip.style.color = '#f59e0b'
+      setTimeout(() => { chip.style.borderColor = ''; chip.style.color = '' }, 600)
+      // Show a brief toast warning
+      showPresetToast('Generation in progress — click again to start a new one', chip, p)
+      return
+    }
     promptInput.value = p
     startInference()
   })
 })
+
+/** Toast + second-click confirmation for preset chips during active generation */
+let _presetPending: { chip: HTMLButtonElement; prompt: string; timer: number } | null = null
+function showPresetToast(msg: string, chip: HTMLButtonElement, prompt: string) {
+  // If user clicks the same chip twice, treat as confirmation
+  if (_presetPending && _presetPending.chip === chip) {
+    clearTimeout(_presetPending.timer)
+    _presetPending = null
+    removePresetToast()
+    isRunning = false
+    setTimeout(() => { promptInput.value = prompt; startInference() }, 100)
+    return
+  }
+  // Clear any previous pending
+  if (_presetPending) { clearTimeout(_presetPending.timer); _presetPending = null }
+  removePresetToast()
+  // Show toast
+  const toast = document.createElement('div')
+  toast.id = 'presetToast'
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(30,25,20,0.95);border:1px solid #f59e0b;color:#f4ecdf;font-family:"JetBrains Mono",monospace;font-size:0.68rem;padding:8px 16px;border-radius:6px;z-index:9999;pointer-events:none;animation:fadeIn 0.2s ease'
+  toast.textContent = msg
+  document.body.appendChild(toast)
+  const timer = window.setTimeout(() => { _presetPending = null; removePresetToast() }, 3000)
+  _presetPending = { chip, prompt, timer }
+}
+function removePresetToast() {
+  document.getElementById('presetToast')?.remove()
+}
 
 // ─── Tutorial overlay (first visit) ───
 const TUTORIAL_KEY = 'np:tutorial-dismissed-v1'
