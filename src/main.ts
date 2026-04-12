@@ -1662,17 +1662,20 @@ function showDownloadGate(): Promise<void> {
         </p>
         <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
           <button id="gateGo" style="
-            background:linear-gradient(135deg,#06b6d4,#8b5cf6);color:#fff;border:0;
-            padding:14px 28px;border-radius:10px;font-weight:700;font-size:0.95rem;
-            cursor:pointer;box-shadow:0 8px 24px rgba(139,92,246,0.35);
-            font-family:inherit;letter-spacing:-0.005em;
-          ">Download &amp; run →</button>
+            background:#f4ecdf;color:#08060f;border:1px solid #f4ecdf;
+            padding:12px 26px;border-radius:4px;font-weight:500;font-size:0.88rem;
+            cursor:pointer;font-family:'JetBrains Mono',monospace;
+            transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+          " onmouseover="this.style.background='#00e5ff';this.style.borderColor='#00e5ff';this.style.transform='translateY(-1px)';this.style.boxShadow='0 12px 32px rgba(0,229,255,0.32)'"
+             onmouseout="this.style.background='#f4ecdf';this.style.borderColor='#f4ecdf';this.style.transform='';this.style.boxShadow=''">Download &amp; run →</button>
           <a href="/" style="
-            background:transparent;color:#8a8170;border:1px solid rgba(244,236,223,0.20);
-            padding:14px 24px;border-radius:10px;font-weight:600;font-size:0.95rem;
-            text-decoration:none;font-family:inherit;
+            background:transparent;color:#8a8170;border:1px solid rgba(244,236,223,0.18);
+            padding:12px 22px;border-radius:4px;font-weight:500;font-size:0.88rem;
+            text-decoration:none;font-family:'JetBrains Mono',monospace;
             display:inline-flex;align-items:center;
-          ">Back to landing</a>
+            transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+          " onmouseover="this.style.borderColor='#f4ecdf';this.style.color='#f4ecdf'"
+             onmouseout="this.style.borderColor='rgba(244,236,223,0.18)';this.style.color='#8a8170'">Back to landing</a>
         </div>
         <div style="margin-top:24px;font-size:0.68rem;color:#514a3e;font-family:'JetBrains Mono',monospace;">
           host: huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC
