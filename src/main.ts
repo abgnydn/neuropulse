@@ -1164,49 +1164,21 @@ function getSharedPrompt(): string | null {
   return params.get('q')
 }
 
-// ─── Loading overlay ───
-function createLoadingOverlay() {
-  let overlay = document.getElementById('loadingOverlay')
-  if (overlay) return
-
-  overlay = document.createElement('div')
-  overlay.id = 'loadingOverlay'
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:rgba(5,5,16,0.95);z-index:1000;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    font-family:'JetBrains Mono',monospace;color:#cbc1ad;
-  `
-
-  overlay.innerHTML = `
-    <div style="font-size:1.3rem;font-weight:700;margin-bottom:6px;color:#f4ecdf;">
-      <span style="font-family:'Fraunces',Georgia,serif;font-weight:400;letter-spacing:-0.01em;font-variation-settings:'opsz' 144,'SOFT' 50;"><span style="color:#f4ecdf;">neuro</span><span style="color:#00e5ff;font-style:italic;text-shadow:0 0 20px rgba(0,229,255,0.3);">pulse</span></span>
-    </div>
-    <div style="font-size:0.7rem;color:#8a8170;margin-bottom:28px;">Loading Phi-3 3.8B — 11 WGSL shaders, no frameworks</div>
-
-    <div style="width:360px;margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;font-size:0.68rem;margin-bottom:6px;">
-        <span id="loadPct" style="color:#f4ecdf;font-weight:600;">0%</span>
-        <span id="loadSize" style="color:#8a8170;">0 / 0 MB</span>
-      </div>
-      <div style="width:100%;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;">
-        <div id="loadBar" style="width:0%;height:100%;background:linear-gradient(90deg,#c084fc,#06b6d4);transition:width 0.15s;border-radius:2px;"></div>
-      </div>
-    </div>
-
-    <div id="loadMsg" style="font-size:0.65rem;color:#8a8170;max-width:400px;text-align:center;line-height:1.5;min-height:2em;"></div>
-    <div id="loadCache" style="font-size:0.6rem;color:#5eead4;margin-top:8px;opacity:0;transition:opacity 0.3s;"></div>
-  `
-
-  document.body.appendChild(overlay)
+// ─── Boot screen (HTML-based, no flash of raw UI) ───
+function showBootLoading() {
+  const gate = document.getElementById('bootGate')
+  const loading = document.getElementById('bootLoading')
+  if (gate) { gate.classList.remove('visible'); gate.classList.add('hidden') }
+  if (loading) { loading.classList.remove('hidden'); loading.classList.add('visible') }
 }
 
 function updateLoading(p: LoadProgress) {
-  createLoadingOverlay()
-  const bar = document.getElementById('loadBar')
-  const pct = document.getElementById('loadPct')
-  const size = document.getElementById('loadSize')
-  const msg = document.getElementById('loadMsg')
-  const cache = document.getElementById('loadCache')
+  showBootLoading()
+  const bar = document.getElementById('bootBar')
+  const pct = document.getElementById('bootPct')
+  const size = document.getElementById('bootSize')
+  const msg = document.getElementById('bootMsg')
+  const cache = document.getElementById('bootCache')
 
   if (bar) bar.style.width = `${Math.min(100, p.percent).toFixed(1)}%`
   if (pct) pct.textContent = `${Math.min(100, p.percent).toFixed(1)}%`
@@ -1226,11 +1198,14 @@ function updateLoading(p: LoadProgress) {
 }
 
 function hideLoading() {
-  const overlay = document.getElementById('loadingOverlay')
-  if (overlay) {
-    overlay.style.opacity = '0'
-    overlay.style.transition = 'opacity 0.5s'
-    setTimeout(() => overlay.remove(), 500)
+  const boot = document.getElementById('bootScreen')
+  const container = document.querySelector('.container')
+  if (boot) {
+    boot.classList.add('fade-out')
+    setTimeout(() => boot.remove(), 600)
+  }
+  if (container) {
+    container.classList.add('revealed')
   }
 }
 
@@ -1563,11 +1538,12 @@ async function initEngine() {
   // Check WebGPU
   if (!navigator.gpu) {
     console.warn('[neural-pulse] No WebGPU — using demo mode')
+    hideLoading()
     startDemo()
     return
   }
 
-  createLoadingOverlay()
+  showBootLoading()
 
   try {
     engine = await createInferenceEngine((p) => {
@@ -1617,15 +1593,10 @@ function startDemo() {
 loadPcaLayoutPermanent()
 
 // ─── Download gate ───
-// First-time visitors get a confirmation screen before the ~2 GB Phi-3 weights
-// start streaming. Returning visitors with a populated cache (or no Cache API
-// support) skip straight to initEngine().
+// ─── Download gate (HTML-based) ───
 async function modelIsCached(): Promise<boolean> {
   if (typeof caches === 'undefined') return false
   try {
-    // Look at every cache the page has ever opened. If any of them holds an
-    // entry whose URL points at the Phi-3 repo, we already have weights and
-    // can launch without prompting.
     const names = await caches.keys()
     for (const name of names) {
       const store = await caches.open(name)
@@ -1634,76 +1605,26 @@ async function modelIsCached(): Promise<boolean> {
         if (req.url.includes('Phi-3-mini-4k-instruct-q4f16_1-MLC')) return true
       }
     }
-  } catch { /* Cache API blocked — fall through, show the gate */ }
+  } catch { /* Cache API blocked */ }
   return false
 }
 
-function showDownloadGate(): Promise<void> {
+function waitForGateClick(): Promise<void> {
   return new Promise((resolve) => {
-    const gate = document.createElement('div')
-    gate.id = 'downloadGate'
-    gate.style.cssText = `
-      position:fixed;inset:0;background:rgba(8,6,15,0.96);z-index:1100;
-      display:flex;align-items:center;justify-content:center;padding:24px;
-      font-family:'Inter',-apple-system,system-ui,sans-serif;color:#f4ecdf;
-      backdrop-filter:blur(8px);
-    `
-    gate.innerHTML = `
-      <div style="max-width:520px;text-align:center;">
-        <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:1.7rem;font-weight:700;letter-spacing:-0.01em;margin-bottom:14px;">
-          <span style="color:#f4ecdf;">neuro</span><span style="color:#00e5ff;font-style:italic;text-shadow:0 0 22px rgba(0,229,255,0.35);">pulse</span>
-        </div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:#8a8170;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:26px;">
-          a real forward pass · in your browser
-        </div>
-        <h2 style="font-size:1.35rem;font-weight:700;line-height:1.35;margin:0 0 14px 0;color:#f1f5f9;">
-          This page downloads the real Phi-3-mini weights <span style="color:#c084fc">(~2 GB)</span> to your browser.
-        </h2>
-        <p style="font-size:0.92rem;line-height:1.6;color:#8a8170;margin:0 0 8px 0;">
-          The download happens once. After that, the model is cached locally and runs
-          entirely on your GPU — no server, no API key, no telemetry.
-        </p>
-        <p style="font-size:0.78rem;line-height:1.6;color:#8a8170;margin:0 0 30px 0;">
-          You'll need WebGPU (Chrome / Edge / Safari TP) and roughly 2 GB of free GPU memory.
-          On a fast connection the download takes 1–3 minutes.
-        </p>
-        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-          <button id="gateGo" style="
-            background:#f4ecdf;color:#08060f;border:1px solid #f4ecdf;
-            padding:12px 26px;border-radius:4px;font-weight:500;font-size:0.88rem;
-            cursor:pointer;font-family:'JetBrains Mono',monospace;
-            transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
-          " onmouseover="this.style.background='#00e5ff';this.style.borderColor='#00e5ff';this.style.transform='translateY(-1px)';this.style.boxShadow='0 12px 32px rgba(0,229,255,0.32)'"
-             onmouseout="this.style.background='#f4ecdf';this.style.borderColor='#f4ecdf';this.style.transform='';this.style.boxShadow=''">Download &amp; run →</button>
-          <a href="/" style="
-            background:transparent;color:#8a8170;border:1px solid rgba(244,236,223,0.18);
-            padding:12px 22px;border-radius:4px;font-weight:500;font-size:0.88rem;
-            text-decoration:none;font-family:'JetBrains Mono',monospace;
-            display:inline-flex;align-items:center;
-            transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
-          " onmouseover="this.style.borderColor='#f4ecdf';this.style.color='#f4ecdf'"
-             onmouseout="this.style.borderColor='rgba(244,236,223,0.18)';this.style.color='#8a8170'">Back to landing</a>
-        </div>
-        <div style="margin-top:24px;font-size:0.68rem;color:#514a3e;font-family:'JetBrains Mono',monospace;">
-          host: huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC
-        </div>
-      </div>
-    `
-    document.body.appendChild(gate)
-    const goBtn = gate.querySelector('#gateGo') as HTMLButtonElement
-    goBtn.addEventListener('click', () => {
-      gate.style.transition = 'opacity 0.3s'
-      gate.style.opacity = '0'
-      setTimeout(() => { gate.remove(); resolve() }, 300)
-    }, { once: true })
+    const btn = document.getElementById('bootGoBtn')
+    if (!btn) { resolve(); return }
+    btn.addEventListener('click', () => resolve(), { once: true })
   })
 }
 
 ;(async () => {
   if (await modelIsCached()) {
+    // Cached — skip gate, go straight to loading phase
+    showBootLoading()
     initEngine()
   } else {
-    await showDownloadGate()
+    // First visit — show gate, wait for click
+    await waitForGateClick()
     initEngine()
   }
 })()
