@@ -26,14 +26,22 @@ speedSlider.addEventListener('input', () => {
   speedLabel.textContent = speedSlider.value + 'x'
 })
 
+// SVG icon helpers for tool buttons
+const SVG_SOUND_ON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>'
+const SVG_SOUND_OFF = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+const SVG_RECORD = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>'
+const SVG_RECORD_ACTIVE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5" fill="#ef4444"/></svg>'
+const SVG_VALIDATE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>'
+const SVG_VALIDATE_BUSY = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+
 // Sound toggle — sync icon with persisted mute state on load
 const soundBtn = document.getElementById('soundBtn') as HTMLButtonElement
 if (soundBtn) {
-  soundBtn.textContent = viz.audio.isMuted() ? '🔇' : '🔊'
+  soundBtn.innerHTML = viz.audio.isMuted() ? SVG_SOUND_OFF : SVG_SOUND_ON
   soundBtn.title = viz.audio.isMuted() ? 'Unmute' : 'Mute'
   soundBtn.addEventListener('click', () => {
     const muted = viz.audio.toggleMute()
-    soundBtn.textContent = muted ? '🔇' : '🔊'
+    soundBtn.innerHTML = muted ? SVG_SOUND_OFF : SVG_SOUND_ON
     soundBtn.title = muted ? 'Unmute' : 'Mute'
   })
 }
@@ -80,13 +88,12 @@ document.querySelectorAll<HTMLButtonElement>('.mode-btn').forEach((btn) => {
 // user kicks it off with this button when they want the accuracy report.
 const validateBtn = document.getElementById('accurateBtn') as HTMLButtonElement
 if (validateBtn) {
-  validateBtn.textContent = '🧪'
+  validateBtn.innerHTML = SVG_VALIDATE
   validateBtn.title = 'Run HF cross-validation suite (prints accuracy report to console)'
   validateBtn.addEventListener('click', async () => {
     if (isValidating || isRunning) return
     isValidating = true
-    const prevText = validateBtn.textContent
-    validateBtn.textContent = '⏳'
+    validateBtn.innerHTML = SVG_VALIDATE_BUSY
     validateBtn.disabled = true
     goBtn.disabled = true
     const prevGoText = goBtn.textContent
@@ -98,7 +105,7 @@ if (validateBtn) {
     } finally {
       isValidating = false
       validateBtn.disabled = false
-      validateBtn.textContent = prevText
+      validateBtn.innerHTML = SVG_VALIDATE
       goBtn.disabled = false
       goBtn.textContent = prevGoText || 'Think'
     }
@@ -1007,13 +1014,13 @@ if (recordBtn) {
       URL.revokeObjectURL(url)
     }
     isRecording = true
-    recordBtn.textContent = '⏺'
+    recordBtn.innerHTML = SVG_RECORD_ACTIVE
     recordBtn.style.color = '#ef4444'
     mr.start()
     setTimeout(() => {
       mr.stop()
       isRecording = false
-      recordBtn.textContent = '🎥'
+      recordBtn.innerHTML = SVG_RECORD
       recordBtn.style.color = ''
     }, 10_000)
   })
