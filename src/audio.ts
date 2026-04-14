@@ -359,8 +359,14 @@ export class AudioEngine {
     if (!this.padGain || !this.ctx) return
     this.started = false
     const t = this.ctx.currentTime
+
+    // Fade out everything — pad drone + dry (chime) + reverb tail
     this.padGain.gain.cancelScheduledValues(t)
-    this.padGain.gain.linearRampToValueAtTime(0, t + 2)
+    this.padGain.gain.linearRampToValueAtTime(0, t + 1.5)
+    this.dryGain?.gain.cancelScheduledValues(t)
+    this.dryGain?.gain.linearRampToValueAtTime(0, t + 0.4)
+    this.reverbGain?.gain.cancelScheduledValues(t)
+    this.reverbGain?.gain.linearRampToValueAtTime(0, t + 0.8)
 
     setTimeout(() => {
       for (const osc of this.padOscs) {
@@ -369,6 +375,9 @@ export class AudioEngine {
       this.padOscs = []
       try { this.noiseNode?.stop() } catch { /* ok */ }
       this.noiseNode = null
-    }, 2500)
+      // Restore gains for next run
+      if (this.dryGain) this.dryGain.gain.value = 1
+      if (this.reverbGain) this.reverbGain.gain.value = 0.35
+    }, 2000)
   }
 }
