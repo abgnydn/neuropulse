@@ -290,7 +290,7 @@ async function loadPcaLayoutPermanent() {
       f[i * 2 + 1] = data.ffn[i][1]
     }
     viz.setPcaLayout(r, f)
-    console.log('[pca] permanent layout applied:', data.residual.length, 'residual +', data.ffn.length, 'FFN points')
+    // layout applied silently
   } catch (e) {
     console.warn('[pca] load failed', e)
   }
@@ -1577,7 +1577,7 @@ promptInput.addEventListener('keydown', (e) => {
 async function initEngine() {
   // Check WebGPU
   if (!navigator.gpu) {
-    console.warn('[neural-pulse] No WebGPU — using demo mode')
+    console.log('[neural-pulse] demo mode (no WebGPU)')
     hideLoading()
     startDemo()
     return
@@ -1613,7 +1613,7 @@ async function initEngine() {
     }, 1500)
 
   } catch (e) {
-    console.warn('[neural-pulse] Engine init failed, using demo mode:', e)
+    console.log('[neural-pulse] demo mode')
     hideLoading()
     startDemo()
   }
@@ -1661,12 +1661,12 @@ function waitForGateClick(): Promise<void> {
   if (await modelIsCached()) {
     // Cached — skip gate, go straight to loading phase
     showBootLoading()
-    try { initVisualizer() } catch (e) { console.warn('[viz] WebGL init failed, running headless:', e) }
+    try { initVisualizer() } catch {}
     initEngine()
   } else {
     // First visit — show gate, wait for click
     await waitForGateClick()
-    try { initVisualizer() } catch (e) { console.warn('[viz] WebGL init failed, running headless:', e) }
+    try { initVisualizer() } catch {}
     initEngine()
   }
 })()

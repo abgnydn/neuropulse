@@ -164,11 +164,11 @@ export class BrainVisualizer {
   constructor(canvas: HTMLCanvasElement) {
     this.audio = new AudioEngine()
 
-    // Renderer.
-    // preserveDrawingBuffer is enabled only in capture mode (?capture=1)
-    // because it forces an extra full-frame copy on every render. Normal
-    // visitors don't pay that cost — it's purely for headless hero-video
-    // capture, where canvas.toDataURL() needs the buffer to still be there.
+    // Bail early if WebGL is unavailable — prevents Three.js from spamming
+    // the console with multiple "could not create WebGL context" errors.
+    const testCtx = canvas.getContext('webgl2') || canvas.getContext('webgl')
+    if (!testCtx) throw new Error('WebGL unavailable')
+
     const _captureMode = new URLSearchParams(location.search).has('capture')
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: _captureMode })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
