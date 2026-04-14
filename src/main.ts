@@ -1329,6 +1329,7 @@ async function runRealInference(prompt: string) {
   selectedHeadLayer = -1
   selectedHeadIdx = -1
 
+  try {
   await engine.generate(prompt, 500, {
     async onLayer(layer, step, _stepName, activations) {
       // Build role-specific activation data from GPU readback
@@ -1510,9 +1511,28 @@ async function runRealInference(prompt: string) {
   viz.setDone()
   const c2 = output.querySelector('.cursor')
   if (c2) c2.remove()
-  isRunning = false
-  goBtn.disabled = false
-  goBtn.textContent = 'Think'
+  } catch (err) {
+    console.warn('[inference] GPU error:', err)
+    const cur = output.querySelector('.cursor')
+    if (cur) cur.remove()
+    // Show brief error indicator, then auto-retry after GPU settles
+    output.innerHTML += `<span style="color:#f44;opacity:.7"> [GPU hiccup — retrying...]</span>`
+    await sleep(1500)
+    // Retry once with same prompt
+    isRunning = false
+    try {
+      await runRealInference(prompt)
+    } catch (retryErr) {
+      console.error('[inference] retry failed:', retryErr)
+      output.innerHTML += `<span style="color:#f44;opacity:.7"> [retry failed]</span>`
+    }
+    return // runRealInference manages cleanup on success/fail
+  } finally {
+    viz.setDone()
+    isRunning = false
+    goBtn.disabled = false
+    goBtn.textContent = 'Think'
+  }
 }
 
 // ─── Dispatch ───
@@ -1570,7 +1590,7 @@ async function initEngine() {
         promptInput.value = getSharedPrompt() || 'What is consciousness?'
         startInference()
       }
-    }, 500)
+    }, 1500)
 
   } catch (e) {
     console.warn('[neural-pulse] Engine init failed, using demo mode:', e)
