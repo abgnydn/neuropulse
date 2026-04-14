@@ -164,11 +164,6 @@ export class BrainVisualizer {
   constructor(canvas: HTMLCanvasElement) {
     this.audio = new AudioEngine()
 
-    // Bail early if WebGL is unavailable — prevents Three.js from spamming
-    // the console with multiple "could not create WebGL context" errors.
-    const testCtx = canvas.getContext('webgl2') || canvas.getContext('webgl')
-    if (!testCtx) throw new Error('WebGL unavailable')
-
     const _captureMode = new URLSearchParams(location.search).has('capture')
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: _captureMode })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
