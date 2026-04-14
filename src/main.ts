@@ -7,8 +7,12 @@ import { reduceQKVForAttnHeads, reduceForAttnHeads, reduceForFFNGroups, reduceFo
 // ═══════════════════════════════════════════════════════════════
 
 const canvas = document.getElementById('brainCanvas') as HTMLCanvasElement
-const viz = new BrainVisualizer(canvas)
-viz.start()
+let viz: BrainVisualizer
+
+function initVisualizer() {
+  viz = new BrainVisualizer(canvas)
+  viz.start()
+}
 
 const output = document.getElementById('output')!
 const goBtn = document.getElementById('goBtn') as HTMLButtonElement
@@ -34,9 +38,10 @@ const SVG_RECORD_ACTIVE = '<svg width="16" height="16" viewBox="0 0 24 24" fill=
 const SVG_VALIDATE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>'
 const SVG_VALIDATE_BUSY = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
 
-// Sound toggle — sync icon with persisted mute state on load
+// Sound toggle — initialized after viz is ready
 const soundBtn = document.getElementById('soundBtn') as HTMLButtonElement
-if (soundBtn) {
+function initSoundBtn() {
+  if (!soundBtn || !viz) return
   soundBtn.innerHTML = viz.audio.isMuted() ? SVG_SOUND_OFF : SVG_SOUND_ON
   soundBtn.title = viz.audio.isMuted() ? 'Unmute' : 'Mute'
   soundBtn.addEventListener('click', () => {
@@ -1641,10 +1646,12 @@ function waitForGateClick(): Promise<void> {
   if (await modelIsCached()) {
     // Cached — skip gate, go straight to loading phase
     showBootLoading()
+    try { initVisualizer(); initSoundBtn() } catch (e) { console.warn('[viz] WebGL init failed:', e) }
     initEngine()
   } else {
     // First visit — show gate, wait for click
     await waitForGateClick()
+    try { initVisualizer(); initSoundBtn() } catch (e) { console.warn('[viz] WebGL init failed:', e) }
     initEngine()
   }
 })()
