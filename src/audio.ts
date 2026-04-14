@@ -279,80 +279,44 @@ export class AudioEngine {
     this.lastConfidence = Math.max(0, Math.min(1, confidence))
   }
 
-  // ─── Token chime: FM bell whose pitch & brightness = confidence ───
-  // High confidence → bright high bell, longer sustain.
-  // Low confidence → low muted tone, short.
+  // ─── Token tick: short filtered click, pitch = confidence ───
+  // Soft percussive tick per token. No bell, no sustain, no reverb ring.
   tokenChime() {
-    if (!this.ctx || !this.dryGain || !this.reverbSend || this.muted) return
+    if (!this.ctx || !this.dryGain || this.muted) return
     const now = this.ctx.currentTime
-    if (now - this.lastChimeTime < 0.15) return
+    if (now - this.lastChimeTime < 0.12) return
     this.lastChimeTime = now
 
     const c = this.lastConfidence
 
-    // Pitch: 330 Hz (low confidence) → 1320 Hz (high confidence)
-    // This is E4 → E6, two octaves. Confident predictions ring bright.
-    const baseFreq = 330 + c * c * 990 // quadratic: clusters low freqs for uncertain tokens
-
-    // Carrier
-    const carrier = this.ctx.createOscillator()
-    carrier.type = 'sine'
-    carrier.frequency.value = baseFreq
-
-    // FM modulator — inharmonic ratio for bell timbre
-    // Higher confidence → less modulation depth → purer tone
-    const mod = this.ctx.createOscillator()
-    mod.type = 'sine'
-    mod.frequency.value = baseFreq * 1.414
-    const modGain = this.ctx.createGain()
-    const modDepth = baseFreq * (0.6 - c * 0.35) // less FM when confident
-    modGain.gain.setValueAtTime(modDepth, now)
-    modGain.gain.exponentialRampToValueAtTime(1, now + 0.5 + c * 0.3)
-    mod.connect(modGain)
-    modGain.connect(carrier.frequency)
-
-    // Envelope — confident tokens sustain longer
-    const attackTime = 0.005
-    const peakVol = 0.022 + c * 0.018 // louder when confident
-    const decayTime = RAMP_SLOW + c * 0.3
-
-    const env = this.ctx.createGain()
-    env.gain.setValueAtTime(0, now)
-    env.gain.linearRampToValueAtTime(peakVol, now + attackTime)
-    env.gain.exponentialRampToValueAtTime(0.0003, now + decayTime)
-
-    // High-shelf shimmer — more for confident tokens
-    const shelf = this.ctx.createBiquadFilter()
-    shelf.type = 'highshelf'
-    shelf.frequency.value = 2000
-    shelf.gain.value = 1.5 + c * 3
-
-    carrier.connect(shelf)
-    shelf.connect(env)
-    env.connect(this.dryGain)
-    env.connect(this.reverbSend)
-
-    carrier.start(now)
-    mod.start(now)
-    const duration = decayTime + 0.1
-    carrier.stop(now + duration)
-    mod.stop(now + duration)
-
-    // Inharmonic partial — sparkle. Only for confident tokens.
-    if (c > 0.3) {
-      const p2 = this.ctx.createOscillator()
-      p2.type = 'sine'
-      p2.frequency.value = baseFreq * 3.01
-      const p2Gain = this.ctx.createGain()
-      p2Gain.gain.setValueAtTime(0, now)
-      p2Gain.gain.linearRampToValueAtTime(0.005 + c * 0.006, now + 0.004)
-      p2Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35 + c * 0.15)
-      p2.connect(p2Gain)
-      p2Gain.connect(this.dryGain)
-      p2Gain.connect(this.reverbSend)
-      p2.start(now)
-      p2.stop(now + 0.5 + c * 0.15)
+    // Short noise burst filtered to a pitch region
+    const bufferSize = Math.floor(this.ctx.sampleRate * 0.03) // 30ms
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.15))
     }
+
+    const source = this.ctx.createBufferSource()
+    source.buffer = buffer
+
+    // Bandpass filter — confidence shifts the center frequency
+    const bp = this.ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 800 + c * 1600 // 800–2400 Hz
+    bp.Q.value = 2 + c * 4
+
+    // Very short envelope
+    const env = this.ctx.createGain()
+    env.gain.setValueAtTime(0.015 + c * 0.012, now)
+    env.gain.exponentialRampToValueAtTime(0.0001, now + 0.04 + c * 0.02)
+
+    source.connect(bp)
+    bp.connect(env)
+    env.connect(this.dryGain)
+
+    source.start(now)
+    source.stop(now + 0.08)
   }
 
   stopDrone() {
