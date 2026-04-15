@@ -163,8 +163,8 @@ src/
 ## Run locally
 
 ```bash
-git clone https://github.com/abgnydn/neural-pulse.git
-cd neural-pulse
+git clone https://github.com/abgnydn/neuropulse.git
+cd neuropulse
 npm install
 npm run dev
 ```

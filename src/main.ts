@@ -148,7 +148,7 @@ if (screenshotBtn) {
     }
     const a = document.createElement('a')
     a.href = dataUrl
-    a.download = `neural-pulse-${suffix}-${Date.now()}.png`
+    a.download = `neuropulse-${suffix}-${Date.now()}.png`
     a.click()
   })
 }
@@ -1029,7 +1029,7 @@ if (recordBtn) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `neural-pulse-${currentMode}-${Date.now()}.webm`
+      a.download = `neuropulse-${currentMode}-${Date.now()}.webm`
       a.click()
       URL.revokeObjectURL(url)
     }
@@ -1230,12 +1230,6 @@ function hideLoading() {
 }
 
 // ─── Demo mode (no WebGPU fallback) ───
-const DEMO_RESPONSE = `Consciousness is one of the most profound mysteries in philosophy and neuroscience. At its core, it refers to the subjective experience of being aware — the "what it is like" quality of experience that philosopher Thomas Nagel famously explored.
-
-From a neuroscience perspective, consciousness appears to emerge from complex patterns of neural activity across the brain, particularly involving the thalamo-cortical system. Yet the "hard problem" remains: why does physical processing give rise to subjective experience at all?
-
-Some theories suggest consciousness is fundamental to the universe, while others view it as an emergent property of sufficiently complex information processing. The truth likely lies somewhere we haven't yet imagined.`
-
 function tokenize(text: string): string[] {
   return text.split(/(\s+)/).filter(t => t.trim().length > 0)
 }
@@ -1248,68 +1242,6 @@ function appendToken(text: string) {
   if (cursor) output.insertBefore(span, cursor)
   else output.appendChild(span)
   output.scrollTop = output.scrollHeight
-}
-
-// ─── Demo inference (fake, for no-WebGPU fallback) ───
-async function thinkOneTokenDemo(): Promise<void> {
-  const speed = parseInt(speedSlider.value)
-  const delay = speed <= 3 ? Math.round(100 - speed * 20)
-    : speed <= 8 ? Math.round(30 - (speed - 3) * 3.6)
-    : Math.max(1, Math.round(10 - (speed - 8) * 0.75))
-  const steps = speed >= 15 ? 3 : 5
-
-  for (let L = 0; L < 32; L++) {
-    if (!isRunning) return
-    for (let step = 0; step < steps; step++) {
-      viz.activateLayer(L, (step + 1) / steps)
-      await sleep(delay)
-    }
-  }
-}
-
-async function runDemoInference(prompt: string) {
-  isRunning = true
-  goBtn.disabled = true
-  goBtn.textContent = 'Thinking...'
-  viz.audio.resume()
-
-  output.innerHTML = ''
-  const promptEcho = document.createElement('div')
-  promptEcho.style.cssText = 'color:#c084fc;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
-  promptEcho.textContent = `> ${prompt}`
-  output.appendChild(promptEcho)
-  const cursor = document.createElement('span')
-  cursor.className = 'cursor'
-  output.appendChild(cursor)
-
-  const inputTokens = tokenize(prompt)
-  viz.setInputTokens(inputTokens)
-  tokenStripStart(prompt)
-
-  const words = tokenize(DEMO_RESPONSE)
-  const t0 = performance.now()
-
-  for (let i = 0; i < words.length; i++) {
-    if (!isRunning) break
-    await thinkOneTokenDemo()
-    appendToken(words[i] + ' ')
-    viz.addOutputToken(words[i])
-    tokenStripAppendGenerated(words[i])
-    totalTokens++
-
-    const elapsed = (performance.now() - t0) / 1000
-    document.getElementById('speedStat')!.innerHTML =
-      `Speed: <strong class="live">${(totalTokens / elapsed).toFixed(1)} tok/s</strong>`
-    document.getElementById('tokenStat')!.innerHTML =
-      `Tokens: <strong style="color:#f4ecdf">${totalTokens}</strong>`
-  }
-
-  viz.setDone()
-  const c2 = output.querySelector('.cursor')
-  if (c2) c2.remove()
-  isRunning = false
-  goBtn.disabled = false
-  goBtn.textContent = 'Think'
 }
 
 // ─── Real Phi-3 inference ───
@@ -1559,13 +1491,9 @@ async function runRealInference(prompt: string) {
 function startInference() {
   const prompt = promptInput.value.trim()
   if (!prompt || isRunning || isValidating) return
+  if (!engine) return // no engine = no inference (error screen is already up)
   promptInput.value = ''
-
-  if (engine) {
-    runRealInference(prompt)
-  } else {
-    runDemoInference(prompt)
-  }
+  runRealInference(prompt)
 }
 
 goBtn.addEventListener('click', startInference)
@@ -1573,13 +1501,51 @@ promptInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') startInference()
 })
 
-// ─── Init: try to load real engine, fall back to demo ───
+// ─── Boot-screen error state (replaces the loading phase) ───
+function showEngineError(title: string, detail: string) {
+  const boot = document.getElementById('bootScreen')
+  if (!boot) return
+  // Reveal boot screen if it was hidden, hide all other phases
+  boot.style.display = 'flex'
+  boot.classList.remove('hidden')
+  const container = document.querySelector('.container')
+  if (container) container.classList.remove('revealed')
+  document.querySelectorAll('.boot-phase').forEach(p => {
+    p.classList.remove('visible')
+    p.classList.add('hidden')
+  })
+  // Reuse or create the error phase
+  let err = document.getElementById('bootError')
+  if (!err) {
+    err = document.createElement('div')
+    err.id = 'bootError'
+    err.className = 'boot-phase boot-gate visible'
+    const inner = boot.querySelector('.boot-inner')
+    if (inner) inner.appendChild(err)
+  } else {
+    err.classList.remove('hidden')
+    err.classList.add('visible')
+  }
+  err.innerHTML = `
+    <h2 style="color:#f4ecdf">${title}</h2>
+    <p style="color:#b8b4a8">${detail}</p>
+    <p class="fine" style="color:#b8b4a8;opacity:0.7">Tip: close other tabs using the GPU (video calls, YouTube, 3D sites), then reload.</p>
+    <div class="btn-row">
+      <button class="btn-go" onclick="location.reload()">Reload</button>
+      <a href="/" class="btn-back">Back to landing</a>
+    </div>
+  `
+}
+
+// ─── Init: load real engine; show error screen if unavailable ───
 async function initEngine() {
   // Check WebGPU
   if (!navigator.gpu) {
-    console.log('[neural-pulse] demo mode (no WebGPU)')
-    hideLoading()
-    startDemo()
+    console.log('[neuropulse] WebGPU unavailable')
+    showEngineError(
+      'WebGPU not supported in this browser.',
+      'Neuropulse runs the real Phi-3-mini on your GPU. Open in <strong>desktop Chrome, Edge, or Safari TP</strong> to continue.'
+    )
     return
   }
 
@@ -1598,13 +1564,7 @@ async function initEngine() {
       dispatchStat.innerHTML = `Engine: <strong style="color:#5eead4">ZeroTVM</strong>`
     }
 
-    // The HF cross-validation suite no longer runs automatically on boot —
-    // it's triggered manually via the 🧪 button. When it IS running it
-    // still holds the engine's KV buffers / lengthInfo / posMap / pageIndptr
-    // for the duration, so startInference remains gated on isValidating to
-    // prevent prompt interleaving from corrupting either side.
-
-    // Auto-demo with real engine (use shared prompt if available)
+    // Auto-run an opening prompt so the visualization lights up on arrival.
     setTimeout(() => {
       if (!isRunning && !isValidating) {
         promptInput.value = getSharedPrompt() || 'What is consciousness?'
@@ -1613,19 +1573,12 @@ async function initEngine() {
     }, 1500)
 
   } catch (e) {
-    console.log('[neural-pulse] demo mode')
-    hideLoading()
-    startDemo()
+    console.warn('[neuropulse] engine init failed:', e)
+    showEngineError(
+      'Couldn\'t start the GPU engine.',
+      'Your browser reported the GPU as unavailable — this usually means too many other tabs are using it. Close some tabs and reload.'
+    )
   }
-}
-
-function startDemo() {
-  setTimeout(() => {
-    if (!isRunning) {
-      promptInput.value = getSharedPrompt() || 'What is consciousness?'
-      startInference()
-    }
-  }, 1500)
 }
 
 // PCA is the permanent, accurate layout — load independently of engine init

@@ -637,7 +637,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
       <span id="dispatchStat">Dispatch: <strong style="color:#cbc1ad">0/292</strong></span>
       <span id="speedStat">Speed: <strong class="live">—</strong></span>
       <span id="tokenStat">Tokens: <strong style="color:#f4ecdf">0</strong></span>
-      <a class="header-star" href="https://github.com/abgnydn/neural-pulse" target="_blank" rel="noopener" aria-label="Star on GitHub">
+      <a class="header-star" href="https://github.com/abgnydn/neuropulse" target="_blank" rel="noopener" aria-label="Star on GitHub">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/></svg>
         <span>Star</span>
         <span class="star-count" id="appStarCount">·</span>
@@ -858,7 +858,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
         }
       }
     } catch {}
-    fetch('https://api.github.com/repos/abgnydn/neural-pulse')
+    fetch('https://api.github.com/repos/abgnydn/neuropulse')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d || typeof d.stargazers_count !== 'number') {
