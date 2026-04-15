@@ -511,8 +511,58 @@ body:not(.mode-scene) .scene-only { display: none !important; }
   .hero-attention .attn-detail { display: none; }
 }
 </style>
+
+<style>
+  /* Mobile block — styled to match the boot gate */
+  .boot-mobile { text-align:center; }
+  .boot-mobile .boot-url { font-family: ui-monospace, Menlo, monospace; font-size:0.95rem; color:#00e5ff; background:rgba(0,229,255,0.08); border:1px solid rgba(0,229,255,0.2); border-radius:8px; padding:10px 14px; margin:16px auto 20px; display:inline-block; letter-spacing:0.02em; }
+  #bootCopyBtn.copied { background:#5eead4 !important; }
+</style>
 </head>
 <body>
+
+<script>
+  // Mobile guard — detect phone BEFORE main.ts runs so the Download button
+  // never paints on a device that will crash trying to use it.
+  (function () {
+    var isMobile = window.matchMedia('(max-width: 820px)').matches
+      || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (!isMobile) return;
+    // Hide the download gate immediately, show the mobile block.
+    // Runs before DOMContentLoaded so there's no flash.
+    var observer = new MutationObserver(function () {
+      var gate = document.getElementById('bootGate');
+      var mobile = document.getElementById('bootMobile');
+      if (gate && mobile) {
+        gate.classList.remove('visible');
+        gate.classList.add('hidden');
+        mobile.classList.remove('hidden');
+        mobile.classList.add('visible');
+        observer.disconnect();
+        // Wire copy button
+        var btn = document.getElementById('bootCopyBtn');
+        if (btn) {
+          btn.addEventListener('click', function () {
+            var url = 'https://neuropulse.zerotvm.com';
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(url).then(function () {
+                btn.textContent = 'Copied ✓';
+                btn.classList.add('copied');
+              }).catch(function () { btn.textContent = url; });
+            } else {
+              btn.textContent = url;
+            }
+          });
+        }
+        // Prevent main.ts from auto-initializing the engine — it will try to
+        // allocate 2 GB of GPU buffers and crash. We stop it by removing the
+        // gate button so waitForGateClick() never resolves.
+        window.__NEUROPULSE_MOBILE_BLOCK__ = true;
+      }
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  })();
+</script>
 
 <!-- ─── Boot screen: gate → loading → reveal ─── -->
 <div class="boot-screen" id="bootScreen">
@@ -533,6 +583,17 @@ body:not(.mode-scene) .scene-only { display: none !important; }
   <div class="boot-inner">
     <div class="boot-logo"><span class="neuro">neuro</span><span class="pulse">pulse</span></div>
     <div class="boot-sub">a real forward pass · in your browser</div>
+
+    <!-- Phase 0: mobile block (hidden by default, shown via inline script below) -->
+    <div class="boot-phase boot-mobile hidden" id="bootMobile">
+      <h2>This runs a <span class="size">2 GB</span> model on your GPU.</h2>
+      <p>Phone browsers don't have enough GPU memory — the download will crash the tab. Open this URL on a desktop Chrome, Edge, or Safari TP.</p>
+      <div class="boot-url">neuropulse.zerotvm.com</div>
+      <div class="btn-row">
+        <button class="btn-go" id="bootCopyBtn" type="button">Copy link</button>
+        <a href="/" class="btn-back">Back to landing</a>
+      </div>
+    </div>
 
     <!-- Phase 1: download gate (first-time visitors) -->
     <div class="boot-phase boot-gate visible" id="bootGate">

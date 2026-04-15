@@ -1658,6 +1658,11 @@ function waitForGateClick(): Promise<void> {
 }
 
 ;(async () => {
+  // Mobile guard — the inline script in app/index.html sets this flag when
+  // the user is on a phone. Skip engine init entirely; the mobile block
+  // phase is already visible.
+  if ((window as any).__NEUROPULSE_MOBILE_BLOCK__) return
+
   if (await modelIsCached()) {
     // Cached — skip gate, go straight to loading phase
     showBootLoading()
