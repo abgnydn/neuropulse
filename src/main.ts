@@ -1502,7 +1502,7 @@ promptInput.addEventListener('keydown', (e) => {
 })
 
 // ─── Boot-screen error state (replaces the loading phase) ───
-function showEngineError(title: string, detail: string) {
+function showEngineError(title: string, detail: string, tip?: string) {
   const boot = document.getElementById('bootScreen')
   if (!boot) return
   // Reveal boot screen if it was hidden, hide all other phases
@@ -1529,7 +1529,7 @@ function showEngineError(title: string, detail: string) {
   err.innerHTML = `
     <h2 style="color:#f4ecdf">${title}</h2>
     <p style="color:#b8b4a8">${detail}</p>
-    <p class="fine" style="color:#b8b4a8;opacity:0.7">Tip: close other tabs using the GPU (video calls, YouTube, 3D sites), then reload.</p>
+    <p class="fine" style="color:#b8b4a8;opacity:0.7">${tip ?? 'Tip: close other tabs using the GPU (video calls, YouTube, 3D sites), then reload.'}</p>
     <div class="btn-row">
       <button class="btn-go" onclick="location.reload()">Reload</button>
       <a href="/" class="btn-back">Back to landing</a>
@@ -1538,14 +1538,34 @@ function showEngineError(title: string, detail: string) {
 }
 
 // ─── Init: load real engine; show error screen if unavailable ───
+async function isBraveBrowser(): Promise<boolean> {
+  try {
+    const nav = navigator as any
+    if (nav.brave && typeof nav.brave.isBrave === 'function') {
+      return await nav.brave.isBrave()
+    }
+  } catch {}
+  return false
+}
+
 async function initEngine() {
+  const brave = await isBraveBrowser()
+
   // Check WebGPU
   if (!navigator.gpu) {
     console.log('[neuropulse] WebGPU unavailable')
-    showEngineError(
-      'WebGPU not supported in this browser.',
-      'Neuropulse runs the real Phi-3-mini on your GPU. Open in <strong>desktop Chrome, Edge, or Safari TP</strong> to continue.'
-    )
+    if (brave) {
+      showEngineError(
+        'Brave is blocking GPU access.',
+        'Click the <strong>lion icon</strong> in the address bar → toggle <strong>Shields DOWN</strong> for this site, then reload. Shields blocks WebGPU fingerprinting, which Neuropulse needs to run Phi-3 on your GPU.',
+        'If you\'d rather not disable Shields: open the site in Chrome, Edge, or Safari TP.'
+      )
+    } else {
+      showEngineError(
+        'WebGPU not supported in this browser.',
+        'Neuropulse runs the real Phi-3-mini on your GPU. Open in <strong>desktop Chrome, Edge, or Safari TP</strong> to continue.'
+      )
+    }
     return
   }
 
@@ -1574,10 +1594,18 @@ async function initEngine() {
 
   } catch (e) {
     console.warn('[neuropulse] engine init failed:', e)
-    showEngineError(
-      'Couldn\'t start the GPU engine.',
-      'Your browser reported the GPU as unavailable — this usually means too many other tabs are using it. Close some tabs and reload.'
-    )
+    if (brave) {
+      showEngineError(
+        'Brave Shields is blocking the GPU.',
+        'Click the <strong>lion icon</strong> in the address bar → toggle <strong>Shields DOWN</strong> for this site, then reload. Brave blocks WebGL/WebGPU fingerprinting by default, which Neuropulse needs to render the model.',
+        'If you\'d rather not disable Shields: open the site in Chrome, Edge, or Safari TP.'
+      )
+    } else {
+      showEngineError(
+        'Couldn\'t start the GPU engine.',
+        'Your browser reported the GPU as unavailable — this usually means too many other tabs are using it. Close some tabs and reload.'
+      )
+    }
   }
 }
 
