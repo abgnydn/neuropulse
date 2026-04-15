@@ -1556,9 +1556,14 @@ async function initEngine() {
     console.log('[neuropulse] WebGPU unavailable')
     if (brave) {
       showEngineError(
-        'Brave is blocking GPU access.',
-        'Click the <strong>lion icon</strong> in the address bar → toggle <strong>Shields DOWN</strong> for this site, then reload. Shields blocks WebGPU fingerprinting, which Neuropulse needs to run Phi-3 on your GPU.',
-        'If you\'d rather not disable Shields: open the site in Chrome, Edge, or Safari TP.'
+        'Brave is blocking WebGPU.',
+        `Brave disables WebGPU by default. To enable it:
+        <ol style="text-align:left;margin:12px auto;max-width:520px;line-height:1.7">
+          <li>Open a new tab → paste <code style="background:#1a1a1a;padding:2px 6px;border-radius:3px">brave://flags/#enable-unsafe-webgpu</code> → set to <strong>Enabled</strong></li>
+          <li>Paste <code style="background:#1a1a1a;padding:2px 6px;border-radius:3px">brave://settings/shields</code> → set <strong>Fingerprinting</strong> to <strong>Standard</strong> (not Strict)</li>
+          <li>Relaunch Brave, then reload this tab</li>
+        </ol>`,
+        'Easier: open this site in Chrome, Edge, or Safari TP — WebGPU works out of the box.'
       )
     } else {
       showEngineError(
@@ -1596,9 +1601,14 @@ async function initEngine() {
     console.warn('[neuropulse] engine init failed:', e)
     if (brave) {
       showEngineError(
-        'Brave Shields is blocking the GPU.',
-        'Click the <strong>lion icon</strong> in the address bar → toggle <strong>Shields DOWN</strong> for this site, then reload. Brave blocks WebGL/WebGPU fingerprinting by default, which Neuropulse needs to render the model.',
-        'If you\'d rather not disable Shields: open the site in Chrome, Edge, or Safari TP.'
+        'Brave is blocking the GPU.',
+        `Brave blocks WebGL/WebGPU fingerprinting by default. To enable:
+        <ol style="text-align:left;margin:12px auto;max-width:520px;line-height:1.7">
+          <li>Open a new tab → paste <code style="background:#1a1a1a;padding:2px 6px;border-radius:3px">brave://flags/#enable-unsafe-webgpu</code> → set to <strong>Enabled</strong></li>
+          <li>Paste <code style="background:#1a1a1a;padding:2px 6px;border-radius:3px">brave://settings/shields</code> → set <strong>Fingerprinting</strong> to <strong>Standard</strong> (not Strict)</li>
+          <li>Relaunch Brave, then reload this tab</li>
+        </ol>`,
+        'Easier: open this site in Chrome, Edge, or Safari TP — WebGPU works out of the box.'
       )
     } else {
       showEngineError(
