@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 // consolidated test avoids the per-test page.goto flake seen when
 // Chromium's swiftshader + Three.js init is repeated in a loop.
 
-test('ablation panel: toggle, multi-select, clear, invalid', async ({ page }) => {
+test('ablation panel: toggle, multi-select, clear, invalid, sweep UI present', async ({ page }) => {
   page.on('pageerror', e => console.log('[pageerror]', e.message))
 
   await page.goto('/app/?noauto&bypass=1', { waitUntil: 'domcontentloaded' })
@@ -13,20 +13,29 @@ test('ablation panel: toggle, multi-select, clear, invalid', async ({ page }) =>
 
   const panel = page.locator('.ablate-panel')
   const status = page.locator('#ablateStatus')
+  const runBtn = page.locator('#ablateRunBtn')
+  const sweepBtn = page.locator('#ablateSweepBtn')
 
-  // 1. Starts hidden.
-  await expect(panel).toBeHidden()
-
-  // 2. Toggle one head → visible with count "1 head ablated across 1 layer".
-  expect(await page.evaluate(() => window.__testToggleAblation(12, 5))).toBe(true)
+  // 1. Panel always visible now (it hosts sweep controls too).
   await expect(panel).toBeVisible()
-  await expect(status).toHaveText('1 head ablated across 1 layer')
+  await expect(status).toContainText('No heads ablated')
+  // Run-ablated starts disabled when nothing is selected.
+  await expect(runBtn).toBeDisabled()
+  // Sweep controls are present and enabled.
+  await expect(sweepBtn).toBeEnabled()
+  await expect(page.locator('#ablateSweepLayer')).toHaveValue('31')
 
-  // 3. Toggle the same head again → hidden.
+  // 2. Toggle one head → status updates, Run button enables.
   expect(await page.evaluate(() => window.__testToggleAblation(12, 5))).toBe(true)
-  await expect(panel).toBeHidden()
+  await expect(status).toHaveText('1 head ablated across 1 layer')
+  await expect(runBtn).toBeEnabled()
 
-  // 4. Multiple heads across layers → correct plurals + layer count.
+  // 3. Toggle the same head again → status reverts, Run disables.
+  expect(await page.evaluate(() => window.__testToggleAblation(12, 5))).toBe(true)
+  await expect(status).toContainText('No heads ablated')
+  await expect(runBtn).toBeDisabled()
+
+  // 4. Multiple heads across layers → plurals + layer count.
   await page.evaluate(() => {
     window.__testToggleAblation(0, 0)
     window.__testToggleAblation(0, 1)
@@ -35,18 +44,17 @@ test('ablation panel: toggle, multi-select, clear, invalid', async ({ page }) =>
   })
   await expect(status).toHaveText('4 heads ablated across 3 layers')
 
-  // 5. Run-ablated button present + enabled.
-  const runBtn = page.locator('#ablateRunBtn')
-  await expect(runBtn).toBeVisible()
-  await expect(runBtn).toBeEnabled()
+  // 5. Run-ablated button label + enabled state.
   await expect(runBtn).toHaveText('Run ablated')
+  await expect(runBtn).toBeEnabled()
 
-  // 6. Clear resets.
+  // 6. Clear resets selection back to empty status.
   await page.evaluate(() => document.getElementById('ablateClearBtn')?.click())
-  await expect(panel).toBeHidden()
+  await expect(status).toContainText('No heads ablated')
+  await expect(runBtn).toBeDisabled()
 
-  // 7. Invalid layer/head returns false, panel stays hidden.
+  // 7. Invalid layer/head returns false; status stays empty.
   const bogus = await page.evaluate(() => window.__testToggleAblation(999, 0))
   expect(bogus).toBe(false)
-  await expect(panel).toBeHidden()
+  await expect(status).toContainText('No heads ablated')
 })

@@ -64,18 +64,18 @@ function initAblationPanel() {
   const style = document.createElement('style')
   style.textContent = `
     .ablate-panel {
-      display: none;
       position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%);
-      width: min(820px, calc(100vw - 32px));
+      width: min(900px, calc(100vw - 32px));
       background: rgba(12, 14, 20, 0.92); backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 154, 31, 0.45);
       border-radius: 10px; padding: 12px 14px; z-index: 20;
       color: #f4ecdf; font-family: inherit; font-size: 12px;
       box-shadow: 0 0 24px rgba(255, 154, 31, 0.18);
+      display: none;
     }
-    .ablate-panel.visible { display: block; }
-    .ablate-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-    .ablate-status { color: #ff9a1f; font-weight: 600; flex: 1; }
+    .ablate-panel.open { display: block; }
+    .ablate-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    .ablate-status { color: #ff9a1f; font-weight: 600; flex: 1; min-width: 120px; }
     .ablate-hint { color: #8a7f6c; font-size: 11px; font-style: italic; }
     .ablate-btn {
       background: rgba(255, 154, 31, 0.18); color: #ffd28a;
@@ -87,24 +87,59 @@ function initAblationPanel() {
     .ablate-btn[disabled] { opacity: 0.4; cursor: wait; }
     .ablate-btn.clear { background: transparent; color: #8a7f6c; border-color: #3a3429; }
     .ablate-btn.clear:hover { color: #f4ecdf; border-color: #514a3e; }
+    .ablate-btn.sweep { background: rgba(0, 229, 255, 0.12); color: #00e5ff; border-color: rgba(0, 229, 255, 0.5); }
+    .ablate-btn.sweep:hover { background: rgba(0, 229, 255, 0.22); color: #fff; }
     .ablate-outputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .ablate-output { background: rgba(0,0,0,0.35); border-radius: 6px; padding: 8px 10px; min-height: 36px; }
     .ablate-output-label { color: #8a7f6c; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
     .ablate-output-label.abl { color: #ff9a1f; }
     .ablate-output-text { color: #f4ecdf; font-size: 12px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
     .ablate-output-text.empty { color: #514a3e; font-style: italic; }
+
+    .ablate-sweep-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 6px 8px; background: rgba(0, 229, 255, 0.05); border-radius: 6px; border: 1px solid rgba(0, 229, 255, 0.15); }
+    .ablate-sweep-row label { color: #8a7f6c; font-size: 11px; }
+    .ablate-sweep-row input[type=number] {
+      width: 44px; background: rgba(0,0,0,0.4); color: #f4ecdf;
+      border: 1px solid #3a3429; border-radius: 4px; padding: 3px 6px;
+      font-family: inherit; font-size: 12px; text-align: center;
+    }
+    .ablate-sweep-status { color: #8a7f6c; font-size: 11px; flex: 1; }
+    .ablate-sweep-status.running { color: #00e5ff; }
+
+    .ablate-strip { display: none; grid-template-columns: repeat(32, 1fr); gap: 2px; margin-bottom: 8px; }
+    .ablate-strip.visible { display: grid; }
+    .ablate-strip-cell {
+      aspect-ratio: 1; background: rgba(80,80,80,0.2); border-radius: 2px;
+      cursor: pointer; position: relative;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: rgba(255,255,255,0.3);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .ablate-strip-cell:hover { transform: scale(1.35); z-index: 2; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+    .ablate-strip-cell.picked { outline: 1px solid #ff9a1f; outline-offset: 1px; }
+    .ablate-strip-legend { display: flex; gap: 8px; font-size: 10px; color: #8a7f6c; margin-top: 2px; }
+    .ablate-strip-legend span::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 1px; margin-right: 4px; vertical-align: middle; }
+    .ablate-strip-legend .none::before { background: rgba(0,229,255,0.7); }
+    .ablate-strip-legend .some::before { background: rgba(255,200,120,0.7); }
+    .ablate-strip-legend .big::before  { background: rgba(255,80,80,0.8); }
   `
   document.head.appendChild(style)
 
   const panel = document.createElement('div')
-  panel.className = 'ablate-panel'
+  panel.className = 'ablate-panel open'
   panel.innerHTML = `
     <div class="ablate-header">
-      <span class="ablate-status" id="ablateStatus">0 heads ablated</span>
-      <span class="ablate-hint">Shift-click attention-head spheres to toggle</span>
-      <button class="ablate-btn" id="ablateRunBtn" type="button">Run ablated</button>
+      <span class="ablate-status" id="ablateStatus">No heads ablated — shift-click attention spheres, or sweep a layer to see impact.</span>
+      <button class="ablate-btn" id="ablateRunBtn" type="button" disabled>Run ablated</button>
       <button class="ablate-btn clear" id="ablateClearBtn" type="button">Clear</button>
     </div>
+    <div class="ablate-sweep-row">
+      <label for="ablateSweepLayer">Sweep layer</label>
+      <input type="number" id="ablateSweepLayer" min="0" max="31" value="31">
+      <button class="ablate-btn sweep" id="ablateSweepBtn" type="button">Sweep 32 heads</button>
+      <span class="ablate-sweep-status" id="ablateSweepStatus">(~60 s at 8 decoded tokens each)</span>
+    </div>
+    <div class="ablate-strip" id="ablateStrip"></div>
     <div class="ablate-outputs">
       <div class="ablate-output">
         <div class="ablate-output-label">Baseline</div>
@@ -123,16 +158,32 @@ function initAblationPanel() {
   const clearBtn = panel.querySelector<HTMLButtonElement>('#ablateClearBtn')!
   const baseOut = panel.querySelector<HTMLDivElement>('#ablateBaseOut')!
   const ablOut = panel.querySelector<HTMLDivElement>('#ablateAblOut')!
+  const sweepLayerInput = panel.querySelector<HTMLInputElement>('#ablateSweepLayer')!
+  const sweepBtn = panel.querySelector<HTMLButtonElement>('#ablateSweepBtn')!
+  const sweepStatus = panel.querySelector<HTMLSpanElement>('#ablateSweepStatus')!
+  const stripEl = panel.querySelector<HTMLDivElement>('#ablateStrip')!
+
+  function setSelectionStatus(abls: { layer: number; head: number }[]) {
+    if (abls.length === 0) {
+      statusEl.textContent = 'No heads ablated — shift-click attention spheres, or sweep a layer to see impact.'
+      runBtn.disabled = true
+    } else {
+      const layers = new Set(abls.map(a => a.layer))
+      statusEl.textContent =
+        `${abls.length} head${abls.length === 1 ? '' : 's'} ablated across ${layers.size} layer${layers.size === 1 ? '' : 's'}`
+      runBtn.disabled = false
+    }
+  }
 
   viz.onAblationChange = (abls) => {
-    if (abls.length === 0) {
-      panel.classList.remove('visible')
-      return
-    }
-    panel.classList.add('visible')
-    const layers = new Set(abls.map(a => a.layer))
-    statusEl.textContent = `${abls.length} head${abls.length === 1 ? '' : 's'} ablated across ${layers.size} layer${layers.size === 1 ? '' : 's'}`
+    setSelectionStatus(abls)
+    // Sync the strip's picked markers with the visualizer's truth.
+    const picked = new Set(abls.map(a => `${a.layer}:${a.head}`))
+    stripEl.querySelectorAll<HTMLDivElement>('.ablate-strip-cell').forEach(cell => {
+      cell.classList.toggle('picked', picked.has(cell.dataset.key || ''))
+    })
   }
+  setSelectionStatus([])
 
   clearBtn.addEventListener('click', () => {
     viz.clearAblations()
@@ -148,7 +199,7 @@ function initAblationPanel() {
     const abls = viz.getAblations()
     if (abls.length === 0) return
     const prompt = (promptInput.value.trim() || 'Paris is the capital of')
-    runBtn.disabled = true; clearBtn.disabled = true
+    runBtn.disabled = true; clearBtn.disabled = true; sweepBtn.disabled = true
     runBtn.textContent = 'Running…'
     baseOut.classList.remove('empty'); ablOut.classList.remove('empty')
     baseOut.textContent = 'generating…'
@@ -165,8 +216,114 @@ function initAblationPanel() {
       ablOut.textContent = `error: ${err}`
     } finally {
       isRunning = false
-      runBtn.disabled = false; clearBtn.disabled = false
+      runBtn.disabled = viz.getAblations().length === 0
+      clearBtn.disabled = false; sweepBtn.disabled = false
       runBtn.textContent = 'Run ablated'
+    }
+  })
+
+  // Prefix-match divergence: returns how many leading chars the ablated
+  // output shares with the baseline. 0 = total divergence, baseline.length
+  // = identical. Converted to a 0..1 "impact" score (1 = big impact).
+  function impactScore(baseline: string, ablated: string): number {
+    if (baseline.length === 0) return 0
+    let i = 0
+    const n = Math.min(baseline.length, ablated.length)
+    while (i < n && baseline[i] === ablated[i]) i++
+    // 0 shared chars → impact 1; full baseline shared AND same length → 0.
+    // If ablated diverged but matches length, impact scales with prefix miss.
+    const miss = 1 - i / baseline.length
+    const lenDelta = Math.abs(baseline.length - ablated.length) / Math.max(1, baseline.length)
+    return Math.min(1, 0.7 * miss + 0.3 * lenDelta)
+  }
+
+  function impactColor(impact: number): string {
+    // Cyan (no impact) → amber → red (big impact).
+    if (impact < 0.5) {
+      // cyan → amber
+      const t = impact / 0.5
+      const r = Math.round(0   + (255 - 0)   * t)
+      const g = Math.round(229 + (200 - 229) * t)
+      const b = Math.round(255 + (120 - 255) * t)
+      const a = 0.35 + 0.35 * impact
+      return `rgba(${r},${g},${b},${a.toFixed(2)})`
+    } else {
+      const t = (impact - 0.5) / 0.5
+      const r = Math.round(255 + (255 - 255) * t)
+      const g = Math.round(200 + (80  - 200) * t)
+      const b = Math.round(120 + (80  - 120) * t)
+      const a = 0.55 + 0.35 * impact
+      return `rgba(${r},${g},${b},${a.toFixed(2)})`
+    }
+  }
+
+  // Sweep: run N single-head ablations at a fixed layer, render a 32-cell
+  // impact strip. Clicking any cell shift-click-toggles that head, feeding
+  // it into the full-generation path above.
+  sweepBtn.addEventListener('click', async () => {
+    if (!engine) { alert('Engine not ready yet.'); return }
+    if (isRunning || isValidating) { alert('Inference already in flight.'); return }
+    const L = Math.max(0, Math.min(31, Number(sweepLayerInput.value) || 0))
+    sweepLayerInput.value = String(L)
+
+    const prompt = (promptInput.value.trim() || 'Paris is the capital of')
+    const maxTokens = 8  // short: sweep is qualitative, not the final answer
+
+    sweepBtn.disabled = true; runBtn.disabled = true; clearBtn.disabled = true
+    sweepStatus.classList.add('running')
+    stripEl.classList.add('visible')
+    stripEl.innerHTML = ''
+    isRunning = true
+
+    try {
+      sweepStatus.textContent = `sweeping L${L} — baseline…`
+      const cb = {}
+      const baseline = await engine.generate(prompt, maxTokens, cb)
+
+      // Seed all 32 cells as "pending" (grey) up-front so the user sees the
+      // strip widen immediately, then each lands a color as it completes.
+      for (let h = 0; h < 32; h++) {
+        const cell = document.createElement('div')
+        cell.className = 'ablate-strip-cell'
+        cell.dataset.key = `${L}:${h}`
+        cell.title = `L${L} head ${h} — pending`
+        cell.textContent = String(h)
+        cell.addEventListener('click', () => {
+          const maybeNeurons = (viz as unknown as {
+            neurons?: { layer: number; role: string; subIndex: number }[]
+          }).neurons
+          const n = maybeNeurons?.find(m => m.layer === L && m.role === 'attn' && m.subIndex === h)
+          if (n) {
+            ;(viz as unknown as { toggleAblation: (n: unknown) => void }).toggleAblation(n)
+            viz.onAblationChange?.(viz.getAblations())
+          }
+        })
+        stripEl.appendChild(cell)
+      }
+
+      for (let h = 0; h < 32; h++) {
+        sweepStatus.textContent = `sweeping L${L} — head ${h + 1}/32`
+        const out = await engine.generate(prompt, maxTokens, cb, [{ layer: L, head: h }])
+        const impact = impactScore(baseline, out)
+        const cell = stripEl.children[h] as HTMLDivElement
+        cell.style.background = impactColor(impact)
+        cell.title = `L${L} head ${h} — impact ${(impact * 100).toFixed(0)}%\nbase: ${baseline}\nabl:  ${out}`
+      }
+
+      const legend = document.createElement('div')
+      legend.className = 'ablate-strip-legend'
+      legend.innerHTML = `<span class="none">no impact</span><span class="some">some impact</span><span class="big">big impact</span>`
+      stripEl.appendChild(legend)
+
+      sweepStatus.textContent = `L${L} swept — click a cell to toggle that head`
+    } catch (err) {
+      sweepStatus.textContent = `sweep failed: ${err}`
+    } finally {
+      isRunning = false
+      sweepStatus.classList.remove('running')
+      sweepBtn.disabled = false
+      clearBtn.disabled = false
+      runBtn.disabled = viz.getAblations().length === 0
     }
   })
 }
