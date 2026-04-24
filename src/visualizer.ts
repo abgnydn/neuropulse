@@ -49,7 +49,11 @@ interface NeuronData {
   brightColor: THREE.Color
   position: THREE.Vector3
   worldX: number
+  ablated?: boolean
 }
+
+/** Attn heads marked for ablation render in amber. */
+const ABLATED_COLOR = new THREE.Color('#ff9a1f')
 
 /** Structured activation data per layer */
 export interface LayerActivation {
@@ -105,6 +109,11 @@ export class BrainVisualizer {
 
   // Audio
   audio: AudioEngine
+
+  // Ablated attn heads, keyed "L:H". Shift-click an attn neuron to toggle.
+  private ablatedHeads: Set<string> = new Set()
+  /** Set by caller to react to selection changes (e.g. show/hide run button). */
+  onAblationChange?: (ablations: { layer: number; head: number }[]) => void
 
   // HUD
   private overlay: HTMLDivElement
@@ -279,7 +288,7 @@ export class BrainVisualizer {
       this.tooltip.style.display = 'none'
     })
 
-    // Click to inspect
+    // Click to inspect. Shift-click on an attn head toggles ablation.
     canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect()
       const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1
@@ -289,7 +298,15 @@ export class BrainVisualizer {
       const hits = this.raycaster.intersectObjects(meshes)
       if (hits.length > 0) {
         const idx = meshes.indexOf(hits[0].object as THREE.Mesh)
-        if (idx >= 0) this.selectNeuron(this.neurons[idx])
+        if (idx >= 0) {
+          const n = this.neurons[idx]
+          if (e.shiftKey && n.role === 'attn') {
+            this.toggleAblation(n)
+            this.onAblationChange?.(this.getAblations())
+          } else {
+            this.selectNeuron(n)
+          }
+        }
       } else {
         this.deselectNeuron()
       }
@@ -1055,6 +1072,54 @@ export class BrainVisualizer {
     this.inspectPanel.style.display = 'none'
   }
 
+  private toggleAblation(n: NeuronData) {
+    if (n.role !== 'attn') return
+    const key = `${n.layer}:${n.subIndex}`
+    if (this.ablatedHeads.has(key)) {
+      this.ablatedHeads.delete(key)
+      n.ablated = false
+      const mat = n.mesh.material as THREE.MeshStandardMaterial
+      mat.color.copy(n.baseColor)
+      mat.emissive.copy(n.baseColor)
+      mat.emissiveIntensity = 0.12
+      mat.opacity = 0.3
+      ;(n.glowMesh.material as THREE.MeshBasicMaterial).color.copy(n.baseColor)
+    } else {
+      this.ablatedHeads.add(key)
+      n.ablated = true
+      const mat = n.mesh.material as THREE.MeshStandardMaterial
+      mat.color.copy(ABLATED_COLOR)
+      mat.emissive.copy(ABLATED_COLOR)
+      mat.emissiveIntensity = 0.7
+      mat.opacity = 0.95
+      ;(n.glowMesh.material as THREE.MeshBasicMaterial).color.copy(ABLATED_COLOR)
+    }
+  }
+
+  getAblations(): { layer: number; head: number }[] {
+    const out: { layer: number; head: number }[] = []
+    for (const key of this.ablatedHeads) {
+      const [L, H] = key.split(':').map(Number)
+      out.push({ layer: L, head: H })
+    }
+    return out
+  }
+
+  clearAblations() {
+    for (const n of this.neurons) {
+      if (!n.ablated) continue
+      n.ablated = false
+      const mat = n.mesh.material as THREE.MeshStandardMaterial
+      mat.color.copy(n.baseColor)
+      mat.emissive.copy(n.baseColor)
+      mat.emissiveIntensity = 0.12
+      mat.opacity = 0.3
+      ;(n.glowMesh.material as THREE.MeshBasicMaterial).color.copy(n.baseColor)
+    }
+    this.ablatedHeads.clear()
+    this.onAblationChange?.([])
+  }
+
   private updateInspectPanel() {
     const n = this.selectedNeuron
     if (!n) return
@@ -1107,11 +1172,18 @@ export class BrainVisualizer {
 
     this.controls.update()
 
-    // Journey-mode camera — external scroll-driven waypoints.
-    // Lerps faster than cinematic so scrub feels immediate.
+    // Journey-mode camera — only drives the camera when actively playing.
+    // Otherwise OrbitControls controls the camera; we keep journey targets
+    // as the natural orbit center.
     if (this.journeyActive) {
-      this.camera.position.lerp(this.journeyCamPos, 0.18)
-      this.camera.lookAt(this.journeyCamLookAt)
+      if (this.journeyDriving) {
+        this.camera.position.lerp(this.journeyCamPos, 0.18)
+        this.camera.lookAt(this.journeyCamLookAt)
+      } else {
+        // User-controlled camera: keep OrbitControls target synced to current
+        // journey focus point so orbit feels centered on what they're seeing.
+        this.controls.target.lerp(this.journeyCamLookAt, 0.1)
+      }
       // subtle starfield counter-rotation for parallax feel
       if (this.starfield) this.starfield.rotation.y += 0.0004
       // dust drift, spotlight pulse
@@ -1138,6 +1210,22 @@ export class BrainVisualizer {
         if (n === this.selectedNeuron) dim = 1.0
         else if (n.layer === selLayer) dim = 0.55
         else dim = 0.18
+      }
+
+      // Ablated heads render amber — override the activation-driven paint so
+      // the user can always see which heads are disabled, even during a run.
+      if (n.ablated) {
+        const pulse = 0.55 + 0.35 * Math.sin(performance.now() * 0.006)
+        mat.color.copy(ABLATED_COLOR)
+        mat.emissive.copy(ABLATED_COLOR)
+        mat.emissiveIntensity = pulse * dim
+        mat.opacity = 0.95 * dim
+        n.mesh.scale.setScalar(1.15)
+        glowMat.color.copy(ABLATED_COLOR)
+        glowMat.opacity = 0.35 * dim
+        n.glowMesh.scale.setScalar(1.8)
+        n.activation = Math.max(0, n.activation - 0.004)
+        continue
       }
 
       if (act > 0.2) {
@@ -1317,15 +1405,48 @@ export class BrainVisualizer {
     if (this.focusSpotlight) this.focusSpotlight.visible = enabled
     if (enabled) {
       this.cinematicCamera = false
-      this.controls.enabled = false
+      // OrbitControls stays ENABLED by default — journey only takes over
+      // the camera when `setJourneyDriving(true)` is called (e.g. autoplay).
+      // This gives the user free 3D navigation at all other times.
+      this.controls.enabled = true
     } else {
       this.controls.enabled = true
     }
   }
 
+  private journeyDriving = false
+
+  /** Journey takes over the camera (auto-play). OrbitControls get disabled.
+   *  Call with false to yield camera back to the user. */
+  public setJourneyDriving(driving: boolean): void {
+    this.journeyDriving = driving
+    this.controls.enabled = !driving
+  }
+
   public setJourneyCamera(pos: THREE.Vector3, lookAt: THREE.Vector3): void {
     this.journeyCamPos.copy(pos)
     this.journeyCamLookAt.copy(lookAt)
+  }
+
+  /** Educational "show me" pulse — glossary terms call this to briefly
+   *  light up the corresponding group of neurons in the 3D scene.
+   *  Accepted groups: 'attention' | 'ffn' | 'residual' | 'all'. */
+  public highlightGroup(group: string, intensity: number = 0.85): void {
+    const match = (n: NeuronData): boolean => {
+      if (group === 'all') return true
+      if (group === 'attention') return n.role === 'attn'
+      if (group === 'ffn') return n.role === 'ffn'
+      if (group === 'residual') return n.role === 'residual'
+      return false
+    }
+    for (const n of this.neurons) {
+      if (match(n)) {
+        n.activation = Math.max(n.activation, intensity)
+      }
+    }
+    // FFN slab + residual slab get direct color boost via their per-layer
+    // update paths. Simpler: just force the activation pulse on neurons and
+    // let the existing render loop handle visuals + decay.
   }
 
   /** Layer index 0..31 that receives the journey-mode passive breathing pulse.
@@ -1455,4 +1576,5 @@ export class BrainVisualizer {
   // project world-space anchors into screen coordinates each frame.
   public getCamera(): THREE.PerspectiveCamera { return this.camera }
   public getCanvas(): HTMLCanvasElement { return this.renderer.domElement }
+  public getControlsTarget(): THREE.Vector3 { return this.controls.target }
 }

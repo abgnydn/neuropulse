@@ -342,7 +342,6 @@ export async function loadWeights(
   const report = (patch: Partial<LoadProgress> & { message: string }): void => {
     onProgress?.({
       phase: 'downloading',
-      message: patch.message,
       bytesLoaded: 0,
       bytesTotal: 0,
       percent: 0,

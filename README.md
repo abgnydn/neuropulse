@@ -11,7 +11,7 @@ No server. No API key. No fakery.
 
 <br>
 
-[**Launch Demo**](https://neuropulse.zerotvm.com/app/) &nbsp;&nbsp;|&nbsp;&nbsp; [**Read the Essay**](https://neuropulse.zerotvm.com/)
+[**Launch Demo**](https://neuropulse.live/app/) &nbsp;&nbsp;|&nbsp;&nbsp; [**Read the Essay**](https://neuropulse.live/)
 
 <br>
 

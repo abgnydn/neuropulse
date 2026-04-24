@@ -7,3 +7,5 @@ tools/.venv/
 tools/pca-layout.json
 tools/reference.json
 .vercel
+test-results/
+playwright-report/

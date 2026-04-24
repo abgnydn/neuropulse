@@ -83,6 +83,16 @@ export interface TopKEntry {
   prob: number
 }
 
+/** Per-generation attention-head ablation. If `head` is omitted the entire
+ *  layer's attention output is zeroed (all 32 heads). Semantics: attention
+ *  still runs normally, but the head's 96-dim slice of attnOut is cleared
+ *  before O-proj mixes heads — so the head contributes zero to the residual
+ *  stream for every generated token. KV cache is untouched. */
+export interface Ablation {
+  layer: number
+  head?: number
+}
+
 export interface InferenceCallbacks {
   /** Called for each dispatch step with optional real activation data (f32, variable length).
    *  Return a Promise to pace the visualization. */
@@ -248,7 +258,7 @@ export interface ValidationReport {
 }
 
 export interface InferenceEngine {
-  generate(prompt: string, maxTokens: number, callbacks: InferenceCallbacks): Promise<string>
+  generate(prompt: string, maxTokens: number, callbacks: InferenceCallbacks, ablations?: Ablation[]): Promise<string>
   /** Dispatch only the embedding kernel for one token id and read back the
    *  first 32 dims. Purely a debugging hook for comparing the GPU's q4
    *  embedding against an HF fp16 reference. */
@@ -457,6 +467,11 @@ export async function createInferenceEngine(
     captureHiddenStates = false,
     /** Logit lens callback — fires at each layer in LENS_LAYERS. */
     onLayerLogitLens?: (layer: number, tokenId: number, token: string) => void,
+    /** Per-layer attention-head ablation. Key = layer index.
+     *  Value = 'all' → zero the whole attnOut; Set<head> → zero only those
+     *  heads. Applied on the encoder that dispatches oProjMatmul, so any
+     *  attention-step callbacks still see the real pre-ablation attnOut. */
+    ablationByLayer?: Map<number, Set<number> | 'all'>,
   ): Promise<number> {
     const nnzPages = Math.floor(position / PHI3.PAGE_SIZE) + 1
 
@@ -502,6 +517,21 @@ export async function createInferenceEngine(
       }
     }
 
+    // Zero B.attnOut in-place on the given encoder for each ablated head at
+    // layer L. f16, so each head occupies HEAD_DIM*2 = 192 bytes at offset
+    // head*192. 'all' → one 6144-byte clear covering all 32 heads.
+    const applyAblation = (enc: GPUCommandEncoder, L: number) => {
+      const abl = ablationByLayer?.get(L)
+      if (!abl) return
+      if (abl === 'all') {
+        enc.clearBuffer(B.attnOut, 0, PHI3.D * 2)
+        return
+      }
+      for (const h of abl) {
+        enc.clearBuffer(B.attnOut, h * PHI3.HEAD_DIM * 2, PHI3.HEAD_DIM * 2)
+      }
+    }
+
     // --- 32 TRANSFORMER LAYERS ---
     let resIn = B.residual
     let resOut = B.residual2
@@ -535,6 +565,8 @@ export async function createInferenceEngine(
           B.qOut, B.pageIndptr, B.pageValues, kvPages[L],
           B.lengthInfo, B.attnOut, attnU,
         ]), 1, PHI3.HEADS)
+
+        applyAblation(enc, L)
 
         dispatch(enc, P.oProjMatmul, bg(device, P.oProjMatmul, [
           B.hidden2, B.attnOut, lw.oProjScales, lw.oProjWeights, oProjU,
@@ -645,6 +677,7 @@ export async function createInferenceEngine(
 
       // [4] O projection
       enc = device.createCommandEncoder()
+      applyAblation(enc, L)
       dispatch(enc, P.oProjMatmul, bg(device, P.oProjMatmul, [
         B.hidden2, B.attnOut, lw.oProjScales, lw.oProjWeights, oProjU,
       ]), 3072)
@@ -797,8 +830,21 @@ export async function createInferenceEngine(
   async function generate(
     prompt: string,
     maxTokens: number,
-    callbacks: InferenceCallbacks
+    callbacks: InferenceCallbacks,
+    ablations?: Ablation[]
   ): Promise<string> {
+    // Build a per-layer lookup once: layer -> Set<head> (empty set = ablate all heads)
+    const ablationByLayer = new Map<number, Set<number> | 'all'>()
+    for (const a of ablations ?? []) {
+      const cur = ablationByLayer.get(a.layer)
+      if (a.head === undefined) {
+        ablationByLayer.set(a.layer, 'all')
+      } else if (cur !== 'all') {
+        const s = cur instanceof Set ? cur : new Set<number>()
+        s.add(a.head)
+        ablationByLayer.set(a.layer, s)
+      }
+    }
     const messages = [
       { role: 'system' as const, content: 'You are a helpful assistant.' },
       { role: 'user' as const, content: prompt },
@@ -809,7 +855,11 @@ export async function createInferenceEngine(
 
     // Prefill: no per-layer yield (fast), but notify per token for animation
     for (let i = 0; i < promptIds.length; i++) {
-      await decodeToken(promptIds[i], i, undefined, false)
+      await decodeToken(
+        promptIds[i], i, undefined, false,
+        false, undefined, undefined, false, undefined,
+        ablationByLayer,
+      )
       const tokenText = tokenizer.decode([promptIds[i]])
       await callbacks.onPrefillToken?.(i, promptIds.length, tokenText)
     }
@@ -859,6 +909,7 @@ export async function createInferenceEngine(
         tokenId, pos, callbacks.onLayer, true,
         true, callbacks.onAllAttentionScores, callbacks.onEmbedding,
         false, callbacks.onLayerLogitLens,
+        ablationByLayer,
       )
     }
 

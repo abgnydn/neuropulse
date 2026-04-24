@@ -1,8 +1,12 @@
 import { BrainVisualizer, LayerActivation } from './visualizer'
-import { createInferenceEngine, InferenceEngine, LoadProgress, TopKEntry } from './engine/inference'
+import { createInferenceEngine, InferenceEngine, LoadProgress, TopKEntry, Ablation } from './engine/inference'
 import { reduceQKVForAttnHeads, reduceForAttnHeads, reduceForFFNGroups, reduceForResidual, normalizeFull } from './engine/activation-reducer'
 import { createJourney, JourneyHandle } from './journey'
 import { SpatialPanels } from './spatial-panels'
+import { TOURS, createTourRunner } from './tours'
+// Ask-mode reference docs — Vite imports markdown as a raw string. See
+// src/docs.md. Budgeted to ~1500 tokens so Phi-3 has room for the reply.
+import NEUROPULSE_DOCS from './docs.md?raw'
 
 // ═══════════════════════════════════════════════════════════════
 // Neuropulse — Main v4 (Real Phi-3 Inference)
@@ -31,6 +35,140 @@ function initVisualizer() {
   viz = new BrainVisualizer(canvas)
   viz.start()
   wireJourney()
+  initAblationPanel()
+
+  // Test hook: programmatic shift-click equivalent. Used by Playwright to
+  // exercise the ablation UI without needing to raycast 3D screen coords.
+  // No-op if the visualizer is the null stub.
+  ;(window as unknown as {
+    __testToggleAblation: (layer: number, head: number) => boolean
+  }).__testToggleAblation = (layer, head) => {
+    const maybeNeurons = (viz as unknown as { neurons?: { layer: number; role: string; subIndex: number }[] }).neurons
+    if (!maybeNeurons) return false
+    const n = maybeNeurons.find(m => m.layer === layer && m.role === 'attn' && m.subIndex === head)
+    if (!n) return false
+    ;(viz as unknown as { toggleAblation: (n: unknown) => void }).toggleAblation(n)
+    viz.onAblationChange?.(viz.getAblations())
+    return true
+  }
+}
+
+// Shift-click an attention head in 3D to mark it ablated. The panel below
+// appears, showing the current selection and a "Run ablated" button that
+// generates once normally and once with those heads zeroed post-attention,
+// displaying both outputs side by side.
+function initAblationPanel() {
+  const inputWrap = document.querySelector('.input-wrap')
+  if (!inputWrap) return
+
+  const style = document.createElement('style')
+  style.textContent = `
+    .ablate-panel {
+      display: none;
+      position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%);
+      width: min(820px, calc(100vw - 32px));
+      background: rgba(12, 14, 20, 0.92); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 154, 31, 0.45);
+      border-radius: 10px; padding: 12px 14px; z-index: 20;
+      color: #f4ecdf; font-family: inherit; font-size: 12px;
+      box-shadow: 0 0 24px rgba(255, 154, 31, 0.18);
+    }
+    .ablate-panel.visible { display: block; }
+    .ablate-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .ablate-status { color: #ff9a1f; font-weight: 600; flex: 1; }
+    .ablate-hint { color: #8a7f6c; font-size: 11px; font-style: italic; }
+    .ablate-btn {
+      background: rgba(255, 154, 31, 0.18); color: #ffd28a;
+      border: 1px solid rgba(255, 154, 31, 0.5); border-radius: 5px;
+      padding: 5px 12px; cursor: pointer; font-size: 12px; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .ablate-btn:hover { background: rgba(255, 154, 31, 0.3); color: #fff; }
+    .ablate-btn[disabled] { opacity: 0.4; cursor: wait; }
+    .ablate-btn.clear { background: transparent; color: #8a7f6c; border-color: #3a3429; }
+    .ablate-btn.clear:hover { color: #f4ecdf; border-color: #514a3e; }
+    .ablate-outputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ablate-output { background: rgba(0,0,0,0.35); border-radius: 6px; padding: 8px 10px; min-height: 36px; }
+    .ablate-output-label { color: #8a7f6c; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .ablate-output-label.abl { color: #ff9a1f; }
+    .ablate-output-text { color: #f4ecdf; font-size: 12px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+    .ablate-output-text.empty { color: #514a3e; font-style: italic; }
+  `
+  document.head.appendChild(style)
+
+  const panel = document.createElement('div')
+  panel.className = 'ablate-panel'
+  panel.innerHTML = `
+    <div class="ablate-header">
+      <span class="ablate-status" id="ablateStatus">0 heads ablated</span>
+      <span class="ablate-hint">Shift-click attention-head spheres to toggle</span>
+      <button class="ablate-btn" id="ablateRunBtn" type="button">Run ablated</button>
+      <button class="ablate-btn clear" id="ablateClearBtn" type="button">Clear</button>
+    </div>
+    <div class="ablate-outputs">
+      <div class="ablate-output">
+        <div class="ablate-output-label">Baseline</div>
+        <div class="ablate-output-text empty" id="ablateBaseOut">— not yet run —</div>
+      </div>
+      <div class="ablate-output">
+        <div class="ablate-output-label abl">Ablated</div>
+        <div class="ablate-output-text empty" id="ablateAblOut">— not yet run —</div>
+      </div>
+    </div>
+  `
+  inputWrap.parentNode?.insertBefore(panel, inputWrap)
+
+  const statusEl = panel.querySelector<HTMLSpanElement>('#ablateStatus')!
+  const runBtn = panel.querySelector<HTMLButtonElement>('#ablateRunBtn')!
+  const clearBtn = panel.querySelector<HTMLButtonElement>('#ablateClearBtn')!
+  const baseOut = panel.querySelector<HTMLDivElement>('#ablateBaseOut')!
+  const ablOut = panel.querySelector<HTMLDivElement>('#ablateAblOut')!
+
+  viz.onAblationChange = (abls) => {
+    if (abls.length === 0) {
+      panel.classList.remove('visible')
+      return
+    }
+    panel.classList.add('visible')
+    const layers = new Set(abls.map(a => a.layer))
+    statusEl.textContent = `${abls.length} head${abls.length === 1 ? '' : 's'} ablated across ${layers.size} layer${layers.size === 1 ? '' : 's'}`
+  }
+
+  clearBtn.addEventListener('click', () => {
+    viz.clearAblations()
+    baseOut.textContent = '— not yet run —'
+    ablOut.textContent = '— not yet run —'
+    baseOut.classList.add('empty')
+    ablOut.classList.add('empty')
+  })
+
+  runBtn.addEventListener('click', async () => {
+    if (!engine) { alert('Engine not ready yet.'); return }
+    if (isRunning || isValidating) { alert('Inference already in flight.'); return }
+    const abls = viz.getAblations()
+    if (abls.length === 0) return
+    const prompt = (promptInput.value.trim() || 'Paris is the capital of')
+    runBtn.disabled = true; clearBtn.disabled = true
+    runBtn.textContent = 'Running…'
+    baseOut.classList.remove('empty'); ablOut.classList.remove('empty')
+    baseOut.textContent = 'generating…'
+    ablOut.textContent = 'waiting…'
+    isRunning = true
+    try {
+      const cb = {}
+      const base = await engine.generate(prompt, 40, cb)
+      baseOut.textContent = base || '(empty)'
+      ablOut.textContent = 'generating…'
+      const abl = await engine.generate(prompt, 40, cb, abls)
+      ablOut.textContent = abl || '(empty)'
+    } catch (err) {
+      ablOut.textContent = `error: ${err}`
+    } finally {
+      isRunning = false
+      runBtn.disabled = false; clearBtn.disabled = false
+      runBtn.textContent = 'Run ablated'
+    }
+  })
 }
 
 const output = document.getElementById('output')!
@@ -120,15 +258,40 @@ document.querySelectorAll<HTMLButtonElement>('.mode-btn').forEach((btn) => {
   })
 })
 
-// Journey exit pill + 'S' keybinding → return to Scene mode
-document.getElementById('journey-exit')?.addEventListener('click', () => setMode('scene'))
+// ─── Toggle-panels button (repurposed from the old Classic-view pill) ───
+// Clicking (or pressing P / Tab) shows/hides every pip + expanded card +
+// the prompt + token-strip so the user gets a fully empty 3D universe.
+// R resets the OrbitControls camera to its home position.
+const togglePanelsBtn = document.getElementById('journey-exit')
+function togglePanels(show?: boolean): void {
+  const willHide = show === undefined ? !document.body.classList.contains('panels-hidden') : !show
+  document.body.classList.toggle('panels-hidden', willHide)
+  togglePanelsBtn?.classList.toggle('off', willHide)
+}
+togglePanelsBtn?.addEventListener('click', () => togglePanels())
+
+// Journey HUD has its own dismiss — orthogonal to the panels toggle.
+// Clicking × on the HUD or pressing H hides just the bottom overlay.
+function toggleJourneyHud(show?: boolean): void {
+  const willHide = show === undefined
+    ? !document.body.classList.contains('journey-hud-hidden')
+    : !show
+  document.body.classList.toggle('journey-hud-hidden', willHide)
+}
+document.getElementById('journey-hide')?.addEventListener('click', () => toggleJourneyHud())
+
 window.addEventListener('keydown', (e) => {
-  if (currentMode !== 'journey') return
   const target = e.target as HTMLElement | null
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
-  if (e.key === 's' || e.key === 'S' || e.key === 'Escape') {
+  if (e.key === 'p' || e.key === 'P' || e.key === 'Tab') {
     e.preventDefault()
-    setMode('scene')
+    togglePanels()
+  } else if (e.key === 'h' || e.key === 'H') {
+    toggleJourneyHud()
+  } else if (e.key === 'r' || e.key === 'R') {
+    // Reset camera to home position via OrbitControls
+    const controls = (viz as unknown as { controls?: { reset?: () => void } }).controls
+    controls?.reset?.()
   }
 })
 
@@ -198,6 +361,181 @@ function wirePanelToggles(): void {
     })
   })
 }
+
+// ─── Replay scrubber — per-token snapshots of panel state + timeline UI ───
+// Captured in the `onToken` callback. Click any chip in the token-strip to
+// re-display the state that existed when that token was generated.
+interface TokenSnapshot {
+  index: number
+  tokenText: string
+  topK: TopKEntry[]
+  residualNorms: number[]   // length 32
+  layerDeltas: number[]     // length 32
+  headActivity: number[][]  // 32 × 32 — flattened from the headHeatmap arrays
+}
+const replayBuffer: TokenSnapshot[] = []
+let replayActiveIdx: number | null = null
+
+function captureTokenSnapshot(tokenText: string, topK: TopKEntry[] | undefined): void {
+  if (!topK) return
+  replayBuffer.push({
+    index: replayBuffer.length,
+    tokenText,
+    topK: topK.slice(0, 5).map((e) => ({ ...e })),
+    residualNorms: Array.from(residualNorms),
+    layerDeltas: Array.from(layerDeltas),
+    headActivity: headHeatmap.map((row) => Array.from(row)),
+  })
+}
+
+function clearReplayBuffer(): void {
+  replayBuffer.length = 0
+  replayActiveIdx = null
+  // Remove any "replay-active" marker on token chips
+  document.querySelectorAll('#tokenStripBody .ts-tok.replay-active').forEach((el) => {
+    el.classList.remove('replay-active')
+  })
+}
+
+function replaySnapshot(idx: number): void {
+  const snap = replayBuffer[idx]
+  if (!snap) return
+  replayActiveIdx = idx
+
+  // Restore Top-K + Confidence from cached state
+  updateTopK(snap.topK)
+  updateConfidence(snap.topK)
+
+  // Restore chart buffers + force redraw. The chart update functions each
+  // iterate the full Float32Array, so we overwrite the arrays first and
+  // then invoke them once at layer 31 to trigger a full repaint.
+  for (let L = 0; L < 32; L++) {
+    residualNorms[L] = snap.residualNorms[L] ?? 0
+    layerDeltas[L] = snap.layerDeltas[L] ?? 0
+  }
+  updateResidualChart(31, residualNorms[31] ?? 0)
+  // updateDeltaChart recomputes delta from prevResidualNorm — bypass by
+  // restoring layerDeltas directly and calling with the last known value.
+  prevResidualNorm = residualNorms[30] ?? 0
+  updateDeltaChart(31, residualNorms[31] ?? 0)
+  // Heatmap is per-layer; loop
+  for (let L = 0; L < 32; L++) {
+    const row = snap.headActivity[L]
+    if (!row) continue
+    const heads = new Float32Array(row)
+    updateHeatmapLayer(L, heads)
+  }
+
+  // Mark the chip in the token strip
+  document.querySelectorAll('#tokenStripBody .ts-tok').forEach((el, i) => {
+    el.classList.toggle('replay-active', i === idx)
+  })
+}
+
+// Delegated click on the token strip — any chip becomes a scrubber button
+document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
+  const target = (e.target as HTMLElement)?.closest('.ts-tok') as HTMLElement | null
+  if (!target) return
+  // Find this chip's index among generated tokens (skip the prompt chips at the start)
+  const chips = Array.from(document.querySelectorAll('#tokenStripBody .ts-tok'))
+  const allIdx = chips.indexOf(target)
+  if (allIdx < 0) return
+  // The generated portion is the last replayBuffer.length chips
+  const firstGenIdx = chips.length - replayBuffer.length
+  const genIdx = allIdx - firstGenIdx
+  if (genIdx < 0 || genIdx >= replayBuffer.length) return
+  replaySnapshot(genIdx)
+})
+
+// ─── Guided tours (src/tours.ts) — populate list in glossary, wire play/stop ───
+;(function wireTours() {
+  const list = document.getElementById('tours-list')
+  if (!list) return
+  let runner: ReturnType<typeof createTourRunner> | null = null
+  const badge = document.getElementById('tour-running-badge')
+
+  // Seed the list from data
+  list.innerHTML = TOURS.map(
+    (t) => `
+      <div class="tour-item" data-tour-id="${t.id}" role="button" tabindex="0">
+        <div class="tour-item-body">
+          <div class="tour-item-title">${t.title}</div>
+          <div class="tour-item-summary">${t.summary}</div>
+        </div>
+        <button class="tour-item-play" type="button">▶ play</button>
+      </div>
+    `,
+  ).join('')
+
+  function updateCaption(caption: string, sub: string): void {
+    const capEl = document.getElementById('journey-caption')
+    const subEl = document.getElementById('journey-sub')
+    if (capEl) {
+      capEl.textContent = caption
+      capEl.classList.remove('flash')
+      void capEl.offsetWidth
+      capEl.classList.add('flash')
+    }
+    if (subEl) subEl.innerHTML = sub
+  }
+
+  function playTour(id: string): void {
+    if (!runner) runner = createTourRunner(viz, updateCaption)
+    runner.play(id)
+    document.body.classList.add('tour-running')
+    // Close the glossary so the tour is visible
+    document.getElementById('glossary-overlay')?.classList.remove('visible')
+  }
+
+  function stopTour(): void {
+    runner?.stop()
+    document.body.classList.remove('tour-running')
+  }
+
+  list.querySelectorAll<HTMLElement>('.tour-item').forEach((item) => {
+    const id = item.dataset.tourId
+    if (!id) return
+    item.addEventListener('click', () => playTour(id))
+    item.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playTour(id) }
+    })
+  })
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('tour-running')) {
+      stopTour()
+    }
+  })
+
+  // Any manual journey interaction also stops the tour
+  window.addEventListener('pointerdown', (e) => {
+    if (!document.body.classList.contains('tour-running')) return
+    const t = e.target as HTMLElement | null
+    if (t && t.closest('#journey-hud, .side, #journey-exit, #glossary-overlay')) return
+    stopTour()
+  })
+
+  // Suppress unused warning for `badge` — its visibility is CSS-driven
+  void badge
+})()
+
+// ─── "show in scene" — glossary terms pulse their 3D group ───
+;(function wireGlossaryHighlights() {
+  document.querySelectorAll<HTMLButtonElement>('.glossary-show').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const group = btn.dataset.highlight
+      if (!group) return
+      // Fade the glossary briefly so the user sees the scene pulse
+      const overlay = document.getElementById('glossary-overlay')
+      overlay?.classList.remove('visible')
+      setTimeout(() => {
+        const v = viz as unknown as { highlightGroup?: (g: string) => void }
+        v.highlightGroup?.(group)
+      }, 250)
+    })
+  })
+})()
 
 // ─── Glossary overlay (? key or HUD chip) ───
 ;(function wireGlossaryOverlay() {
@@ -1435,23 +1773,59 @@ function appendToken(text: string) {
   output.scrollTop = output.scrollHeight
 }
 
+// ─── Ask mode: wrap user question with Phi-3 chat template + docs context ───
+// The docs come from src/docs.md (imported as raw text). When the user
+// clicks Ask instead of Think, we route their question through this template
+// so Phi-3 answers as an informed explainer, not a raw completion.
+const ASK_SYSTEM_PREAMBLE =
+  'You are Phi-3-mini running live in the user\'s browser inside Neuropulse — ' +
+  'an interpretability visualizer where the user can literally see every ' +
+  'tensor you compute, rendered as a 3D scene around them as you generate. ' +
+  'Answer their question about transformers, this app, or yourself. Be ' +
+  'concise (2–5 sentences unless asked for depth). Use plain language. ' +
+  'If you don\'t know something, say so — don\'t invent interpretability ' +
+  'research. Reference the docs below when relevant.\n\n' +
+  '=== NEUROPULSE REFERENCE DOCS ===\n'
+
+function buildAskPrompt(question: string): string {
+  const system = ASK_SYSTEM_PREAMBLE + NEUROPULSE_DOCS + '\n=== END DOCS ==='
+  return `<|system|>\n${system}\n<|end|>\n<|user|>\n${question}\n<|end|>\n<|assistant|>\n`
+}
+
 // ─── Real Phi-3 inference ───
-async function runRealInference(prompt: string) {
+async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think') {
   if (!engine) return
   isRunning = true
   goBtn.disabled = true
-  goBtn.textContent = 'Thinking...'
+  goBtn.textContent = mode === 'ask' ? 'Asking...' : 'Thinking...'
   viz.audio.resume()
 
   output.innerHTML = ''
-  const promptEcho = document.createElement('div')
-  promptEcho.style.cssText = 'color:#ff8c42;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
-  promptEcho.textContent = `> ${prompt}`
-  output.appendChild(promptEcho)
+  if (mode === 'ask') {
+    // Q&A formatting: the user's original question (not the full templated
+    // prompt) in a cyan italic pull-quote, then an "Answer" label.
+    const q = document.createElement('div')
+    q.className = 'qa-question'
+    q.textContent = prompt
+    output.appendChild(q)
+    const aLabel = document.createElement('div')
+    aLabel.className = 'qa-answer-label'
+    aLabel.textContent = 'Answer'
+    output.appendChild(aLabel)
+  } else {
+    const promptEcho = document.createElement('div')
+    promptEcho.style.cssText = 'color:#ff8c42;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
+    promptEcho.textContent = `> ${prompt}`
+    output.appendChild(promptEcho)
+  }
   const cursor = document.createElement('span')
   cursor.className = 'cursor'
   output.appendChild(cursor)
 
+  // In Ask mode the REAL prompt sent to the engine is the chat-templated
+  // wrap around the user's question + docs system prompt. The user's
+  // original question is what we display + tokenize for the token strip.
+  const realPrompt = mode === 'ask' ? buildAskPrompt(prompt) : prompt
   const inputTokens = tokenize(prompt)
   viz.setInputTokens(inputTokens)
   tokenStripStart(prompt)
@@ -1465,6 +1839,8 @@ async function runRealInference(prompt: string) {
   prevResidualNorm = 0
   for (let L = 0; L < 32; L++) headHeatmap[L].fill(0)
   clearResStrip()
+  // Reset replay buffer — per-token snapshots captured during this run
+  clearReplayBuffer()
   clearLensGrid()
   initLensHero()
   lastAttentionScores = null
@@ -1473,7 +1849,7 @@ async function runRealInference(prompt: string) {
   selectedHeadIdx = -1
 
   try {
-  await engine.generate(prompt, 500, {
+  await engine.generate(realPrompt, mode === 'ask' ? 300 : 500, {
     async onLayer(layer, step, _stepName, activations) {
       // Build role-specific activation data from GPU readback
       let data: LayerActivation
@@ -1598,6 +1974,8 @@ async function runRealInference(prompt: string) {
         rawState.topProb = topK[0].prob
         renderRawReadout()
       }
+      // Snapshot panel state for the replay scrubber
+      captureTokenSnapshot(delta, topK)
       // L=31 in the logit lens grid is always the real final token: the
       // engine's final lm_head is mathematically equivalent to a lens at
       // the last layer, so skip the extra GPU dispatch and display the
@@ -1679,17 +2057,21 @@ async function runRealInference(prompt: string) {
 }
 
 // ─── Dispatch ───
-function startInference() {
+function startInference(mode: 'think' | 'ask' = 'think') {
   const prompt = promptInput.value.trim()
   if (!prompt || isRunning || isValidating) return
   if (!engine) return // no engine = no inference (error screen is already up)
   promptInput.value = ''
-  runRealInference(prompt)
+  runRealInference(prompt, mode)
 }
 
-goBtn.addEventListener('click', startInference)
+goBtn.addEventListener('click', () => startInference('think'))
+document.getElementById('askBtn')?.addEventListener('click', () => startInference('ask'))
 promptInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') startInference()
+  if (e.key === 'Enter') {
+    // Shift+Enter = Ask (docs-augmented Q&A); plain Enter = Think (completion)
+    startInference(e.shiftKey ? 'ask' : 'think')
+  }
 })
 
 // ─── Boot-screen error state (replaces the loading phase) ───
@@ -1774,6 +2156,34 @@ async function initEngine() {
 
     hideLoading()
 
+    // Devtools smoke test: window.__ablate('prompt', [{layer: 15}])
+    // Runs two short generations — baseline and ablated — and logs both.
+    // Proves the engine path works end-to-end before wiring UI.
+    ;(window as unknown as {
+      __ablate: (prompt: string, ablations: Ablation[], maxTokens?: number) => Promise<void>
+    }).__ablate = async (prompt, ablations, maxTokens = 30) => {
+      if (!engine) { console.warn('engine not ready'); return }
+      if (isRunning || isValidating) {
+        console.warn('[ablate] app is busy (auto-run or user generation in flight). Wait for it to finish, then retry.')
+        return
+      }
+      isRunning = true
+      try {
+        const cb = {}
+        console.log('[ablate] baseline...')
+        const t0 = performance.now()
+        const base = await engine.generate(prompt, maxTokens, cb)
+        console.log('[ablate] baseline:', JSON.stringify(base), `(${((performance.now()-t0)/1000).toFixed(1)}s)`)
+        console.log('[ablate] ablated', ablations, '...')
+        const t1 = performance.now()
+        const abl = await engine.generate(prompt, maxTokens, cb, ablations)
+        console.log('[ablate] ablated :', JSON.stringify(abl), `(${((performance.now()-t1)/1000).toFixed(1)}s)`)
+        console.log('[ablate] differ?', base !== abl)
+      } finally {
+        isRunning = false
+      }
+    }
+
     // Update header to show real engine
     const dispatchStat = document.getElementById('dispatchStat')
     if (dispatchStat) {
@@ -1781,12 +2191,18 @@ async function initEngine() {
     }
 
     // Auto-run an opening prompt so the visualization lights up on arrival.
-    setTimeout(() => {
-      if (!isRunning && !isValidating) {
-        promptInput.value = getSharedPrompt() || 'What is consciousness?'
-        startInference()
-      }
-    }, 1500)
+    // Skipped when ?noauto is in the URL — useful for __ablate smoke tests.
+    const skipAuto = new URLSearchParams(location.search).has('noauto')
+    if (!skipAuto) {
+      setTimeout(() => {
+        if (!isRunning && !isValidating) {
+          promptInput.value = getSharedPrompt() || 'What is consciousness?'
+          startInference()
+        }
+      }, 1500)
+    } else {
+      console.log('[neuropulse] auto-run suppressed (?noauto). Engine idle, __ablate ready.')
+    }
 
   } catch (e) {
     console.warn('[neuropulse] engine init failed:', e)
@@ -1845,6 +2261,14 @@ function waitForGateClick(): Promise<void> {
   // phase is already visible.
   if ((window as any).__NEUROPULSE_MOBILE_BLOCK__) return
 
+  // Test bypass: ?bypass=1 skips both the cache check and the download gate,
+  // boots the visualizer immediately, and (crucially) skips engine init so
+  // Playwright UI tests don't trigger a 2 GB weight download per test.
+  const bypass = new URLSearchParams(location.search).has('bypass')
+  if (bypass) {
+    try { initVisualizer() } catch {}
+    return
+  }
   if (await modelIsCached()) {
     // Cached — skip gate, go straight to loading phase
     showBootLoading()

@@ -33,11 +33,9 @@ const FLY_END  = 0.92   // 0.05 → 0.92: dolly-follow across all 32 layers
 //                       0.92 → 1.00: pull back to LM head overview
 
 // Tuning knobs (all user-facing speed parameters in one place)
-const WHEEL_SCALE   = 0.00022   // wheel: ~40 ticks to cross the whole journey
 const KEY_STEP      = 0.010     // single arrow-key press
-const TOUCH_SCALE   = 0.0012
 const AUTO_RATE     = 0.00028   // per frame; 0.00028 * 60fps ≈ 1.7%/s → ~60s total
-const LERP_TO_PROG  = 0.08      // progress inertia — smoother than raw scroll
+const LERP_TO_PROG  = 0.08      // progress inertia — smoother than step input
 
 interface Pose { pos: THREE.Vector3; lookAt: THREE.Vector3 }
 
@@ -250,14 +248,7 @@ export function createJourney(vis: BrainVisualizer): JourneyHandle {
   let progTarget = 0            // scroll/key/auto-advance writes here
   let progCurrent = 0           // smoothed — what drives the camera
   let autoPlay = false
-  let userAdvanced = false      // becomes true after first scroll/key — lets us fade out "scroll hint"
-
-  // Orbit offsets applied around the current focus point
-  let orbitYaw = 0
-  let orbitPitch = 0
-  let isDragging = false
-  let lastPointerX = 0
-  let lastPointerY = 0
+  let userAdvanced = false      // becomes true after first input — fades hint
 
   const hudEl = document.getElementById('journey-hud')
   const capEl = document.getElementById('journey-caption')
@@ -324,50 +315,29 @@ export function createJourney(vis: BrainVisualizer): JourneyHandle {
     }
   }
 
-  function applyOrbit(basePose: Pose): Pose {
-    if (orbitYaw === 0 && orbitPitch === 0) return basePose
-    const offset = basePose.pos.clone().sub(basePose.lookAt)
-    // Yaw around world-up
-    offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), orbitYaw)
-    // Pitch around local-right (perpendicular to offset and world-up)
-    const right = new THREE.Vector3().crossVectors(offset, new THREE.Vector3(0, 1, 0)).normalize()
-    offset.applyAxisAngle(right, orbitPitch)
-    return {
-      pos: basePose.lookAt.clone().add(offset),
-      lookAt: basePose.lookAt.clone(),
-    }
-  }
-
   // ─── main animation loop ───
   function tick(): void {
     if (active) {
       if (autoPlay) progTarget = clamp01(progTarget + AUTO_RATE)
-      // Smooth the progress we actually render — prevents jittery wheel
+      // Smooth the progress we actually render — prevents jittery input
       progCurrent += (progTarget - progCurrent) * LERP_TO_PROG
-      // Snap when close enough to avoid endless tiny-delta churn
       if (Math.abs(progTarget - progCurrent) < 1e-4) progCurrent = progTarget
 
       const basePose = poseFor(progCurrent)
-      const finalPose = applyOrbit(basePose)
-      vis.setJourneyCamera(finalPose.pos, finalPose.lookAt)
+      // Orbit offsets are no longer applied here — OrbitControls owns orbit
+      // when journey isn't driving. Journey only writes when autoplay is on.
+      vis.setJourneyCamera(basePose.pos, basePose.lookAt)
       vis.setJourneyFocusLayer(focusLayerFor(progCurrent))
+      // Tell visualizer whether we're in control of the camera right now.
+      vis.setJourneyDriving(autoPlay)
       updateHUD(progCurrent)
     }
     requestAnimationFrame(tick)
   }
   tick()
 
-  // ─── wheel input ───
-  function onWheel(e: WheelEvent): void {
-    if (!active) return
-    e.preventDefault()
-    if (autoPlay) autoPlay = false  // scrolling interrupts auto-play
-    progTarget = clamp01(progTarget + e.deltaY * WHEEL_SCALE)
-    userAdvanced = true
-    // Scrolling also decays orbit back to zero — user wants the journey view
-    orbitYaw *= 0.85
-    orbitPitch *= 0.85
-  }
+  // Wheel is now handled by OrbitControls for zoom. Journey only
+  // advances via arrow keys, space, Home/End, or the ▶ play button.
 
   // ─── keyboard input ───
   function onKey(e: KeyboardEvent): void {
@@ -397,62 +367,28 @@ export function createJourney(vis: BrainVisualizer): JourneyHandle {
       autoPlay = false
       progTarget = 1
       userAdvanced = true
-    } else if (e.key === 'r' || e.key === 'R') {
-      // Reset orbit view
-      orbitYaw = 0
-      orbitPitch = 0
     }
+    // R-to-reset-view is now handled by OrbitControls.reset() in main.ts.
   }
 
-  // ─── drag-to-orbit ───
+  // ─── auto-pause on any OrbitControls interaction ───
+  // If the user grabs the scene while autoplay is on, pause journey so the
+  // lerp doesn't fight their drag. The OrbitControls events fire on
+  // pointerdown on the canvas; we listen at the window for simplicity.
   function onPointerDown(e: PointerEvent): void {
-    if (!active) return
-    // Only left button; ignore clicks on HUD (let UI receive them)
-    if (e.button !== 0) return
+    if (!active || !autoPlay) return
     const target = e.target as HTMLElement | null
-    if (target && target.closest('#journey-hud, #journey-exit, .mode-bar, .boot-screen')) return
-    isDragging = true
-    lastPointerX = e.clientX
-    lastPointerY = e.clientY
-  }
-  function onPointerMove(e: PointerEvent): void {
-    if (!isDragging) return
-    const dx = e.clientX - lastPointerX
-    const dy = e.clientY - lastPointerY
-    lastPointerX = e.clientX
-    lastPointerY = e.clientY
-    orbitYaw -= dx * 0.005
-    orbitPitch -= dy * 0.005
-    orbitPitch = Math.max(-0.9, Math.min(0.9, orbitPitch))
-  }
-  function onPointerUp(): void {
-    isDragging = false
-  }
-
-  // ─── touch pan ───
-  let touchY = 0
-  function onTouchStart(e: TouchEvent): void {
-    if (!active) return
-    touchY = e.touches[0].clientY
-  }
-  function onTouchMove(e: TouchEvent): void {
-    if (!active) return
-    e.preventDefault()
-    const y = e.touches[0].clientY
-    const dy = y - touchY
-    touchY = y
-    progTarget = clamp01(progTarget - dy * TOUCH_SCALE)
+    // Ignore clicks on UI overlays — only pause for canvas interaction.
+    if (target && target.closest(
+      '#journey-hud, #journey-exit, .mode-bar, .boot-screen, .side, .preset-row, .input-wrap, #welcome-overlay, #glossary-overlay'
+    )) return
+    if (e.button !== 0) return
+    autoPlay = false
     userAdvanced = true
   }
 
-  window.addEventListener('wheel', onWheel, { passive: false })
   window.addEventListener('keydown', onKey)
   window.addEventListener('pointerdown', onPointerDown)
-  window.addEventListener('pointermove', onPointerMove)
-  window.addEventListener('pointerup', onPointerUp)
-  window.addEventListener('pointercancel', onPointerUp)
-  window.addEventListener('touchstart', onTouchStart, { passive: false })
-  window.addEventListener('touchmove', onTouchMove, { passive: false })
 
   // HUD-local click handler for the play button (delegated on enter())
   playEl?.addEventListener('click', () => {
@@ -468,8 +404,6 @@ export function createJourney(vis: BrainVisualizer): JourneyHandle {
       progTarget = 0
       progCurrent = 0
       autoPlay = false
-      orbitYaw = 0
-      orbitPitch = 0
       userAdvanced = false
       lastStation = ''
       lastStripLayer = -2
@@ -486,7 +420,6 @@ export function createJourney(vis: BrainVisualizer): JourneyHandle {
       if (!active) return
       active = false
       autoPlay = false
-      isDragging = false
       vis.enableJourneyMode(false)
       if (hudEl) {
         hudEl.style.opacity = '0'

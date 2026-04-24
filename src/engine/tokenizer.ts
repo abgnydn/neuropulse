@@ -10,7 +10,7 @@
  *   - Added tokens: <s>=1, </s>=2, <|system|>=32006, <|user|>=32010, etc.
  */
 
-import { PHI3_MODEL_BASE } from './weight-loader'
+import { PHI3_MODEL_BASE, CACHE_NAME } from './weight-loader'
 
 // ============================================================
 // tokenizer.json types (subset we need)
@@ -61,7 +61,7 @@ async function fetchText(url: string): Promise<string> {
       const text = await resp.text()
       // Persist into our cache so next load is instant & offline-safe
       try {
-        const store = await caches.open('neural-pulse-phi3-weights')
+        const store = await caches.open(CACHE_NAME)
         await store.put(url, new Response(text, {
           headers: { 'Content-Type': 'application/json' },
         }))
