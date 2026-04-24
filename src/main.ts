@@ -1,6 +1,8 @@
 import { BrainVisualizer, LayerActivation } from './visualizer'
 import { createInferenceEngine, InferenceEngine, LoadProgress, TopKEntry } from './engine/inference'
 import { reduceQKVForAttnHeads, reduceForAttnHeads, reduceForFFNGroups, reduceForResidual, normalizeFull } from './engine/activation-reducer'
+import { createJourney, JourneyHandle } from './journey'
+import { SpatialPanels } from './spatial-panels'
 
 // ═══════════════════════════════════════════════════════════════
 // Neuropulse — Main v4 (Real Phi-3 Inference)
@@ -28,6 +30,7 @@ let viz: BrainVisualizer = createNullViz()
 function initVisualizer() {
   viz = new BrainVisualizer(canvas)
   viz.start()
+  wireJourney()
 }
 
 const output = document.getElementById('output')!
@@ -75,18 +78,32 @@ document.body.classList.add('strict')
 // Each mode picks ONE captured tensor stream and gives it the entire hero
 // area. Same forward pass, totally different views. Body class drives the
 // CSS that shows/hides per-mode hero overlays + scene-only side panels.
-type ViewMode = 'scene' | 'attention' | 'lens' | 'cinema'
-let currentMode: ViewMode = 'scene'
-document.body.classList.add('mode-scene')
+//
+// 'journey' (default) is the scroll-driven cinematic flythrough — all classic
+// chrome hidden, the 3D scene is the whole page. The classic modes remain
+// accessible via a pill toggle and cover the side-panel + scene workflows.
+type ViewMode = 'journey' | 'scene' | 'attention' | 'lens' | 'cinema'
+let currentMode: ViewMode = 'journey'
+document.body.classList.add('mode-journey')
+
+// Journey handle — lazily created once the real visualizer exists
+// (createNullViz proxies can't run camera paths). See wireJourney() below.
+let journey: JourneyHandle | null = null
+// SpatialPanels handle — Universe (scene) mode's floating 3D cards.
+let spatial: SpatialPanels | null = null
 
 function setMode(mode: ViewMode) {
   if (mode === currentMode) return
+  if (currentMode === 'journey' && journey) journey.exit()
   document.body.classList.remove(`mode-${currentMode}`)
   document.body.classList.add(`mode-${mode}`)
   currentMode = mode
   for (const btn of document.querySelectorAll<HTMLButtonElement>('.mode-btn')) {
     btn.classList.toggle('active', btn.dataset.mode === mode)
   }
+  if (mode === 'journey' && journey) journey.enter()
+  // Universe view: 3D-anchored floating panels are live only in scene mode.
+  if (spatial) spatial.enable(mode === 'scene')
   // Force a one-shot re-render of mode-specific views from cached state so
   // the hero isn't blank when switching mid-decode.
   if (mode === 'attention' && lastAttentionScores) {
@@ -102,6 +119,180 @@ document.querySelectorAll<HTMLButtonElement>('.mode-btn').forEach((btn) => {
     if (m) setMode(m)
   })
 })
+
+// Journey exit pill + 'S' keybinding → return to Scene mode
+document.getElementById('journey-exit')?.addEventListener('click', () => setMode('scene'))
+window.addEventListener('keydown', (e) => {
+  if (currentMode !== 'journey') return
+  const target = e.target as HTMLElement | null
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
+  if (e.key === 's' || e.key === 'S' || e.key === 'Escape') {
+    e.preventDefault()
+    setMode('scene')
+  }
+})
+
+/** Call after the real visualizer is created (post-WebGPU init). */
+function wireJourney(): void {
+  if (journey) return
+  journey = createJourney(viz)
+  spatial = new SpatialPanels(viz)
+  spatial.registerFromDOM()
+  wirePanelToggles()
+  // Unified universe: always-on journey camera + always-on spatial panels.
+  // No matter which legacy mode class is on <body>, the floating-pips UX
+  // is present everywhere.
+  journey.enter()
+  spatial.enable(true)
+}
+
+/** Click a pip panel → .expanded; click the injected × → collapse.
+ * Also injects an "i" button that toggles the educational data-info caption.
+ * Inputs/buttons/canvases inside an expanded panel don't collapse on click. */
+function wirePanelToggles(): void {
+  const panels = document.querySelectorAll<HTMLElement>('.side > [data-anchor]')
+  panels.forEach((panel) => {
+    // Inject the close button once per panel
+    if (!panel.querySelector(':scope > .panel-close')) {
+      const close = document.createElement('button')
+      close.className = 'panel-close'
+      close.innerHTML = '×'
+      close.type = 'button'
+      close.setAttribute('aria-label', 'Close')
+      close.addEventListener('click', (e) => {
+        e.stopPropagation()
+        panel.classList.remove('expanded')
+      })
+      panel.appendChild(close)
+    }
+
+    // Inject the educational "i" toggle + hidden caption body (if data-info exists)
+    const info = panel.dataset.info
+    if (info && !panel.querySelector(':scope > .panel-info')) {
+      const btn = document.createElement('button')
+      btn.className = 'panel-info'
+      btn.textContent = 'i'
+      btn.type = 'button'
+      btn.setAttribute('aria-label', 'What does this panel show?')
+      const body = document.createElement('div')
+      body.className = 'panel-info-body'
+      body.innerHTML = info  // data-info is trusted copy from our own HTML
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        btn.classList.toggle('on')
+        body.classList.toggle('on')
+      })
+      panel.appendChild(btn)
+      panel.appendChild(body)
+    }
+
+    panel.addEventListener('click', (e) => {
+      if (!panel.classList.contains('expanded')) {
+        panel.classList.add('expanded')
+        return
+      }
+      // Expanded: only collapse if clicking the panel *background* itself,
+      // not interactive children (inputs, buttons, canvases, links).
+      const t = e.target as HTMLElement
+      if (t === panel) panel.classList.remove('expanded')
+    })
+  })
+}
+
+// ─── Glossary overlay (? key or HUD chip) ───
+;(function wireGlossaryOverlay() {
+  const overlay = document.getElementById('glossary-overlay')
+  const close = document.getElementById('glossary-close')
+  const chip = document.getElementById('journey-help')
+  if (!overlay) return
+
+  function toggle(show?: boolean): void {
+    const willShow = show ?? !overlay!.classList.contains('visible')
+    overlay!.classList.toggle('visible', willShow)
+  }
+
+  close?.addEventListener('click', () => toggle(false))
+  chip?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    toggle()
+  })
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) toggle(false)
+  })
+
+  window.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLElement | null
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
+    if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+      e.preventDefault()
+      toggle()
+    } else if (e.key === 'Escape' && overlay.classList.contains('visible')) {
+      toggle(false)
+    }
+  })
+})()
+
+// ─── Preset-hint floating toast (educational annotation for each preset) ───
+;(function wirePresetHints() {
+  let toast: HTMLElement | null = null
+  let hideTimer: number | null = null
+
+  function showHint(html: string): void {
+    if (!toast) {
+      toast = document.createElement('div')
+      toast.className = 'preset-hint-toast'
+      document.body.appendChild(toast)
+    }
+    toast.innerHTML = html
+    // Allow the next frame to paint before applying .visible so transition plays
+    requestAnimationFrame(() => toast!.classList.add('visible'))
+    if (hideTimer) window.clearTimeout(hideTimer)
+    hideTimer = window.setTimeout(() => {
+      toast!.classList.remove('visible')
+    }, 6500)
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.preset-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const hint = chip.dataset.hint
+      if (hint) showHint(hint)
+    })
+  })
+})()
+
+// ─── Welcome overlay (first visit) ───
+;(function wireWelcomeOverlay() {
+  const STORAGE_KEY = 'np:welcome-dismissed'
+  const overlay = document.getElementById('welcome-overlay')
+  const dismiss = document.getElementById('welcome-dismiss') as HTMLButtonElement | null
+  if (!overlay || !dismiss) return
+  let seen = false
+  try { seen = localStorage.getItem(STORAGE_KEY) === '1' } catch { /* storage disabled */ }
+  // Show after a short delay so the boot screen fade has settled
+  if (!seen) {
+    setTimeout(() => {
+      overlay.classList.add('visible')
+    }, 900)
+  }
+  dismiss.addEventListener('click', () => {
+    overlay.classList.remove('visible')
+    try { localStorage.setItem(STORAGE_KEY, '1') } catch { /* ok */ }
+  })
+  // Click outside card also dismisses
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.classList.remove('visible')
+      try { localStorage.setItem(STORAGE_KEY, '1') } catch { /* ok */ }
+    }
+  })
+  // Esc dismisses
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('visible')) {
+      overlay.classList.remove('visible')
+      try { localStorage.setItem(STORAGE_KEY, '1') } catch { /* ok */ }
+    }
+  })
+})()
 
 // Repurpose the old 🔬 button as a manual "Run validation test" trigger.
 // The HF cross-validation suite no longer runs automatically on boot; the
@@ -300,7 +491,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 // ─── Top-K display ───
 const topkBars = document.getElementById('topkBars')!
-const TOP_K_COLORS = ['#00e5ff', '#c084fc', '#5eead4', '#f0abfc', '#f472b6']
+const TOP_K_COLORS = ['#00e5ff', '#5eead4', '#06b6d4', '#ff8c42', '#8a8170']
 
 function updateTopK(entries: TopKEntry[]) {
   if (!topkBars) return
@@ -375,12 +566,12 @@ function updateConfidence(topK: TopKEntry[]) {
   if (confidenceBar) {
     confidenceBar.style.width = `${pct}%`
     if (confidence > 0.7) confidenceBar.style.background = '#5eead4'
-    else if (confidence > 0.4) confidenceBar.style.background = '#f0abfc'
-    else confidenceBar.style.background = '#f472b6'
+    else if (confidence > 0.4) confidenceBar.style.background = '#06b6d4'
+    else confidenceBar.style.background = '#ff8c42'
   }
   if (confidenceVal) {
     confidenceVal.textContent = `${pct}%`
-    confidenceVal.style.color = confidence > 0.7 ? '#5eead4' : confidence > 0.4 ? '#f0abfc' : '#f472b6'
+    confidenceVal.style.color = confidence > 0.7 ? '#5eead4' : confidence > 0.4 ? '#06b6d4' : '#ff8c42'
   }
 }
 
@@ -415,7 +606,7 @@ function updateHeatmapLayer(layer: number, heads: Float32Array) {
     if (!cell) continue
     const v = heads[h]
     if (v > 0.6) { cell.style.background = `rgba(94,234,212,${0.3 + v * 0.7})`; cell.style.boxShadow = `0 0 3px rgba(94,234,212,${v * 0.3})` }
-    else if (v > 0.25) { cell.style.background = `rgba(124,58,237,${0.2 + v * 0.5})`; cell.style.boxShadow = 'none' }
+    else if (v > 0.25) { cell.style.background = `rgba(255,140,66,${0.2 + v * 0.5})`; cell.style.boxShadow = 'none' }
     else { cell.style.background = `rgba(94,234,212,${0.02 + v * 0.06})`; cell.style.boxShadow = 'none' }
   }
 }
@@ -477,9 +668,9 @@ function updateDeltaChart(layer: number, residualValue: number) {
     const barH = v * h
     // High delta = warm color, low = cool
     if (i <= layer) {
-      if (v > 0.6) deltaCtx.fillStyle = `rgba(240,171,252,${0.4 + v * 0.6})`
+      if (v > 0.6) deltaCtx.fillStyle = `rgba(255,184,120,${0.4 + v * 0.6})`
       else if (v > 0.3) deltaCtx.fillStyle = `rgba(94,234,212,${0.3 + v * 0.5})`
-      else deltaCtx.fillStyle = `rgba(124,58,237,${0.2 + v * 0.4})`
+      else deltaCtx.fillStyle = `rgba(255,140,66,${0.2 + v * 0.4})`
     } else {
       deltaCtx.fillStyle = 'rgba(244,236,223,0.04)'
     }
@@ -722,7 +913,7 @@ function renderAttentionDetail(scores: Float32Array, kvLen: number, L: number, h
     const x = s * barW
     const grad = attnDetailCtx.createLinearGradient(0, H - barH, 0, H)
     grad.addColorStop(0, `rgba(94,234,212,${0.3 + v * 0.7})`)
-    grad.addColorStop(1, `rgba(124,58,237,${0.2 + v * 0.5})`)
+    grad.addColorStop(1, `rgba(255,140,66,${0.2 + v * 0.5})`)
     attnDetailCtx.fillStyle = grad
     attnDetailCtx.fillRect(x, H - barH, Math.max(1, barW - 1), barH)
   }
@@ -1254,7 +1445,7 @@ async function runRealInference(prompt: string) {
 
   output.innerHTML = ''
   const promptEcho = document.createElement('div')
-  promptEcho.style.cssText = 'color:#c084fc;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
+  promptEcho.style.cssText = 'color:#ff8c42;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
   promptEcho.textContent = `> ${prompt}`
   output.appendChild(promptEcho)
   const cursor = document.createElement('span')

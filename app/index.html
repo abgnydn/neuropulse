@@ -13,9 +13,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,30..100&display=swap" rel="stylesheet">
-<!-- Vercel Web Analytics + Speed Insights — auto-injected on Vercel deploys via /_vercel paths -->
-<script defer src="/_vercel/insights/script.js"></script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 <script>
 // Capture-mode RAF polyfill: when running headlessly (?capture=1), the
 // browser pauses requestAnimationFrame because the tab has no compositor
@@ -62,7 +59,7 @@ body { background: #08060f; color: #f4ecdf; font-family: 'Inter', -apple-system,
   position: absolute; inset: -25%; z-index: 0;
   background:
     radial-gradient(ellipse 50% 40% at 20% 35%, rgba(94,234,212,0.08), transparent 60%),
-    radial-gradient(ellipse 45% 45% at 80% 65%, rgba(192,132,252,0.07), transparent 60%),
+    radial-gradient(ellipse 45% 45% at 80% 65%, rgba(255,140,66,0.06), transparent 60%),
     radial-gradient(ellipse 35% 30% at 50% 90%, rgba(0,229,255,0.05), transparent 60%);
   animation: bootDrift 30s ease-in-out infinite alternate;
 }
@@ -108,7 +105,7 @@ body { background: #08060f; color: #f4ecdf; font-family: 'Inter', -apple-system,
 }
 .boot-ring-inner {
   position: absolute; inset: 40px; border-radius: 50%;
-  border: 1px solid rgba(192,132,252,0.05);
+  border: 1px solid rgba(255,140,66,0.05);
   animation: ringPulse 5s cubic-bezier(0.4,0,0.2,1) infinite 1s;
 }
 .boot-ring-core {
@@ -164,7 +161,7 @@ body { background: #08060f; color: #f4ecdf; font-family: 'Inter', -apple-system,
   font-family: 'Inter', -apple-system, sans-serif;
   font-size: 1.25rem; font-weight: 600; line-height: 1.4; margin: 0 0 16px; color: #e8e0d4;
 }
-.boot-gate h2 .size { color: #c084fc; font-weight: 700; }
+.boot-gate h2 .size { color: #ff8c42; font-weight: 700; }
 .boot-gate p { font-size: 0.85rem; line-height: 1.65; color: #6b6358; margin: 0 0 6px; }
 .boot-gate p.fine { font-size: 0.74rem; color: #514a3e; margin-bottom: 36px; }
 .boot-gate .btn-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
@@ -211,10 +208,10 @@ body { background: #08060f; color: #f4ecdf; font-family: 'Inter', -apple-system,
 }
 .boot-loading .bar-fill {
   width: 0%; height: 100%;
-  background: linear-gradient(90deg, #c084fc, #06b6d4, #00e5ff);
+  background: linear-gradient(90deg, #ff8c42, #06b6d4, #00e5ff);
   transition: width 0.2s cubic-bezier(0.4,0,0.2,1);
   border-radius: 2px; position: relative;
-  box-shadow: 0 0 12px rgba(0,229,255,0.3), 0 0 4px rgba(192,132,252,0.2);
+  box-shadow: 0 0 12px rgba(0,229,255,0.3), 0 0 4px rgba(255,140,66,0.2);
 }
 .boot-loading .bar-fill::after {
   content: ''; position: absolute; right: 0; top: -3px; width: 6px; height: 9px;
@@ -306,7 +303,7 @@ body.mode-cinema .cinema-controls { display: flex; }
 
 /* === LENS HERO === */
 .hero-lens .lens-hero-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
-.hero-lens .lens-hero-head h2 { font-size: 0.85rem; color: #c084fc; font-weight: 600; letter-spacing: 0.02em; }
+.hero-lens .lens-hero-head h2 { font-size: 0.85rem; color: #ff8c42; font-weight: 600; letter-spacing: 0.02em; }
 .hero-lens .lens-hero-head .lens-hint { color: #514a3e; font-size: 0.62rem; }
 .hero-lens .lens-hero-body { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-right: 6px; min-height: 0; }
 .lens-row { display: grid; grid-template-columns: 56px 1fr 80px; gap: 12px; align-items: center; padding: 6px 12px; background: rgba(244,236,223,0.03); border: 1px solid rgba(244,236,223,0.08); border-radius: 6px; transition: background 0.25s, border-color 0.25s, box-shadow 0.25s; min-height: 28px; }
@@ -314,10 +311,10 @@ body.mode-cinema .cinema-controls { display: flex; }
 .lens-row.unsampled { opacity: 0.3; }
 .lens-row .lens-row-layer { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #8a8170; font-weight: 600; }
 .lens-row.fresh .lens-row-layer { color: #5eead4; }
-.lens-row.final .lens-row-layer { color: #c084fc; }
+.lens-row.final .lens-row-layer { color: #ff8c42; }
 .lens-row .lens-row-tok { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: #f4ecdf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 .lens-row .lens-row-bar { height: 4px; background: rgba(244,236,223,0.08); border-radius: 2px; overflow: hidden; }
-.lens-row .lens-row-bar > div { height: 100%; background: linear-gradient(90deg, #7c3aed, #00e5ff); border-radius: 2px; box-shadow: 0 0 6px rgba(244,236,223,0.32); transition: width 0.3s; }
+.lens-row .lens-row-bar > div { height: 100%; background: linear-gradient(90deg, #ff8c42, #00e5ff); border-radius: 2px; box-shadow: 0 0 6px rgba(244,236,223,0.32); transition: width 0.3s; }
 
 /* === CINEMA CONTROLS === */
 .cinema-controls { display: none; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); flex-direction: row; gap: 8px; padding: 10px 16px; background: rgba(8,6,15,0.85); border: 1px solid rgba(244,236,223,0.18); border-radius: 12px; backdrop-filter: blur(16px); box-shadow: 0 8px 30px rgba(0,0,0,0.6); align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #8a8170; z-index: 10; }
@@ -326,7 +323,7 @@ body.mode-cinema .cinema-controls { display: flex; }
 .cinema-btn.primary { background: #f4ecdf; border-color: #f4ecdf; color: #08060f; }
 .cinema-scrub { display: flex; flex-direction: column; gap: 2px; min-width: 220px; }
 .cinema-scrub-bar { height: 4px; background: rgba(244,236,223,0.10); border-radius: 2px; overflow: hidden; }
-.cinema-scrub-bar > div { height: 100%; background: linear-gradient(90deg, #7c3aed, #00e5ff); border-radius: 2px; box-shadow: 0 0 6px rgba(244,236,223,0.32); width: 0%; transition: width 0.1s; }
+.cinema-scrub-bar > div { height: 100%; background: linear-gradient(90deg, #ff8c42, #00e5ff); border-radius: 2px; box-shadow: 0 0 6px rgba(244,236,223,0.32); width: 0%; transition: width 0.1s; }
 .cinema-scrub-label { display: flex; justify-content: space-between; font-size: 0.58rem; color: #514a3e; }
 .cinema-scrub-label span:last-child { color: #5eead4; }
 
@@ -338,7 +335,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
 .side-header { padding: 14px 18px; border-bottom: 1px solid rgba(244,236,223,0.08); font-size: 0.68rem; color: #5eead4; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
 .output-area { flex: 1; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: #cbc1ad; white-space: pre-wrap; word-wrap: break-word; min-height: 120px; }
 .output-area .token { display: inline; transition: opacity 0.3s, text-shadow 0.5s; }
-.output-area .token.new { color: #fff; text-shadow: 0 0 25px rgba(94,234,212,0.5), 0 0 50px rgba(124,58,237,0.3); }
+.output-area .token.new { color: #fff; text-shadow: 0 0 25px rgba(94,234,212,0.5), 0 0 50px rgba(255,140,66,0.3); }
 .cursor { display: inline-block; width: 2px; height: 1em; background: #00e5ff; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; box-shadow: 0 0 8px rgba(244,236,223,0.35); }
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -346,7 +343,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
 .token-strip { grid-column: 1; grid-row: 4; padding: 8px 18px; border-top: 1px solid rgba(244,236,223,0.08); background: rgba(8,6,15,0.5); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-height: 30px; max-height: 80px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
 .token-strip .ts-label { color: #514a3e; font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 6px; flex-shrink: 0; }
 .token-strip .ts-tok { display: inline-block; padding: 2px 6px; border-radius: 4px; background: rgba(244,236,223,0.05); border: 1px solid rgba(244,236,223,0.10); color: #cbc1ad; transition: all 0.2s; cursor: default; }
-.token-strip .ts-tok.prompt { background: rgba(124,58,237,0.08); border-color: rgba(124,58,237,0.2); color: #cbc1ad; }
+.token-strip .ts-tok.prompt { background: rgba(255,140,66,0.08); border-color: rgba(255,140,66,0.22); color: #cbc1ad; }
 .token-strip .ts-tok.gen { background: rgba(244,236,223,0.08); border-color: rgba(244,236,223,0.18); color: #f4ecdf; }
 .token-strip .ts-tok.fresh { background: rgba(94,234,212,0.22); border-color: rgba(244,236,223,0.40); color: #fff; box-shadow: 0 0 10px rgba(94,234,212,0.28); }
 .token-strip .ts-tok.hot { background: rgba(244,236,223,0.18); color: #f4ecdf; box-shadow: 0 0 6px rgba(244,236,223,0.22); }
@@ -425,7 +422,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
 .prefill-overlay { position: absolute; bottom: 60px; left: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #5eead4; pointer-events: none; background: rgba(8,6,15,0.85); padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(244,236,223,0.14); backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(244,236,223,0.10); }
 .prefill-token { display: inline; color: #5eead4; font-weight: 600; text-shadow: 0 0 8px rgba(45,212,191,0.4); }
 .prefill-bar-bg { width: 200px; height: 3px; background: rgba(244,236,223,0.08); border-radius: 2px; overflow: hidden; margin-top: 4px; }
-.prefill-bar-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #00e5ff); border-radius: 2px; transition: width 0.05s; box-shadow: 0 0 6px rgba(244,236,223,0.25); }
+.prefill-bar-fill { height: 100%; background: linear-gradient(90deg, #ff8c42, #00e5ff); border-radius: 2px; transition: width 0.05s; box-shadow: 0 0 6px rgba(244,236,223,0.25); }
 
 /* Confidence meter */
 .confidence-panel { padding: 8px 18px; border-top: 1px solid rgba(244,236,223,0.08); }
@@ -510,6 +507,1059 @@ body:not(.mode-scene) .scene-only { display: none !important; }
   .hero-attention .attn-hero-body { grid-template-columns: 1fr; }
   .hero-attention .attn-detail { display: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   POLISH PASS — taste-level refinements layered on top of the core
+   system. Pure CSS, no HTML structure or behavior changes. Later-in-
+   file declarations beat earlier ones at equal specificity, so this
+   block overrides surgically.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 1 · Accessible focus rings — cyan pulse, respected only by keyboard */
+.mode-btn:focus-visible,
+.cinema-btn:focus-visible,
+.input-wrap button:focus-visible,
+.input-wrap .tool-btn:focus-visible,
+.preset-chip:focus-visible,
+.boot-gate .btn-go:focus-visible,
+.boot-gate .btn-back:focus-visible,
+.header-star:focus-visible {
+  outline: 2px solid rgba(0, 229, 255, 0.6);
+  outline-offset: 2px;
+}
+.input-wrap input[type=text]:focus-visible {
+  outline: none;
+  border-color: #00e5ff;
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.18);
+}
+
+/* 2 · Tabular numerics — digits line up vertically in live counters */
+.stats, .raw-grid .v, .topk-pct, .cinema-scrub-label, .attn-detail-head,
+#dispatchStat, #tokenStat, #speedStat, .kv-label, .confidence-label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 3 · Mode bar — active state as a cyan-glowing plate with a light
+   underline; hover subtly lifts inactive buttons. Replaces the former
+   heavy all-white plate. */
+.mode-btn {
+  position: relative;
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1),
+    background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.3s;
+  letter-spacing: 0.015em;
+}
+.mode-btn:hover:not(.active) {
+  transform: translateY(-1px);
+  border-color: rgba(244, 236, 223, 0.4);
+  color: #f4ecdf;
+}
+.mode-btn.active {
+  box-shadow:
+    0 0 0 1px rgba(0, 229, 255, 0.35),
+    0 10px 32px rgba(0, 229, 255, 0.14),
+    0 2px 6px rgba(244, 236, 223, 0.22);
+}
+.mode-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -6px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00e5ff 50%, transparent);
+  opacity: 0.9;
+  border-radius: 2px;
+  filter: blur(0.3px);
+}
+
+/* 4 · Hero-mode headings — promoted from 0.85rem utility caption to
+   proper Fraunces editorial display. Same caption content, proper
+   visual weight for the "this view is the hero now" moment. */
+.hero-attention .attn-hero-head,
+.hero-lens .lens-hero-head {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(244, 236, 223, 0.08);
+}
+.hero-attention .attn-hero-head h2,
+.hero-lens .lens-hero-head h2 {
+  font-family: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+  font-weight: 400;
+  font-size: 1.4rem;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+@media (max-width: 768px) {
+  .hero-attention .attn-hero-head h2,
+  .hero-lens .lens-hero-head h2 { font-size: 1.1rem; }
+}
+
+/* 5 · Hero overlay — warmer atmospheric layering behind the attention
+   and lens heroes, replacing the former flat dark panel. */
+.hero-overlay {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, rgba(94, 234, 212, 0.035), transparent 65%),
+    radial-gradient(ellipse 70% 45% at 50% 100%, rgba(255, 140, 66, 0.028), transparent 65%),
+    radial-gradient(ellipse at center, rgba(8, 6, 15, 0.92), rgba(8, 6, 15, 0.98));
+}
+
+/* 6 · Tool buttons — micro-distinguish by purpose on hover. Record leans
+   warm amber (alerts without being pink), accuracy leans mint (checks
+   pass), the rest stay cyan as the default brand interactive color. */
+.input-wrap #recordBtn:hover {
+  border-color: #ff8c42;
+  color: #ff8c42;
+  background: rgba(255, 140, 66, 0.08);
+}
+.input-wrap #accurateBtn:hover {
+  border-color: #5eead4;
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.08);
+}
+.input-wrap #soundBtn:hover,
+.input-wrap #screenshotBtn:hover,
+.input-wrap #shareBtn:hover {
+  border-color: #00e5ff;
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.06);
+}
+
+/* 7 · Preset chips — brand-aligned hover (cyan, not plain white). */
+.preset-chip {
+  transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.preset-chip:hover {
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #f4ecdf;
+  background: rgba(0, 229, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+/* 8 · Logo — soft cyan halo on hover, echoing the active title glow. */
+.logo-link { transition: filter 0.3s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.logo-link:hover { filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.4)); }
+
+/* 9 · Header star — subtle lift on hover to match other interactive
+   elements' cadence. */
+.header-star { transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.header-star:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 229, 255, 0.12); }
+
+/* 10 · Side-panel scrollbar — cyan-tinted + pill radius for brand
+   continuity. */
+.side::-webkit-scrollbar { width: 3px; }
+.side::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.18); border-radius: 999px; }
+.side::-webkit-scrollbar-thumb:hover { background: rgba(0, 229, 255, 0.28); }
+
+/* 11 · Output area — tighter crisp glow on fresh tokens. */
+.output-area .token.new {
+  text-shadow:
+    0 0 14px rgba(94, 234, 212, 0.45),
+    0 0 36px rgba(0, 229, 255, 0.22);
+}
+
+/* 12 · Lens-row fresh state — brighter cyan fringe. */
+.lens-row.fresh {
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.18), inset 0 0 0 1px rgba(0, 229, 255, 0.28);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   JOURNEY MODE — full-bleed cinematic flythrough of the forward pass.
+   Hides all classic chrome, lets the 3D scene + HUD carry the page.
+   ══════════════════════════════════════════════════════════════════ */
+body.mode-journey { overflow: hidden; }
+/* Unified universe: keep .side (pips), .input-wrap (prompt), .token-strip.
+   Only hide chrome we never want: header, mode-bar, tutorial. */
+body.mode-journey .preset-row,
+body.mode-journey .header,
+body.mode-journey .mode-bar,
+body.mode-journey #tutorialOverlay { display: none !important; }
+body.mode-journey .container {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr auto auto;
+}
+body.mode-journey .hero {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+/* Input bar + token strip float above the 3D scene with backdrop blur */
+body.mode-journey .token-strip,
+body.mode-journey .input-wrap {
+  position: relative;
+  z-index: 10;
+  background: rgba(8, 6, 15, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+body.mode-journey .hero-attention,
+body.mode-journey .hero-lens,
+body.mode-journey .cinema-controls { display: none !important; }
+body.mode-journey .brain-wrap { opacity: 1 !important; }
+
+/* Journey HUD — bottom gradient pane with editorial typography */
+#journey-hud {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 95;
+  display: none;
+  opacity: 0;
+  pointer-events: none;
+  padding: 22px max(32px, 6vw) 40px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(8, 6, 15, 0.45) 35%,
+    rgba(8, 6, 15, 0.82) 100%);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+.journey-inner { max-width: 960px; margin: 16px auto 0; }
+
+/* 32-layer dot strip at the top of the HUD — shows past (cyan), current
+   (amber, scaled up), and upcoming (dim neutral) layers at a glance. */
+.journey-strip {
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(32, 1fr);
+  gap: 4px;
+  align-items: center;
+  height: 14px;
+  margin-bottom: 10px;
+}
+.journey-strip .js-dot {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(244, 236, 223, 0.12);
+  transition: background 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
+              height 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.journey-strip .js-dot.past    { background: rgba(94, 234, 212, 0.38); height: 3px; }
+.journey-strip .js-dot.current {
+  background: #ff8c42;
+  height: 9px;
+  box-shadow: 0 0 10px rgba(255, 140, 66, 0.6), 0 0 3px rgba(255, 140, 66, 0.9);
+}
+.journey-strip .js-dot.future  { background: rgba(244, 236, 223, 0.08); }
+
+.journey-eyebrow {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  pointer-events: auto;
+}
+.journey-layer {
+  color: #00e5ff;
+  padding: 4px 10px;
+  border: 1px solid rgba(0, 229, 255, 0.42);
+  border-radius: 4px;
+  background: rgba(0, 229, 255, 0.06);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.18);
+  min-width: 58px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.journey-meta { color: #514a3e; flex: 1; }
+
+.journey-play {
+  background: transparent;
+  border: 1px solid rgba(244, 236, 223, 0.2);
+  color: #8a8170;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+  font-variant-numeric: tabular-nums;
+}
+.journey-play:hover {
+  border-color: #5eead4;
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.08);
+}
+.journey-play.on {
+  border-color: #00e5ff;
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.1);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.25);
+}
+.journey-play:focus-visible {
+  outline: 2px solid rgba(0, 229, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.journey-caption {
+  font-family: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  font-weight: 400;
+  font-size: clamp(2.1rem, 4.4vw, 3.6rem);
+  line-height: 1;
+  letter-spacing: -0.025em;
+  color: #f4ecdf;
+  margin-bottom: 12px;
+  /* replay-able pop animation on caption change */
+}
+.journey-caption.flash {
+  animation: journeyCaptionFlash 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes journeyCaptionFlash {
+  0%   { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.journey-sub {
+  font-weight: 300;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: #8a8170;
+  max-width: 64ch;
+  margin-bottom: 28px;
+}
+
+.journey-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.journey-bar {
+  height: 1px;
+  background: rgba(244, 236, 223, 0.10);
+  position: relative;
+}
+.journey-progress {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #5eead4, #00e5ff 65%, #ff8c42);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.55);
+  transition: width 0.15s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.journey-hint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  color: #8a8170;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  transition: color 0.8s ease, opacity 0.8s ease;
+}
+.journey-hint .dot { color: rgba(244, 236, 223, 0.18); }
+.journey-hint.dim {
+  color: #514a3e;
+  opacity: 0.55;
+}
+
+/* Classic-view escape pill, top-right */
+#journey-exit {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 102;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: rgba(8, 6, 15, 0.55);
+  border: 1px solid rgba(244, 236, 223, 0.22);
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a8170;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+body.mode-journey #journey-exit { display: inline-flex; }
+#journey-exit .jx-icon { opacity: 0.8; }
+#journey-exit:hover {
+  border-color: #f4ecdf;
+  color: #f4ecdf;
+  background: rgba(8, 6, 15, 0.75);
+}
+#journey-exit:focus-visible {
+  outline: 2px solid rgba(0, 229, 255, 0.6);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  #journey-hud { padding: 40px 20px 24px; }
+  .journey-sub { font-size: 0.94rem; }
+  .journey-caption { font-size: clamp(1.7rem, 7vw, 2.4rem); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UNIFIED UNIVERSE — one view, no mode bar, no dashboard chrome.
+   Panels live as hidden glowing pips at world-space anchors around
+   the model. Click a pip → it expands into a glass card. Click × →
+   back to a pip. The journey camera + HUD run always; OrbitControls
+   take over on drag, passively returning to the journey path.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Hide all mode-switching chrome — there's only one view now. */
+.mode-bar { display: none !important; }
+.header { display: none !important; }
+#journey-exit { display: none !important; }
+/* preset-row: relocated (not hidden) — see bottom of file */
+
+/* The mobile gate modal and boot screen still render above, so the chrome-
+   hiding applies only to the post-boot interactive state. */
+
+/* Unified selector: both journey and scene body classes (kept for legacy
+   event handlers) apply the same universe layout. */
+body.mode-scene .side,
+body.mode-journey .side {
+  /* dissolve the side column — full viewport, transparent, click-through */
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: 100vh;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 5;
+  grid-column: unset;
+  grid-row: unset;
+}
+
+/* Each direct child of .side becomes a free-floating glass card. JS sets
+   its `transform` every frame from a projected 3D anchor point. */
+body.mode-scene .side > *,
+body.mode-journey .side > * {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  pointer-events: auto;
+  transform-origin: 50% 50%;
+  transition: width 0.32s cubic-bezier(0.2, 0.7, 0.2, 1),
+              height 0.32s cubic-bezier(0.2, 0.7, 0.2, 1),
+              padding 0.32s cubic-bezier(0.2, 0.7, 0.2, 1),
+              border-radius 0.32s cubic-bezier(0.2, 0.7, 0.2, 1),
+              background 0.28s, border-color 0.28s,
+              box-shadow 0.3s, opacity 0.3s;
+  will-change: transform, opacity;
+  overflow: hidden;
+  cursor: pointer;
+  /* Default = pip state */
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 229, 255, 0.65);
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.55), rgba(0, 229, 255, 0.08) 70%);
+  box-shadow:
+    0 0 10px rgba(0, 229, 255, 0.4),
+    inset 0 0 5px rgba(0, 229, 255, 0.5);
+  font-size: 0;  /* collapse all text to invisibility */
+  color: transparent;
+}
+
+/* Pip pulse so each anchor has visible life even when quiet */
+body.mode-scene .side > *:not(.expanded)::before,
+body.mode-journey .side > *:not(.expanded)::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  opacity: 0;
+  animation: pipPulse 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+@keyframes pipPulse {
+  0%   { opacity: 0; transform: scale(0.85); }
+  35%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+
+/* Hover: grow slightly + show floating label */
+body.mode-scene .side > *:not(.expanded):hover,
+body.mode-journey .side > *:not(.expanded):hover {
+  width: 16px;
+  height: 16px;
+  box-shadow:
+    0 0 18px rgba(0, 229, 255, 0.7),
+    inset 0 0 7px rgba(0, 229, 255, 0.6);
+}
+body.mode-scene .side > *:not(.expanded)::after,
+body.mode-journey .side > *:not(.expanded)::after {
+  content: attr(data-title);
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(8, 6, 15, 0.9);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5eead4;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+body.mode-scene .side > *:not(.expanded):hover::after,
+body.mode-journey .side > *:not(.expanded):hover::after {
+  opacity: 1;
+}
+
+/* Expanded = full glass card */
+body.mode-scene .side > *.expanded,
+body.mode-journey .side > *.expanded {
+  width: max-content;
+  height: auto;
+  max-width: 300px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: rgba(8, 6, 15, 0.82);
+  border: 1px solid rgba(94, 234, 212, 0.3);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow:
+    0 14px 50px rgba(0, 0, 0, 0.55),
+    inset 0 0 22px rgba(0, 229, 255, 0.05);
+  font-size: inherit;
+  color: inherit;
+  cursor: default;
+  overflow: visible;
+}
+body.mode-scene .side > *.expanded::before,
+body.mode-journey .side > *.expanded::before { display: none; }
+
+body.mode-scene .side > *.expanded:hover,
+body.mode-journey .side > *.expanded:hover {
+  border-color: rgba(0, 229, 255, 0.55);
+  box-shadow:
+    0 18px 60px rgba(0, 229, 255, 0.18),
+    inset 0 0 26px rgba(0, 229, 255, 0.08);
+  z-index: 10;
+}
+
+/* Close button — injected into each expanded panel by main.ts */
+.panel-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: #8a8170;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s;
+  z-index: 2;
+}
+body.mode-scene .side > *.expanded .panel-close,
+body.mode-journey .side > *.expanded .panel-close { display: flex; }
+.panel-close:hover {
+  background: rgba(244, 236, 223, 0.1);
+  color: #f4ecdf;
+}
+.panel-close:focus-visible {
+  outline: 2px solid rgba(0, 229, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* The output card gets a larger max-width since it holds the generated text */
+body.mode-scene .output-area.expanded,
+body.mode-journey .output-area.expanded {
+  max-width: 380px;
+  min-height: 100px;
+  max-height: 260px;
+}
+
+/* Legend + dormant panels stay hidden in the unified universe. */
+.legend { display: none !important; }
+body .attn-panel[style*="display:none"],
+body .lens-panel[style*="display:none"] { display: none !important; }
+/* .side-header is a label-only pip — not useful as a full card, hide it. */
+.side-header { display: none !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   EDUCATIONAL LAYER — prompt presets, info toggles, welcome overlay.
+   Designed so the space feels inviting-to-explore without a dashboard.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Prompt preset pills — float above the input bar, always accessible.
+   A small chevron chip opens/closes the preset strip so empty space can
+   be restored with one tap. */
+.preset-row {
+  display: flex !important;
+  position: fixed;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 80;
+  padding: 0;
+  background: transparent;
+  border: none;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 92vw;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.preset-row.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(14px);
+  pointer-events: none !important;
+}
+.preset-row > * { pointer-events: auto; }
+.preset-row .preset-label { display: none; }
+.preset-chip {
+  background: rgba(8, 6, 15, 0.65) !important;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border-color: rgba(94, 234, 212, 0.25) !important;
+  color: #cbc1ad !important;
+}
+.preset-chip:hover {
+  border-color: rgba(0, 229, 255, 0.6) !important;
+  color: #f4ecdf !important;
+  background: rgba(0, 229, 255, 0.1) !important;
+}
+
+/* Info "i" toggle injected into each expanded panel by main.ts.
+   Click reveals the data-info caption explaining what the panel shows. */
+.panel-info {
+  position: absolute;
+  top: 6px;
+  right: 38px;  /* left of the × */
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(94, 234, 212, 0.4);
+  background: transparent;
+  color: #5eead4;
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 1px 0;
+  transition: all 0.15s;
+  z-index: 2;
+}
+body.mode-scene .side > *.expanded .panel-info,
+body.mode-journey .side > *.expanded .panel-info { display: flex; }
+.panel-info:hover {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.7);
+  color: #00e5ff;
+}
+.panel-info.on {
+  background: rgba(0, 229, 255, 0.2);
+  border-color: #00e5ff;
+  color: #f4ecdf;
+}
+.panel-info:focus-visible {
+  outline: 2px solid rgba(0, 229, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* The caption area that slides in under the panel header when info is on.
+   main.ts injects the text from data-info. */
+.panel-info-body {
+  display: none;
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: #cbc1ad;
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 8px;
+  max-width: 28ch;
+}
+.panel-info-body.on { display: block; }
+.panel-info-body b { color: #5eead4; font-weight: 500; }
+
+/* ─── Welcome overlay (first visit, dismissed via localStorage) ─── */
+#welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 6, 15, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: welcomeFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#welcome-overlay.visible { display: flex; }
+@keyframes welcomeFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.welcome-card {
+  max-width: 460px;
+  background: rgba(8, 6, 15, 0.95);
+  border: 1px solid rgba(94, 234, 212, 0.32);
+  border-radius: 16px;
+  padding: 32px 30px 24px;
+  box-shadow: 0 20px 80px rgba(0, 229, 255, 0.15);
+  color: #f4ecdf;
+  font-family: 'Inter', sans-serif;
+  animation: welcomeRise 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes welcomeRise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.welcome-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #5eead4;
+  margin-bottom: 8px;
+}
+.welcome-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  font-weight: 400;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #f4ecdf;
+  margin-bottom: 20px;
+}
+.welcome-title em { font-style: italic; color: #00e5ff; }
+.welcome-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.welcome-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  align-items: start;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #cbc1ad;
+}
+.welcome-list .wi-num {
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  font-size: 1.2rem;
+  color: #00e5ff;
+  line-height: 1.2;
+}
+.welcome-list b { color: #f4ecdf; font-weight: 500; }
+.welcome-dismiss {
+  background: #f4ecdf;
+  color: #08060f;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.welcome-dismiss:hover {
+  background: #00e5ff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(0, 229, 255, 0.3);
+}
+
+/* ─── Glossary overlay (? key or HUD chip) ─── */
+#glossary-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(8, 6, 15, 0.86);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: welcomeFade 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+}
+#glossary-overlay.visible { display: flex; }
+.glossary-card {
+  position: relative;
+  max-width: 780px;
+  width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
+  background: rgba(8, 6, 15, 0.96);
+  border: 1px solid rgba(94, 234, 212, 0.3);
+  border-radius: 16px;
+  padding: 32px 36px 28px;
+  box-shadow: 0 20px 80px rgba(0, 229, 255, 0.12);
+  color: #f4ecdf;
+  font-family: 'Inter', -apple-system, sans-serif;
+  animation: welcomeRise 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glossary-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(244, 236, 223, 0.18);
+  background: transparent;
+  color: #8a8170;
+  font-size: 20px;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.glossary-close:hover { border-color: #f4ecdf; color: #f4ecdf; }
+.glossary-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #514a3e;
+  margin-bottom: 10px;
+}
+.glossary-eyebrow b { color: #5eead4; font-weight: 500; }
+.glossary-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 0 0 24px;
+}
+.glossary-title em { font-style: italic; color: #00e5ff; }
+.glossary-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px 24px;
+  margin-bottom: 28px;
+}
+.glossary-item {
+  padding: 12px 0 14px;
+  border-top: 1px solid rgba(244, 236, 223, 0.08);
+}
+.glossary-term {
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.05rem;
+  color: #5eead4;
+  margin-bottom: 6px;
+  letter-spacing: -0.005em;
+}
+.glossary-def {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: #cbc1ad;
+  margin-bottom: 6px;
+}
+.glossary-def b { color: #f4ecdf; font-weight: 500; }
+.glossary-def i { color: #ff8c42; font-style: italic; }
+.glossary-hint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  color: #8a8170;
+  letter-spacing: 0.02em;
+}
+
+.glossary-keys {
+  border-top: 1px solid rgba(94, 234, 212, 0.18);
+  padding-top: 18px;
+  margin-top: 12px;
+}
+.glossary-keys-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #5eead4;
+  margin-bottom: 12px;
+}
+.glossary-keys-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 18px;
+  align-items: center;
+  font-size: 0.82rem;
+  color: #cbc1ad;
+}
+.glossary-keys-grid kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  background: rgba(244, 236, 223, 0.06);
+  border: 1px solid rgba(244, 236, 223, 0.18);
+  border-radius: 4px;
+  color: #f4ecdf;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+/* ? chip in the journey HUD eyebrow to open the glossary */
+.journey-help {
+  background: transparent;
+  border: 1px solid rgba(244, 236, 223, 0.2);
+  color: #8a8170;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+  margin-left: auto;
+}
+.journey-help:hover {
+  border-color: #5eead4;
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.08);
+}
+
+/* ─── Preset-hint floating toast (when a preset chip is clicked) ─── */
+.preset-hint-toast {
+  position: fixed;
+  bottom: 150px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 85;
+  background: rgba(8, 6, 15, 0.92);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  border-radius: 10px;
+  padding: 12px 20px;
+  max-width: 520px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: #cbc1ad;
+  box-shadow: 0 10px 40px rgba(0, 229, 255, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.2, 0.7, 0.2, 1),
+              transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.preset-hint-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.preset-hint-toast b { color: #5eead4; font-weight: 500; }
+.preset-hint-toast i { color: #ff8c42; font-style: italic; }
+.preset-hint-toast::before {
+  content: 'What to watch →';
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #00e5ff;
+  margin-bottom: 6px;
+}
+
+@media (max-width: 720px) {
+  .preset-row { bottom: 90px; }
+  .welcome-card { padding: 24px 20px 18px; }
+  .glossary-card { padding: 22px 20px 18px; }
+  .glossary-title { font-size: 1.5rem; }
+  .preset-hint-toast { max-width: 90vw; bottom: 160px; }
+}
+
+/* Responsive — under 720px the 3D spatial layout crunches too hard; fall
+   back to the classic bottom stack so mobile stays usable. Applies to both
+   mode classes since they share the unified universe layout. */
+@media (max-width: 720px) {
+  body.mode-scene .side,
+  body.mode-journey .side {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 7;
+    border-top: 1px solid rgba(244, 236, 223, 0.08);
+    pointer-events: auto;
+    max-height: 36vh;
+    overflow-y: auto;
+  }
+  body.mode-scene .side > *,
+  body.mode-journey .side > * {
+    position: relative;
+    transform: none !important;
+    opacity: 1 !important;
+    width: 100%;
+    max-width: none;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid rgba(244, 236, 223, 0.06);
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+    padding: 10px 14px;
+    height: auto;
+    font-size: inherit;
+    color: inherit;
+    overflow: visible;
+    cursor: default;
+  }
+  body.mode-scene .side > *::before,
+  body.mode-journey .side > *::before,
+  body.mode-scene .side > *::after,
+  body.mode-journey .side > *::after { display: none !important; }
+}
+
 </style>
 
 <style>
@@ -543,7 +1593,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
         var btn = document.getElementById('bootCopyBtn');
         if (btn) {
           btn.addEventListener('click', function () {
-            var url = 'https://neuropulse.zerotvm.com';
+            var url = 'https://neuropulse.live';
             if (navigator.clipboard) {
               navigator.clipboard.writeText(url).then(function () {
                 btn.textContent = 'Copied ✓';
@@ -588,7 +1638,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
     <div class="boot-phase boot-mobile hidden" id="bootMobile">
       <h2>This runs a <span class="size">2 GB</span> model on your GPU.</h2>
       <p>Phone browsers don't have enough GPU memory — the download will crash the tab. Open this URL on a desktop Chrome, Edge, or Safari TP.</p>
-      <div class="boot-url">neuropulse.zerotvm.com</div>
+      <div class="boot-url">neuropulse.live</div>
       <div class="btn-row">
         <button class="btn-go" id="bootCopyBtn" type="button">Copy link</button>
         <a href="/" class="btn-back">Back to landing</a>
@@ -646,7 +1696,8 @@ body:not(.mode-scene) .scene-only { display: none !important; }
   </div>
 
   <div class="mode-bar">
-    <button class="mode-btn active" data-mode="scene"><span class="mode-icon">⊞</span> Scene</button>
+    <button class="mode-btn active" data-mode="journey"><span class="mode-icon">✦</span> Journey</button>
+    <button class="mode-btn" data-mode="scene"><span class="mode-icon">⊞</span> Scene</button>
     <button class="mode-btn" data-mode="attention"><span class="mode-icon">▦</span> Attention</button>
     <button class="mode-btn" data-mode="lens"><span class="mode-icon">≡</span> Logit Lens</button>
     <button class="mode-btn" data-mode="cinema"><span class="mode-icon">▶</span> Cinematic</button>
@@ -702,17 +1753,23 @@ body:not(.mode-scene) .scene-only { display: none !important; }
   </div>
 
   <div class="side">
-    <div class="side-header">AI Output</div>
-    <div class="output-area" id="output"><span class="cursor"></span></div>
+    <!-- Each side-panel child is also a world-anchored card in Universe
+         (Scene) mode. `data-anchor="x,y,z"` is read by spatial-panels.ts
+         and projected through the live WebGL camera every frame. -->
+    <div class="side-header" data-anchor="4.4,2.6,1.5" data-title="Output">AI Output</div>
+    <div class="output-area" id="output" data-anchor="4.3,1.5,1.5" data-title="Output"
+         data-info="The <b>decoded text</b> — tokens as they stream out of the LM head. Each token is an <b>argmax</b> over 32,064 vocabulary logits. Fresh tokens glow cyan for ~0.5s."><span class="cursor"></span></div>
 
     <!-- Top-K Probabilities -->
-    <div id="topkPanel" class="topk-panel">
+    <div id="topkPanel" class="topk-panel" data-anchor="4.3,0.2,1.5" data-title="Top-K"
+         data-info="The model's <b>top five candidate tokens</b> for the next position, with their softmax probabilities. High top-1 with low spread = confident; flat distribution = uncertain.">
       <div class="topk-header">Token Probabilities</div>
       <div id="topkBars"></div>
     </div>
 
     <!-- Confidence Meter -->
-    <div class="confidence-panel">
+    <div class="confidence-panel" data-anchor="4.3,-0.9,1.5" data-title="Confidence"
+         data-info="<b>1 − entropy(softmax)</b>, normalized. Green = peaky distribution (sure). Amber = flat distribution (guessing). Useful for spotting <b>ambiguous completions</b>.">
       <div class="confidence-label">
         <span style="color:#cbc1ad">Confidence</span>
         <span id="confidenceVal" style="color:#8a8170">—</span>
@@ -722,8 +1779,9 @@ body:not(.mode-scene) .scene-only { display: none !important; }
       </div>
     </div>
 
-    <!-- KV Cache -->
-    <div id="kvPanel" class="kv-panel">
+    <!-- KV Cache — floats below the residual axis where the KV strips sit -->
+    <div id="kvPanel" class="kv-panel" data-anchor="0,-1.9,1.5" data-title="KV Cache"
+         data-info="Paged <b>K/V cache</b> — stored keys and values for every past token, so attention doesn't recompute them. Grows by one entry per token, per layer (32 layers × seq_len).">
       <div class="kv-label">
         <span>KV Cache</span>
         <span id="kvInfo" style="color:#8a8170">0 / 0 pages</span>
@@ -733,35 +1791,39 @@ body:not(.mode-scene) .scene-only { display: none !important; }
       </div>
     </div>
 
-    <!-- Head Activity Heatmap (scene mode only — Attention mode has the hero) -->
-    <div class="heatmap-panel scene-only">
+    <!-- Head Activity Heatmap — floats above the attention ring -->
+    <div class="heatmap-panel scene-only" data-anchor="-0.5,2.1,1.5" data-title="Heatmap"
+         data-info="Live magnitudes of all <b>32 × 32 = 1,024 attention heads</b>. Rows = layers, columns = heads. Bright cells = heads doing heavy work <i>this</i> token. A good <b>interpretability probe</b>.">
       <div class="heatmap-title">Head Activity (32 layers × 32 heads)</div>
       <div id="heatmapGrid" class="heatmap-grid"></div>
     </div>
 
-    <!-- Residual Stream Magnitude -->
-    <div class="residual-panel scene-only">
+    <!-- Residual Stream Magnitude — left of embedding -->
+    <div class="residual-panel scene-only" data-anchor="-4.4,1.4,1.5" data-title="Residual Norm"
+         data-info="<b>L2 norm</b> of the 3,072-dim residual at each of 32 layers. The classic <b>norm-grows-with-depth</b> curve you see in interpretability papers.">
       <div class="residual-title">Residual Stream Norm (per layer)</div>
       <canvas id="residualChart" class="residual-canvas" width="384" height="32"></canvas>
     </div>
 
-    <!-- Layer Contribution Delta -->
-    <div class="delta-panel scene-only">
+    <!-- Layer Contribution Delta — stacked under residual -->
+    <div class="delta-panel scene-only" data-anchor="-4.4,0.4,1.5" data-title="Layer Δ"
+         data-info="<b>||residual(L) − residual(L−1)||</b> per layer — how much each transformer block <i>changes</i> the signal. Spiky = some layers matter more than others for this prompt.">
       <div class="delta-title">Layer Contribution Δ (change per layer)</div>
       <canvas id="deltaChart" class="delta-canvas" width="384" height="32"></canvas>
     </div>
 
-    <!-- Residual Stream Strip (3072 dims × 32 layers) -->
-    <div class="resstrip-panel scene-only">
+    <!-- Residual Stream Strip — under delta -->
+    <div class="resstrip-panel scene-only" data-anchor="-4.4,-0.6,1.5" data-title="Residual Strip"
+         data-info="All <b>3,072 residual dimensions × 32 layers</b> as a single heatmap. Cyan = positive, amber = negative. Vertical stripes = <b>persistent features</b>; diagonal flow = information propagating through depth.">
       <div class="resstrip-title">
         <span>Residual Stream (3072 dims × 32 layers)</span>
-        <span id="resStripInfo">— / cyan=+, magenta=−</span>
+        <span id="resStripInfo">— / cyan=+, amber=−</span>
       </div>
       <canvas id="resStripCanvas" class="resstrip-canvas" width="768" height="64"></canvas>
     </div>
 
     <!-- Per-Head Attention (Layer 31) — kept hidden, the Attention mode hero replaces this -->
-    <div class="attn-panel scene-only" style="display:none">
+    <div class="attn-panel scene-only" style="display:none" data-anchor="0,-1.1,2">
       <div class="attn-title">
         <span>Attention Patterns — Layer 31 (32 heads × past tokens)</span>
         <span id="attnInfo">kv=0</span>
@@ -770,7 +1832,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
     </div>
 
     <!-- Logit Lens — kept hidden, the Lens mode hero replaces this -->
-    <div class="lens-panel scene-only" style="display:none">
+    <div class="lens-panel scene-only" style="display:none" data-anchor="0,1.1,2">
       <div class="lens-title">
         <span>Logit Lens (what each layer would predict next)</span>
         <span id="lensInfo">—</span>
@@ -778,8 +1840,9 @@ body:not(.mode-scene) .scene-only { display: none !important; }
       <div id="lensGrid" class="lens-grid"></div>
     </div>
 
-    <!-- Raw GPU State (strict mode only) -->
-    <div class="raw-panel" id="rawPanel">
+    <!-- Raw GPU State — tucked bottom-left -->
+    <div class="raw-panel" id="rawPanel" data-anchor="-4.4,-1.7,1.5" data-title="Raw State"
+         data-info="Live <b>f32</b> readback straight from the GPU — no smoothing, no reduction. The first 16 floats of the current residual, plus per-layer max/min. The <b>strict 1:1</b> proof.">
       <div class="raw-title">Raw GPU State (f32, strict mode)</div>
       <div class="raw-grid" id="rawGrid"></div>
       <div class="raw-vec" id="rawVec">residual[0..15]: —</div>
@@ -787,9 +1850,9 @@ body:not(.mode-scene) .scene-only { display: none !important; }
 
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:#00e5ff;color:#00e5ff"></div>Attention Heads (32)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#f0abfc;color:#f0abfc"></div>FFN Groups (16)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff8c42;color:#ff8c42"></div>FFN Groups (16)</div>
       <div class="legend-item"><div class="legend-dot" style="background:#5eead4;color:#5eead4"></div>Residual Stream</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#c084fc;color:#c084fc"></div>Attention Beams</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#06b6d4;color:#06b6d4"></div>Attention Beams</div>
       <div class="legend-item" style="color:#514a3e">Real GPU activations</div>
     </div>
   </div>
@@ -801,14 +1864,22 @@ body:not(.mode-scene) .scene-only { display: none !important; }
 
   <div class="preset-row">
     <span class="preset-label">Try</span>
-    <button class="preset-chip" data-prompt="What is consciousness?">consciousness</button>
-    <button class="preset-chip" data-prompt="Write a haiku about transformers.">haiku</button>
-    <button class="preset-chip" data-prompt="Explain attention in one sentence.">attention</button>
-    <button class="preset-chip" data-prompt="def fibonacci(n):">code</button>
-    <button class="preset-chip" data-prompt="The capital of Japan is">fact</button>
-    <button class="preset-chip" data-prompt="日本語で挨拶してください。">日本語</button>
-    <button class="preset-chip" data-prompt='{"task": "summarize", "text":'>json</button>
-    <button class="preset-chip" data-prompt="Step by step, solve: 17 * 23 =">math</button>
+    <button class="preset-chip" data-prompt="What is consciousness?"
+            data-hint="An <b>open-ended philosophical</b> prompt. Watch <i>middle layers (14-20)</i> light up — that's where abstract concepts live. Expect flatter top-k (low confidence).">consciousness</button>
+    <button class="preset-chip" data-prompt="Write a haiku about transformers."
+            data-hint="A <b>creative generation</b> task. Expect <i>late layers (26-31)</i> to activate — those circuits shape output style + word choice. KV cache grows fast.">haiku</button>
+    <button class="preset-chip" data-prompt="Explain attention in one sentence."
+            data-hint="A <b>metacognitive</b> prompt (the model explaining itself). Watch attention heatmap — some heads will focus hard on the word 'attention'.">attention</button>
+    <button class="preset-chip" data-prompt="def fibonacci(n):"
+            data-hint="<b>Code completion</b>. Phi-3 was heavily trained on code — top-k is usually very peaky (high confidence). Look for syntax-aware heads in <i>layers 4-12</i>.">code</button>
+    <button class="preset-chip" data-prompt="The capital of Japan is"
+            data-hint="<b>Factual recall</b>. FFN slabs light up — facts are stored in MLP weights. Top-1 should be near-deterministic ('Tokyo' &gt; 0.9 probability).">fact</button>
+    <button class="preset-chip" data-prompt="日本語で挨拶してください。"
+            data-hint="<b>Multi-byte UTF-8 tokens</b>. Watch the tokenizer behavior — each kanji is often 1-3 tokens. Late layers handle per-language formatting.">日本語</button>
+    <button class="preset-chip" data-prompt='{"task": "summarize", "text":'
+            data-hint="<b>Structured output</b>. Phi-3 has strong format-following circuits in late layers. Watch for syntactic attention to braces + quotes.">json</button>
+    <button class="preset-chip" data-prompt="Step by step, solve: 17 * 23 ="
+            data-hint="<b>Chain-of-thought arithmetic</b>. Middle layers do the 'carrying' logic. Late layers format the answer. Expect confidence dips mid-calculation.">math</button>
   </div>
 
   <div class="input-wrap">
@@ -827,7 +1898,144 @@ body:not(.mode-scene) .scene-only { display: none !important; }
   </div>
 </div>
 
-<!-- First-visit tutorial overlay (dismissed via localStorage) -->
+<!-- Journey mode HUD — scroll-driven flythrough narrative (src/journey.ts) -->
+<div id="journey-hud" aria-live="polite">
+  <!-- 32-layer progress strip, populated once by journey.ts -->
+  <div id="journey-strip" class="journey-strip" aria-hidden="true"></div>
+  <div class="journey-inner">
+    <div class="journey-eyebrow">
+      <span class="journey-layer" id="journey-layer">Approach</span>
+      <span class="journey-meta">Forward pass · live</span>
+      <button class="journey-help" id="journey-help" type="button" aria-label="Concepts glossary">? glossary</button>
+      <button class="journey-play" id="journey-play" type="button" aria-label="Play / pause journey">▶ play</button>
+    </div>
+    <div class="journey-caption" id="journey-caption">3.8 billion parameters</div>
+    <div class="journey-sub" id="journey-sub">Right now, on your GPU. 292 dispatches per token, 32 layers, 1,024 attention heads.</div>
+    <div class="journey-bar-wrap">
+      <div class="journey-bar">
+        <div class="journey-progress" id="journey-progress"></div>
+      </div>
+      <div class="journey-hint" id="journey-hint">
+        <span>scroll or ↑↓ to travel</span>
+        <span class="dot">·</span>
+        <span>space to auto-play</span>
+        <span class="dot">·</span>
+        <span>drag to look around</span>
+        <span class="dot">·</span>
+        <span>R to reset view</span>
+        <span class="dot">·</span>
+        <span>S or Esc for classic</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button id="journey-exit" type="button" aria-label="Exit journey mode">
+  <span class="jx-icon">⊞</span> Classic view
+</button>
+
+<!-- First-visit welcome overlay (dismissed via localStorage) -->
+<div id="welcome-overlay" role="dialog" aria-labelledby="welcome-title">
+  <div class="welcome-card">
+    <div class="welcome-eyebrow">Welcome · real Phi-3-mini in your browser</div>
+    <h2 id="welcome-title" class="welcome-title">Four things to <em>try</em>.</h2>
+    <ul class="welcome-list">
+      <li>
+        <span class="wi-num">1</span>
+        <span><b>Type a prompt</b> or click a preset at the bottom. Watch 292 WebGPU dispatches fire per token. Every pixel on screen is a real tensor.</span>
+      </li>
+      <li>
+        <span class="wi-num">2</span>
+        <span><b>Scroll</b> or press <b>space</b> to journey through the 32 transformer layers. The camera follows the forward pass.</span>
+      </li>
+      <li>
+        <span class="wi-num">3</span>
+        <span><b>Click a glowing pip</b> to open its module — top-k probabilities, head activity, residual stream, KV cache, raw GPU state. Each has an <b>i</b> button for an explanation.</span>
+      </li>
+      <li>
+        <span class="wi-num">4</span>
+        <span><b>Click any neuron</b> in the 3D scene to inspect its role, live activation, and what it connects to. Drag to orbit.</span>
+      </li>
+    </ul>
+    <button class="welcome-dismiss" id="welcome-dismiss" type="button">Enter the model →</button>
+  </div>
+</div>
+
+<!-- Glossary overlay (toggle with `?` or the HUD ?-chip) -->
+<div id="glossary-overlay" role="dialog" aria-labelledby="glossary-title">
+  <div class="glossary-card">
+    <button id="glossary-close" class="glossary-close" type="button" aria-label="Close glossary">×</button>
+    <div class="glossary-eyebrow">Press <b>?</b> or Esc to close</div>
+    <h2 id="glossary-title" class="glossary-title">Concepts · in <em>neuropulse</em></h2>
+    <div class="glossary-list">
+
+      <div class="glossary-item">
+        <div class="glossary-term">Token</div>
+        <div class="glossary-def">A fragment of text the model reads and writes — typically 3–4 characters. Phi-3's vocabulary holds <b>32,064 tokens</b>, so every step picks one of those.</div>
+        <div class="glossary-hint">→ Output panel · Top-K probabilities</div>
+      </div>
+
+      <div class="glossary-item">
+        <div class="glossary-term">Residual stream</div>
+        <div class="glossary-def">The <b>3,072-dimensional vector</b> flowing through the model. Every layer <i>reads</i> from it and <i>adds</i> back to it — information accumulates rather than being replaced.</div>
+        <div class="glossary-hint">→ Residual Norm · Residual Strip · the central axis in 3D</div>
+      </div>
+
+      <div class="glossary-item">
+        <div class="glossary-term">Attention head</div>
+        <div class="glossary-def">A <b>96-dim projection</b> that decides which past tokens to look at. Phi-3 has <b>32 heads × 32 layers = 1,024</b> heads. Each specializes in a different kind of pattern.</div>
+        <div class="glossary-hint">→ Cyan neurons in the ring · Heatmap panel</div>
+      </div>
+
+      <div class="glossary-item">
+        <div class="glossary-term">FFN / MLP</div>
+        <div class="glossary-def">Feed-forward network. Expands residual <b>3,072 → 8,192</b>, applies <b>SiLU gating</b>, projects back. Most compute happens here. Thought to store the model's <i>facts</i>.</div>
+        <div class="glossary-hint">→ Amber slab · FFN hover label on each layer</div>
+      </div>
+
+      <div class="glossary-item">
+        <div class="glossary-term">KV cache</div>
+        <div class="glossary-def">Saved <b>keys and values</b> from every past token per layer, so attention doesn't recompute them. Paged memory — grows one slot per token, per layer.</div>
+        <div class="glossary-hint">→ KV Cache panel · strips below the residual axis</div>
+      </div>
+
+      <div class="glossary-item">
+        <div class="glossary-term">Softmax</div>
+        <div class="glossary-def">Turns raw <b>logits</b> into probabilities: exponentiate, then normalize to sum to 1. Peaky softmax = confident; flat = guessing.</div>
+        <div class="glossary-hint">→ Top-K panel · Confidence panel</div>
+      </div>
+
+      <div class="glossary-item">
+        <div class="glossary-term">Quantization (q4f16)</div>
+        <div class="glossary-def">Storing weights as <b>4-bit integers</b> with fp16 scales. ~4× smaller than fp16 with negligible quality loss on Phi-3. The reason this fits on a consumer GPU.</div>
+        <div class="glossary-hint">→ Validation section (landing page essay)</div>
+      </div>
+
+      <div class="glossary-item">
+        <div class="glossary-term">Dispatch</div>
+        <div class="glossary-def">One WebGPU kernel invocation. Phi-3 takes <b>292 dispatches per output token</b> — every one is visible in the 3D scene as its tensor lights up.</div>
+        <div class="glossary-hint">→ Stats: "Dispatch: N/292" (hidden in universe view; visible via Raw State)</div>
+      </div>
+
+    </div>
+
+    <div class="glossary-keys">
+      <div class="glossary-keys-title">Keyboard</div>
+      <div class="glossary-keys-grid">
+        <kbd>?</kbd><span>Open / close this glossary</span>
+        <kbd>scroll</kbd><span>Journey through layers</span>
+        <kbd>space</kbd><span>Play / pause auto-journey</span>
+        <kbd>↑ ↓ ← →</kbd><span>Step through layers</span>
+        <kbd>Home / End</kbd><span>Jump to start / end</span>
+        <kbd>R</kbd><span>Reset orbit / reset view</span>
+        <kbd>drag</kbd><span>Orbit around focus point</span>
+        <kbd>Esc</kbd><span>Close overlays</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Legacy mode-switching tutorial overlay (no longer triggered; kept for DOM compat) -->
 <div id="tutorialOverlay" style="display:none;position:fixed;inset:0;z-index:900;pointer-events:none;">
   <div style="position:absolute;top:54px;left:50%;transform:translateX(-50%);background:rgba(8,6,15,0.95);border:1px solid rgba(244,236,223,0.32);border-radius:12px;padding:14px 22px;font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:#f4ecdf;backdrop-filter:blur(16px);box-shadow:0 12px 40px rgba(244,236,223,0.18);max-width:520px;text-align:center;line-height:1.5;pointer-events:auto;animation:tutFloat 1.6s ease-in-out infinite alternate;">
     <div style="font-size:0.6rem;color:#5eead4;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:8px;">Hey, click these ↑</div>

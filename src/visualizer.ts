@@ -15,15 +15,17 @@ const LAYER_COUNT = 32
 function neuronHSL(layer: number, role: 'attn' | 'ffn' | 'residual' = 'attn'): [number, number, number] {
   const t = layer / 31
   if (role === 'attn') {
-    // Electric cyan → deep violet (hue 190→270)
-    const h = 190 + t * 80
-    return [h / 360, 0.85, 0.55]
+    // Cyan family only: deeper cyan at early layers → brighter cyan at late
+    // (hue 180→200, saturation rises with depth for visual progression).
+    const h = 180 + t * 20
+    return [h / 360, 0.75 + t * 0.15, 0.50 + t * 0.10]
   } else if (role === 'ffn') {
-    // Bioluminescent magenta → warm amber (hue 320→40)
-    const h = 320 + t * 80
-    return [((h % 360)) / 360, 0.8, 0.5]
+    // Amber family only: warm orange through yellow-amber
+    // (hue 22→38, higher layers warmer/brighter).
+    const h = 22 + t * 16
+    return [h / 360, 0.85, 0.52 + t * 0.10]
   } else {
-    // Residual: ethereal white-cyan glow
+    // Residual: ethereal white-cyan glow (unchanged — already cyan-biased)
     return [0.52, 0.3 + t * 0.2, 0.7 + t * 0.15]
   }
 }
@@ -161,6 +163,21 @@ export class BrainVisualizer {
   private _cameraTweenTarget = new THREE.Vector3(0, 1.2, 5.5)
   private _cameraTweenLookAt = new THREE.Vector3(0, 0, 0)
 
+  // Journey mode — external scroll-driven camera (src/journey.ts). When
+  // active, OrbitControls and cinematic tween are disabled; the journey
+  // module writes `journeyCamPos` / `journeyCamLookAt` every frame and the
+  // render loop lerps the camera toward them faster than cinematic tween.
+  private journeyActive = false
+  private journeyCamPos = new THREE.Vector3(0, 1.2, 5.5)
+  private journeyCamLookAt = new THREE.Vector3(0, 0, 0)
+  private journeyFocusLayer = -1  // -1 = no focus; 0..31 = layer receiving passive pulse
+  private starfield: THREE.Points | null = null
+  private spaceDust: THREE.Points | null = null
+  private spaceDustPositions: Float32Array | null = null
+  private spaceDustSeeds: Float32Array | null = null
+  private layerRings: THREE.Group | null = null  // 32 subtle rings at each layer X
+  private focusSpotlight: THREE.Mesh | null = null  // bright glowing ring at current focus layer
+
   constructor(canvas: HTMLCanvasElement) {
     this.audio = new AudioEngine()
 
@@ -196,11 +213,13 @@ export class BrainVisualizer {
     key.position.set(0, 3, 4)
     this.scene.add(key)
 
-    const rim = new THREE.PointLight(0x7c3aed, 0.8, 12)
+    // Rim light — warm amber; was deep purple (0x7c3aed) previously.
+    const rim = new THREE.PointLight(0xd97b42, 0.55, 12)
     rim.position.set(-3, -1, -3)
     this.scene.add(rim)
 
-    const fill = new THREE.PointLight(0xec4899, 0.4, 10)
+    // Fill light — warm amber; was pink (0xec4899) previously.
+    const fill = new THREE.PointLight(0xff8c42, 0.35, 10)
     fill.position.set(3, -2, 1)
     this.scene.add(fill)
 
@@ -225,7 +244,7 @@ export class BrainVisualizer {
     canvas.parentElement!.appendChild(this.inspectPanel)
 
     // Selection ring
-    const ringGeo = new THREE.RingGeometry(0.038, 0.046, 32)
+    const ringGeo = new THREE.RingGeometry(0.055, 0.068, 40)
     const ringMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0, side: THREE.DoubleSide })
     this.selectedRing = new THREE.Mesh(ringGeo, ringMat)
     this.scene.add(this.selectedRing)
@@ -240,6 +259,12 @@ export class BrainVisualizer {
     this.generateKvStrips()
     this.generateEmbeddingNode()
     this.generateLmHead()
+    // Journey-only cosmic backdrop — hidden by default, doesn't affect
+    // strict 1:1 rendering in classic modes.
+    this.generateStarfield()
+    this.generateSpaceDust()
+    this.generateLayerRings()
+    this.generateFocusSpotlight()
 
     // Mouse tracking
     canvas.addEventListener('mousemove', (e) => {
@@ -335,10 +360,12 @@ export class BrainVisualizer {
     //   - 32 attention head spheres in a vertical column at centerX - 0.07
     //   - 1 marker sphere at centerX (the residual stream — the dense slab is added by generateResidualSlab)
     //   - The FFN slab is added by generateFfnSlab at centerX + 0.07
-    const attnGeo = new THREE.SphereGeometry(0.014, 8, 6)
-    const resGeo = new THREE.SphereGeometry(0.014, 10, 8)
-    const attnGlowGeo = new THREE.SphereGeometry(0.04, 8, 6)
-    const resGlowGeo = new THREE.SphereGeometry(0.045, 8, 6)
+    // Enlarged: 0.014 → 0.022 for solid dot, 0.04 → 0.065 for glow halo.
+    // ~55% bigger visible + raycast hit radius — easier click, more presence.
+    const attnGeo = new THREE.SphereGeometry(0.022, 10, 8)
+    const resGeo = new THREE.SphereGeometry(0.022, 10, 8)
+    const attnGlowGeo = new THREE.SphereGeometry(0.065, 8, 6)
+    const resGlowGeo = new THREE.SphereGeometry(0.070, 8, 6)
 
     for (let L = 0; L < 32; L++) {
       const t = L / 31
@@ -448,9 +475,10 @@ export class BrainVisualizer {
         positions[idx] = x
         positions[idx + 1] = y
         positions[idx + 2] = 0
-        this.ffnSlabColors[idx] = 0.05
-        this.ffnSlabColors[idx + 1] = 0.0
-        this.ffnSlabColors[idx + 2] = 0.05
+        // Dark amber base (was dark magenta 0.05, 0, 0.05 — the "pink wall")
+        this.ffnSlabColors[idx]     = 0.08
+        this.ffnSlabColors[idx + 1] = 0.04
+        this.ffnSlabColors[idx + 2] = 0.01
       }
     }
 
@@ -748,9 +776,10 @@ export class BrainVisualizer {
     }
     if (this.ffnSlabColors) {
       for (let i = 0; i < this.ffnSlabColors.length; i += 3) {
-        this.ffnSlabColors[i] = 0.05
-        this.ffnSlabColors[i + 1] = 0
-        this.ffnSlabColors[i + 2] = 0.05
+        // Dark amber base (was dark magenta)
+        this.ffnSlabColors[i]     = 0.08
+        this.ffnSlabColors[i + 1] = 0.04
+        this.ffnSlabColors[i + 2] = 0.01
       }
       ;(this.ffnSlab.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true
     }
@@ -901,10 +930,11 @@ export class BrainVisualizer {
     for (let i = 0; i < FFN; i++) {
       const v = vec[i]
       const idx = baseIdx + i * 3
-      // Magenta→amber ramp (matches FFN role color)
-      this.ffnSlabColors[idx]     = 0.4 + v * 0.6
-      this.ffnSlabColors[idx + 1] = v * 0.5
-      this.ffnSlabColors[idx + 2] = 0.5 + v * 0.4
+      // Amber ramp — no pink/magenta. Low activation is warm-dim,
+      // high activation glows bright amber.
+      this.ffnSlabColors[idx]     = 0.3 + v * 0.7   // R: 0.3 → 1.0
+      this.ffnSlabColors[idx + 1] = 0.15 + v * 0.3  // G: 0.15 → 0.45
+      this.ffnSlabColors[idx + 2] = 0.04 + v * 0.06 // B: 0.04 → 0.10
     }
     ;(this.ffnSlab.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true
   }
@@ -1039,7 +1069,7 @@ export class BrainVisualizer {
       ? `Group ${n.subIndex}/15 — 512 neurons, gate+up+SiLU activation`
       : 'Carries information between layers (skip connection + norm)'
 
-    const colorLabel = n.role === 'attn' ? '#5eead4' : n.role === 'ffn' ? '#f0abfc' : '#5eead4'
+    const colorLabel = n.role === 'attn' ? '#5eead4' : n.role === 'ffn' ? '#ff8c42' : '#5eead4'
     const connections = this.synapses.filter(s => s.fromIdx === this.neurons.indexOf(n) || s.toIdx === this.neurons.indexOf(n)).length
     const step = this.phase === 'thinking' ? STEP_NAMES[this.currentStep] : '—'
     const active = n.activation > 0.1
@@ -1077,8 +1107,17 @@ export class BrainVisualizer {
 
     this.controls.update()
 
-    // Cinematic camera tween — tracks the active layer when enabled.
-    if (this.cinematicCamera) {
+    // Journey-mode camera — external scroll-driven waypoints.
+    // Lerps faster than cinematic so scrub feels immediate.
+    if (this.journeyActive) {
+      this.camera.position.lerp(this.journeyCamPos, 0.18)
+      this.camera.lookAt(this.journeyCamLookAt)
+      // subtle starfield counter-rotation for parallax feel
+      if (this.starfield) this.starfield.rotation.y += 0.0004
+      // dust drift, spotlight pulse
+      this.journeyTick()
+    } else if (this.cinematicCamera) {
+      // Cinematic camera tween — tracks the active layer when enabled.
       this.camera.position.lerp(this._cameraTweenTarget, 0.06)
       this.camera.lookAt(this._cameraTweenLookAt)
     }
@@ -1112,17 +1151,49 @@ export class BrainVisualizer {
         glowMat.opacity = act * 0.2 * dim
         n.glowMesh.scale.setScalar(1 + act * 1.5)
       } else {
-        // Idle: flat baseline, no breathing
+        // Idle: substantially brighter baseline so dots stay visible even
+        // when not pulsing. Was emissive 0.08 / opacity 0.25 — invisible at
+        // journey distance; now 0.22 / 0.62 so they read as a cyan/amber
+        // pointillist backdrop you can still click.
         mat.color.copy(n.baseColor)
         mat.emissive.copy(n.baseColor)
-        mat.emissiveIntensity = 0.08 * dim
-        mat.opacity = 0.25 * dim
+        mat.emissiveIntensity = 0.22 * dim
+        mat.opacity = 0.62 * dim
         n.mesh.scale.setScalar(1)
 
-        glowMat.opacity = 0
+        // Faint idle glow so each dot has a soft halo, improving depth
+        // perception + hit discoverability.
+        glowMat.color.copy(n.baseColor)
+        glowMat.opacity = 0.08 * dim
         n.glowMesh.scale.setScalar(1)
       }
-      n.activation = Math.max(0, n.activation - 0.004)
+      // Journey mode slows the decay ~3.5× so activations linger long enough
+      // to be seen at journey pace (scroll/auto-play). Classic modes keep the
+      // snappy 0.004/frame decay so real-time decode still feels live.
+      const decayRate = this.journeyActive ? 0.0011 : 0.004
+      n.activation = Math.max(0, n.activation - decayRate)
+
+      // Journey-mode passive life. `Math.max` means real inference activations
+      // always dominate when present; this only fills visual gaps.
+      //
+      //   · Focus layer:   strongest breathing pulse (user is looking here)
+      //   · Adjacent ±1:   mid pulse
+      //   · ±2/±3:         small traveling ripple so the whole model feels alive
+      //   · Global:        low-intensity "heartbeat" wave rolling along the
+      //                    layer axis, so there's always motion in view
+      if (this.journeyActive) {
+        const focus = this.journeyFocusLayer
+        const globalWave = 0.08 * (0.5 + 0.5 * Math.sin(this.time * 0.9 + n.layer * 0.35))
+        let layerPulse = 0
+        if (focus >= 0) {
+          const dist = Math.abs(n.layer - focus)
+          if (dist === 0) layerPulse = 0.36 + 0.14 * Math.sin(this.time * 2.2 + n.subIndex * 0.23)
+          else if (dist === 1) layerPulse = 0.20 + 0.08 * Math.sin(this.time * 2.0 + n.subIndex * 0.31)
+          else if (dist <= 3) layerPulse = 0.10 + 0.05 * Math.sin(this.time * 1.7 + n.subIndex * 0.19 + dist)
+        }
+        const passive = Math.max(globalWave, layerPulse)
+        if (passive > 0) n.activation = Math.max(n.activation, passive)
+      }
     }
 
     // ─── Synapses tinted by endpoint activation ───
@@ -1203,4 +1274,185 @@ export class BrainVisualizer {
 
   start() { this.render() }
   stop() { }
+
+  // ─── JOURNEY MODE API — external scroll-driven camera + starfield ────
+  // The journey module (src/journey.ts) calls these. When journeyActive
+  // is true, OrbitControls + cinematic tween are disabled and the render
+  // loop lerps the camera toward journeyCamPos/LookAt each frame.
+
+  private generateStarfield(): void {
+    const N = 3200
+    const positions = new Float32Array(N * 3)
+    for (let i = 0; i < N; i++) {
+      const u = Math.random()
+      const v = Math.random()
+      const theta = 2 * Math.PI * u
+      const phi = Math.acos(2 * v - 1)
+      const r = 55 + Math.random() * 45
+      positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta)
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+      positions[i * 3 + 2] = r * Math.cos(phi)
+    }
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    const mat = new THREE.PointsMaterial({
+      color: 0xf4ecdf,
+      size: 0.08,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    this.starfield = new THREE.Points(geo, mat)
+    this.starfield.visible = false
+    this.scene.add(this.starfield)
+  }
+
+  public enableJourneyMode(enabled: boolean): void {
+    this.journeyActive = enabled
+    if (this.starfield) this.starfield.visible = enabled
+    if (this.spaceDust) this.spaceDust.visible = enabled
+    if (this.layerRings) this.layerRings.visible = enabled
+    if (this.focusSpotlight) this.focusSpotlight.visible = enabled
+    if (enabled) {
+      this.cinematicCamera = false
+      this.controls.enabled = false
+    } else {
+      this.controls.enabled = true
+    }
+  }
+
+  public setJourneyCamera(pos: THREE.Vector3, lookAt: THREE.Vector3): void {
+    this.journeyCamPos.copy(pos)
+    this.journeyCamLookAt.copy(lookAt)
+  }
+
+  /** Layer index 0..31 that receives the journey-mode passive breathing pulse.
+   * Pass -1 to disable (e.g., approach / closing phases of the journey). */
+  public setJourneyFocusLayer(layer: number): void {
+    this.journeyFocusLayer = layer
+    // Move the focus spotlight to the layer's X position
+    if (this.focusSpotlight && layer >= 0) {
+      const lx = ((layer / 31) - 0.5) * 6.0  // matches TOTAL_WIDTH
+      this.focusSpotlight.position.x = lx
+      this.focusSpotlight.visible = this.journeyActive
+    } else if (this.focusSpotlight) {
+      this.focusSpotlight.visible = false
+    }
+  }
+
+  // ─── Space dust: drifting particles in the void. Gives depth + "traveling
+  // through space" feel when the camera moves. Journey-only. ───
+  private generateSpaceDust(): void {
+    const N = 2400
+    const positions = new Float32Array(N * 3)
+    const seeds = new Float32Array(N)
+    for (let i = 0; i < N; i++) {
+      // Distribute in a cylindrical volume around the model. X spans a bit
+      // past both ends, Y/Z form a shell around the layer axis.
+      positions[i * 3]     = (Math.random() - 0.5) * 14            // x: -7..7
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 6             // y: -3..3
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 7 - 1         // z: -4.5..2.5
+      seeds[i] = Math.random()
+    }
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    const mat = new THREE.PointsMaterial({
+      color: 0x8fd4ea,
+      size: 0.04,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.32,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    this.spaceDust = new THREE.Points(geo, mat)
+    this.spaceDust.visible = false
+    this.spaceDustPositions = positions
+    this.spaceDustSeeds = seeds
+    this.scene.add(this.spaceDust)
+  }
+
+  // ─── Layer boundary rings — one thin vertical ring at each of the 32
+  // layer X positions. Always there in journey mode so spatial structure
+  // is legible. ───
+  private generateLayerRings(): void {
+    const group = new THREE.Group()
+    const ringGeo = new THREE.RingGeometry(0.78, 0.82, 48)
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x5eead4,
+      transparent: true,
+      opacity: 0.11,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    for (let L = 0; L < 32; L++) {
+      const lx = ((L / 31) - 0.5) * 6.0
+      const ring = new THREE.Mesh(ringGeo, ringMat)
+      // Ring faces +x (perpendicular to the layer axis)
+      ring.rotation.y = Math.PI / 2
+      ring.position.set(lx, 0, 0)
+      group.add(ring)
+    }
+    group.visible = false
+    this.layerRings = group
+    this.scene.add(group)
+  }
+
+  // ─── Focus-layer spotlight — a bright glowing ring at the camera's
+  // current focus layer. Lets the user see, not just read, which layer
+  // the dolly is currently following. ───
+  private generateFocusSpotlight(): void {
+    const geo = new THREE.RingGeometry(0.95, 1.08, 64)
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x00e5ff,
+      transparent: true,
+      opacity: 0.0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    const ring = new THREE.Mesh(geo, mat)
+    ring.rotation.y = Math.PI / 2
+    ring.visible = false
+    this.focusSpotlight = ring
+    this.scene.add(ring)
+  }
+
+  /** Called each frame from the render loop when journey is active.
+   *  Handles dust drift + focus-spotlight pulse + layer-wave ripple. */
+  private journeyTick(): void {
+    // Drift the space dust slowly — wrap along X so it feels continuous
+    if (this.spaceDust && this.spaceDustPositions && this.spaceDustSeeds) {
+      const pos = this.spaceDustPositions
+      const t = this.time
+      for (let i = 0; i < this.spaceDustSeeds.length; i++) {
+        const s = this.spaceDustSeeds[i]!
+        const base = (i * 3)
+        // Slow drift + gentle vertical bob; wrap x in [-7, 7]
+        pos[base]     = ((pos[base]! - 0.002 - s * 0.0015) + 14) % 14 - 7
+        pos[base + 1] += Math.sin(t * 0.6 + s * 6.28) * 0.0015
+      }
+      ;(this.spaceDust.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true
+      this.spaceDust.rotation.z = Math.sin(t * 0.15) * 0.02
+    }
+
+    // Pulse the focus spotlight — breathing opacity + subtle scale
+    if (this.focusSpotlight && this.journeyFocusLayer >= 0) {
+      const mat = this.focusSpotlight.material as THREE.MeshBasicMaterial
+      const pulse = 0.5 + 0.5 * Math.sin(this.time * 2.2)
+      mat.opacity = 0.22 + pulse * 0.35
+      this.focusSpotlight.scale.setScalar(1 + pulse * 0.08)
+    }
+  }
+
+  /** Read-only: what the journey module needs to know about this scene. */
+  public readonly LAYER_SPAN = { xMin: -3, xMax: 3, layers: 32 }
+
+  // ─── Expose the underlying camera + canvas so spatial-panels.ts can
+  // project world-space anchors into screen coordinates each frame.
+  public getCamera(): THREE.PerspectiveCamera { return this.camera }
+  public getCanvas(): HTMLCanvasElement { return this.renderer.domElement }
 }

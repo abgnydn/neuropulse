@@ -1,24 +1,58 @@
 /**
- * WEIGHT LOADER — Load Phi-3 MLC weights with Cache API + download progress.
+ * WEIGHT LOADER — Phi-3 MLC weights on WebGPU.
+ *
+ * Ported from zero-tvm's `fcefff3` rewrite (Apr 2026), adapted to keep
+ * Neuropulse's rich per-byte progress UI.
  *
  * Flow:
- *   1. Fetch ndarray-cache.json (manifest of all weight shards)
- *   2. Calculate total download size
- *   3. For each shard: check Cache API → if miss, stream-download with
- *      byte-level progress → store in Cache API for instant reload
- *   4. Slice individual parameters from shards → GPUBuffers
+ *   1. Open OPFS (Origin Private File System) — graceful no-op if unavailable
+ *   2. Fetch ndarray-cache.json manifest via tiered cache
+ *   3. Group records by shard (parameters share one shard file)
+ *   4. **In parallel**: for each shard, try tiered cache → stream-download
+ *      with byte-level progress → write to OPFS + Cache API → upload to
+ *      GPU. Shards upload to GPU as they arrive, not after all download.
+ *   5. Assemble `LoadedWeights` by resolving named parameters from the
+ *      populated `GPUBuffer` map
  *
- * Second visit = instant load from cache (no network).
+ * Tiered cache (fastest → slowest):
+ *   0. DEV-only Vite mirror at `/local-weights/*`
+ *   1. OPFS — persistent per-origin, ~2× faster than Cache API for 200+ MB blobs
+ *   2. Browser Cache API — scans *any* cache name, so WebLLM-prepopulated
+ *      caches count too, and old `neural-pulse-phi3-weights` caches migrate
+ *      transparently
+ *   3. HuggingFace network — last resort, stream-fetched with retry
+ *
+ * Second visit = instant cold-start from OPFS (no network).
  */
 
 // ============================================================
-// Model URL
+// Model URL + cache name
 // ============================================================
 
 export const PHI3_MODEL_BASE =
   'https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC/resolve/main/'
 
-const CACHE_NAME = 'neural-pulse-phi3-weights'
+export const CACHE_NAME = 'neuropulse-phi3-weights'
+// Older sessions used 'neural-pulse-phi3-weights'. The anyCacheMatch tier
+// scans all cache names, so an old cache is picked up and promoted into
+// `CACHE_NAME` + OPFS transparently on first load — no re-download.
+
+const OPFS_DIR = 'neuropulse-weights'
+
+// Dev-only Vite mirror — see vite.config.ts; `~/.cache/huggingface/hub` proxied
+// to `/local-weights/*` so cold-start e2e testing doesn't pay 2 GB.
+const LOCAL_MIRROR_BASE = (import.meta as { env?: { DEV?: boolean } }).env?.DEV
+  ? '/local-weights/'
+  : null
+
+// Prod edge-cached proxy — see functions/hf/[[path]].ts (CF Pages Function).
+// First user in each CF region pays full HF latency; subsequent users in that
+// region read from the edge (300+ POPs). Gracefully falls through to direct
+// HF if the function 4xx/5xx's (e.g., not deployed, cold start error).
+const CF_PROXY_BASE =
+  typeof window !== 'undefined' && !LOCAL_MIRROR_BASE
+    ? '/hf/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC/resolve/main/'
+    : null
 
 // ============================================================
 // ndarray-cache.json types
@@ -47,7 +81,7 @@ interface NDArrayCache {
 }
 
 // ============================================================
-// Progress callback
+// Progress callback — preserves the rich interface main.ts expects
 // ============================================================
 
 export interface LoadProgress {
@@ -64,45 +98,99 @@ export interface LoadProgress {
 }
 
 // ============================================================
-// Fetch with streaming progress + Cache API
+// OPFS — per-origin persistent storage. Faster than Cache API for
+// multi-hundred-MB blobs. Graceful no-op on Safari (no createWritable).
 // ============================================================
 
-async function fetchWithCache(
+type OPFSDir = FileSystemDirectoryHandle | null
+
+async function openOPFS(): Promise<OPFSDir> {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) return null
+    const root = await navigator.storage.getDirectory()
+    return await root.getDirectoryHandle(OPFS_DIR, { create: true })
+  } catch {
+    return null
+  }
+}
+
+function opfsKey(dataPath: string): string {
+  // OPFS filenames can't contain '/'. Flatten to a safe ASCII key.
+  return dataPath.replace(/[^A-Za-z0-9._-]/g, '_')
+}
+
+async function opfsRead(dir: OPFSDir, dataPath: string): Promise<ArrayBuffer | null> {
+  if (!dir) return null
+  try {
+    const fh = await dir.getFileHandle(opfsKey(dataPath))
+    const file = await fh.getFile()
+    return await file.arrayBuffer()
+  } catch {
+    return null
+  }
+}
+
+async function opfsWrite(dir: OPFSDir, dataPath: string, data: ArrayBuffer): Promise<void> {
+  if (!dir) return
+  try {
+    const fh = await dir.getFileHandle(opfsKey(dataPath), { create: true })
+    // createWritable is widely supported; Safari falls through to the catch.
+    const writable = await (fh as unknown as { createWritable: () => Promise<{ write(d: ArrayBuffer): Promise<void>; close(): Promise<void> }> }).createWritable()
+    await writable.write(data)
+    await writable.close()
+  } catch {
+    // best-effort — failures just mean next visit pays network again
+  }
+}
+
+// ============================================================
+// Tiered shard fetch
+// ============================================================
+
+/** Scan *every* Cache API bucket for a URL. Picks up WebLLM and old
+ *  `neural-pulse-phi3-weights` caches transparently. */
+async function anyCacheMatch(url: string): Promise<Response | null> {
+  try {
+    const names = await caches.keys()
+    for (const name of names) {
+      const store = await caches.open(name)
+      const resp = await store.match(url)
+      if (resp) return resp
+    }
+  } catch {
+    /* no Cache API */
+  }
+  return null
+}
+
+async function putInOurCache(url: string, buf: ArrayBuffer): Promise<void> {
+  try {
+    const store = await caches.open(CACHE_NAME)
+    await store.put(
+      url,
+      new Response(buf.slice(0), {
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': String(buf.byteLength),
+        },
+      }),
+    )
+  } catch {
+    /* storage quota or cookie mode — ok */
+  }
+}
+
+interface FetchResult {
+  buf: ArrayBuffer
+  /** true if served from any cache tier (OPFS / Cache API / local mirror) */
+  fromCache: boolean
+}
+
+/** Network fetch with byte-level streaming progress + 5-attempt retry. */
+async function streamFetch(
   url: string,
   onBytes: (loaded: number) => void,
 ): Promise<ArrayBuffer> {
-  // 1. Check our dedicated cache
-  try {
-    const store = await caches.open(CACHE_NAME)
-    const cached = await store.match(url)
-    if (cached) {
-      const buf = await cached.arrayBuffer()
-      onBytes(buf.byteLength) // report full size instantly
-      return buf
-    }
-  } catch { /* Cache API unavailable */ }
-
-  // 2. Also check any tvmjs/webllm caches from prior sessions
-  try {
-    const cacheNames = await caches.keys()
-    for (const name of cacheNames) {
-      if (name === CACHE_NAME) continue
-      const store = await caches.open(name)
-      const resp = await store.match(url)
-      if (resp) {
-        const buf = await resp.arrayBuffer()
-        onBytes(buf.byteLength)
-        // Copy into our cache for next time
-        try {
-          const myStore = await caches.open(CACHE_NAME)
-          await myStore.put(url, new Response(buf.slice(0)))
-        } catch { /* ok */ }
-        return buf
-      }
-    }
-  } catch { /* no Cache API */ }
-
-  // 3. Stream-download with byte progress — retry on transient network errors
   let resp: Response | null = null
   let lastErr: unknown
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -113,7 +201,7 @@ async function fetchWithCache(
     } catch (e) {
       lastErr = e
       resp = null
-      await new Promise(r => setTimeout(r, 500 * (attempt + 1)))
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)))
     }
   }
   if (!resp) throw lastErr instanceof Error ? lastErr : new Error(`fetch failed: ${url}`)
@@ -121,7 +209,6 @@ async function fetchWithCache(
   const reader = resp.body!.getReader()
   const chunks: Uint8Array[] = []
   let loaded = 0
-
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
@@ -130,52 +217,85 @@ async function fetchWithCache(
     onBytes(loaded)
   }
 
-  // Combine chunks
   const buf = new Uint8Array(loaded)
   let offset = 0
   for (const chunk of chunks) {
     buf.set(chunk, offset)
     offset += chunk.byteLength
   }
-  const arrayBuf = buf.buffer as ArrayBuffer
-
-  // 4. Store in Cache API for next visit
-  try {
-    const store = await caches.open(CACHE_NAME)
-    await store.put(url, new Response(arrayBuf.slice(0), {
-      headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(loaded) }
-    }))
-  } catch { /* ok if cache storage fails */ }
-
-  return arrayBuf
+  return buf.buffer as ArrayBuffer
 }
 
-// ============================================================
-// Check if a URL is already cached (for pre-scan)
-// ============================================================
-
-async function isCached(url: string): Promise<boolean> {
-  try {
-    const cacheNames = await caches.keys()
-    for (const name of cacheNames) {
-      const store = await caches.open(name)
-      const resp = await store.match(url)
-      if (resp) return true
+async function fetchShard(
+  url: string,
+  dataPath: string,
+  opfs: OPFSDir,
+  onBytes: (loaded: number) => void,
+): Promise<FetchResult> {
+  // Tier 0: dev-only local Vite mirror
+  if (LOCAL_MIRROR_BASE) {
+    try {
+      const resp = await fetch(LOCAL_MIRROR_BASE + dataPath)
+      if (resp.ok) {
+        const buf = await resp.arrayBuffer()
+        onBytes(buf.byteLength)
+        void opfsWrite(opfs, dataPath, buf)
+        return { buf, fromCache: true }
+      }
+    } catch {
+      /* mirror not primed — fall through */
     }
-  } catch { /* no Cache API */ }
-  return false
+  }
+
+  // Tier 1: OPFS
+  const fromOPFS = await opfsRead(opfs, dataPath)
+  if (fromOPFS) {
+    onBytes(fromOPFS.byteLength)
+    return { buf: fromOPFS, fromCache: true }
+  }
+
+  // Tier 2: any Cache API bucket (migration + WebLLM reuse)
+  const cached = await anyCacheMatch(url)
+  if (cached) {
+    const buf = await cached.arrayBuffer()
+    onBytes(buf.byteLength)
+    // Promote into OPFS + our named cache for faster future loads
+    void opfsWrite(opfs, dataPath, buf)
+    void putInOurCache(url, buf)
+    return { buf, fromCache: true }
+  }
+
+  // Tier 3: CF Pages Function edge-cache proxy (prod only). Stream-fetched
+  // so the progress UI still updates per-byte. If the function is down or
+  // not deployed yet, we fall through to direct HF.
+  if (CF_PROXY_BASE) {
+    try {
+      const buf = await streamFetch(CF_PROXY_BASE + dataPath, onBytes)
+      void opfsWrite(opfs, dataPath, buf)
+      void putInOurCache(url, buf)
+      return { buf, fromCache: false }
+    } catch {
+      /* proxy down — fall through to direct HF */
+    }
+  }
+
+  // Tier 4: direct HuggingFace network (streaming + retry)
+  const buf = await streamFetch(url, onBytes)
+  void opfsWrite(opfs, dataPath, buf)
+  void putInOurCache(url, buf)
+  return { buf, fromCache: false }
 }
 
 // ============================================================
-// Flatten all records from ndarray-cache.json
+// Record helpers
 // ============================================================
 
 function flattenRecords(cache: NDArrayCache): FlatRecord[] {
   const out: FlatRecord[] = []
   for (const rec of cache.records) {
-    if ('records' in rec && Array.isArray(rec.records)) {
-      for (const r of rec.records) {
-        out.push({ ...r, dataPath: r.dataPath ?? rec.dataPath })
+    if ('records' in rec && Array.isArray((rec as ShardGroup).records)) {
+      for (const r of (rec as ShardGroup).records) {
+        out.push({ ...r, dataPath: r.dataPath ?? (rec as ShardGroup).dataPath })
       }
     } else {
       out.push(rec as FlatRecord)
@@ -184,39 +304,32 @@ function flattenRecords(cache: NDArrayCache): FlatRecord[] {
   return out
 }
 
-// ============================================================
-// Build GPUBuffer from a flat record
-// ============================================================
+const USAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
 
-function recordToGPUBuffer(
-  device: GPUDevice,
-  rec: FlatRecord,
-  shardData: ArrayBuffer,
-): GPUBuffer {
-  const slice = shardData.slice(rec.byteOffset, rec.byteOffset + rec.nbytes)
-  const buf = device.createBuffer({
+function uploadRecord(device: GPUDevice, shard: ArrayBuffer, rec: FlatRecord): GPUBuffer {
+  const gpuBuf = device.createBuffer({
     size: Math.max(rec.nbytes, 4),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    usage: USAGE,
     label: rec.name,
   })
-  device.queue.writeBuffer(buf, 0, slice)
-  return buf
+  // Uint8Array view avoids an ArrayBuffer.slice() copy before writeBuffer.
+  device.queue.writeBuffer(gpuBuf, 0, new Uint8Array(shard, rec.byteOffset, rec.nbytes))
+  return gpuBuf
 }
 
-// ============================================================
-// Parameter name lookup
-// ============================================================
-
-function find(index: Map<string, FlatRecord>, ...candidates: string[]): FlatRecord {
+function find(index: Map<string, GPUBuffer>, ...candidates: string[]): GPUBuffer {
   for (const c of candidates) {
-    const r = index.get(c)
-    if (r) return r
+    const b = index.get(c)
+    if (b) return b
   }
-  throw new Error(`Weight not found. Tried: ${candidates.join(', ')}`)
+  throw new Error(
+    `Weight not found. Tried: ${candidates.join(', ')}\n` +
+      `Available sample: ${[...index.keys()].slice(0, 10).join(', ')}…`,
+  )
 }
 
 // ============================================================
-// Main loader
+// Main loader — parallel shards, streaming GPU upload
 // ============================================================
 
 export async function loadWeights(
@@ -224,170 +337,157 @@ export async function loadWeights(
   onProgress?: (p: LoadProgress) => void,
 ): Promise<LoadedWeights> {
   const baseUrl = PHI3_MODEL_BASE
+  const opfs = await openOPFS()
 
-  const report = (p: Partial<LoadProgress> & { message: string }) =>
-    onProgress?.({ phase: 'downloading', bytesLoaded: 0, bytesTotal: 0, percent: 0, ...p })
-
-  // 1. Fetch manifest (with retry for transient network errors)
-  report({ phase: 'manifest', message: 'Fetching model manifest...' })
-  const manifestUrl = baseUrl + 'ndarray-cache.json'
-  const fetchManifest = async (): Promise<ArrayBuffer> => {
-    let lastErr: unknown
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const resp = await fetch(manifestUrl)
-        if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching manifest`)
-        return await resp.arrayBuffer()
-      } catch (e) {
-        lastErr = e
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)))
-      }
-    }
-    throw lastErr instanceof Error ? lastErr : new Error('manifest fetch failed')
-  }
-  let manifestBuf: ArrayBuffer
-  try {
-    const store = await caches.open(CACHE_NAME)
-    const cached = await store.match(manifestUrl)
-    if (cached) {
-      manifestBuf = await cached.arrayBuffer()
-    } else {
-      manifestBuf = await fetchManifest()
-      await store.put(manifestUrl, new Response(manifestBuf.slice(0)))
-    }
-  } catch {
-    manifestBuf = await fetchManifest()
+  const report = (patch: Partial<LoadProgress> & { message: string }): void => {
+    onProgress?.({
+      phase: 'downloading',
+      message: patch.message,
+      bytesLoaded: 0,
+      bytesTotal: 0,
+      percent: 0,
+      ...patch,
+    })
   }
 
-  const cacheJson: NDArrayCache = JSON.parse(new TextDecoder().decode(manifestBuf))
-  const allRecords = flattenRecords(cacheJson)
-  const index = new Map<string, FlatRecord>()
-  for (const r of allRecords) index.set(r.name, r)
+  // ── 1. Manifest ──
+  report({ phase: 'manifest', message: 'Reading ndarray-cache.json…' })
+  const { buf: manifestBuf } = await fetchShard(
+    baseUrl + 'ndarray-cache.json',
+    'ndarray-cache.json',
+    opfs,
+    () => {},
+  )
+  const manifest: NDArrayCache = JSON.parse(new TextDecoder().decode(manifestBuf))
+  const allRecords = flattenRecords(manifest)
 
-  // 2. Collect unique shards and total size
+  // ── 2. Group records by shard ──
+  const byShard = new Map<string, FlatRecord[]>()
+  for (const r of allRecords) {
+    const existing = byShard.get(r.dataPath)
+    if (existing) existing.push(r)
+    else byShard.set(r.dataPath, [r])
+  }
+  const shardList = [...byShard.keys()]
+
+  // ── 3. Estimate total bytes ──
   const shardSizes = new Map<string, number>()
   for (const r of allRecords) {
     const existing = shardSizes.get(r.dataPath) ?? 0
     shardSizes.set(r.dataPath, Math.max(existing, r.byteOffset + r.nbytes))
   }
-
-  // Compute total bytes (sum of shard file sizes)
   let totalBytes = 0
-  const shardList = [...shardSizes.keys()]
-  // Check which shards are already cached
-  const shardCachedStatus = new Map<string, boolean>()
-  for (const shard of shardList) {
-    const cached = await isCached(baseUrl + shard)
-    shardCachedStatus.set(shard, cached)
-  }
-
-  // For total: we need actual shard file sizes. Best estimate = max(byteOffset + nbytes) per shard
-  for (const size of shardSizes.values()) totalBytes += size
+  for (const s of shardSizes.values()) totalBytes += s
 
   report({
-    message: `Found ${index.size} parameters in ${shardList.length} shards (${(totalBytes / 1e9).toFixed(2)} GB)`,
+    phase: 'downloading',
+    message: `${allRecords.length} params across ${shardList.length} shards (${(totalBytes / 1e9).toFixed(2)} GB)`,
     bytesTotal: totalBytes,
   })
 
-  // 3. Download shards with progress
-  const shardCache = new Map<string, ArrayBuffer>()
-  let globalBytesLoaded = 0
-  // Track per-shard loaded bytes (for incremental progress)
-  const shardBytesLoaded = new Map<string, number>()
+  // ── 4. Fetch all shards IN PARALLEL, GPU-upload as each arrives ──
+  const gpuBuffers = new Map<string, GPUBuffer>()
+  const perShardBytes = new Map<string, number>()
+  let totalBytesLoaded = 0
+  let shardsCompleted = 0
+  const shardHitFromCache = new Map<string, boolean>()
 
-  async function ensureShard(dataPath: string): Promise<ArrayBuffer> {
-    if (shardCache.has(dataPath)) return shardCache.get(dataPath)!
+  await Promise.all(
+    shardList.map(async (dataPath) => {
+      const url = baseUrl + dataPath
+      const { buf, fromCache } = await fetchShard(url, dataPath, opfs, (loaded) => {
+        const delta = loaded - (perShardBytes.get(dataPath) ?? 0)
+        perShardBytes.set(dataPath, loaded)
+        totalBytesLoaded += delta
+        const pct = totalBytes > 0 ? Math.min(100, (totalBytesLoaded / totalBytes) * 100) : 0
+        onProgress?.({
+          phase: 'downloading',
+          message: fromCacheHint(shardHitFromCache, dataPath)
+            ? `Loading from cache · ${(totalBytesLoaded / 1e6).toFixed(0)} / ${(totalBytes / 1e6).toFixed(0)} MB`
+            : `Downloading · ${(totalBytesLoaded / 1e6).toFixed(0)} / ${(totalBytes / 1e6).toFixed(0)} MB`,
+          bytesLoaded: totalBytesLoaded,
+          bytesTotal: totalBytes,
+          percent: pct,
+          currentShard: dataPath,
+          cacheHit: fromCacheHint(shardHitFromCache, dataPath),
+        })
+      })
+      shardHitFromCache.set(dataPath, fromCache)
 
-    const url = baseUrl + dataPath
-    const wasCached = shardCachedStatus.get(dataPath) ?? false
+      // Upload every parameter in this shard to its own GPUBuffer as soon as
+      // the shard arrives — overlaps with ongoing parallel downloads.
+      const records = byShard.get(dataPath)!
+      for (const rec of records) {
+        gpuBuffers.set(rec.name, uploadRecord(device, buf, rec))
+      }
 
-    const prevBytes = shardBytesLoaded.get(dataPath) ?? 0
-
-    const buf = await fetchWithCache(url, (loaded) => {
-      const delta = loaded - (shardBytesLoaded.get(dataPath) ?? 0)
-      shardBytesLoaded.set(dataPath, loaded)
-      globalBytesLoaded += delta
-      const pct = totalBytes > 0 ? Math.min(100, (globalBytesLoaded / totalBytes) * 100) : 0
-
+      shardsCompleted++
       onProgress?.({
         phase: 'downloading',
-        message: wasCached
-          ? `Loading from cache: ${dataPath}`
-          : `Downloading: ${dataPath} — ${(globalBytesLoaded / 1e6).toFixed(0)} / ${(totalBytes / 1e6).toFixed(0)} MB`,
-        bytesLoaded: globalBytesLoaded,
+        message: `[${shardsCompleted}/${shardList.length}] ${dataPath} uploaded to GPU`,
+        bytesLoaded: totalBytesLoaded,
         bytesTotal: totalBytes,
-        percent: pct,
+        percent: totalBytes > 0 ? Math.min(100, (totalBytesLoaded / totalBytes) * 100) : 0,
         currentShard: dataPath,
-        cacheHit: wasCached,
+        cacheHit: fromCache,
       })
-    })
+    }),
+  )
 
-    shardCache.set(dataPath, buf)
-    return buf
-  }
+  // ── 5. Resolve named parameters ──
+  const embdWeights = find(gpuBuffers, 'transformer.embd.q_weight', 'embed_tokens.q_weight', 'model.embed_tokens.q_weight')
+  const embdScales = find(gpuBuffers, 'transformer.embd.q_scale', 'embed_tokens.q_scale', 'model.embed_tokens.q_scale')
+  const initNormGamma = find(gpuBuffers, 'transformer.h.0.ln.weight', 'model.layers.0.input_layernorm.weight')
+  const lmHeadWeights = find(gpuBuffers, 'lm_head.q_weight', 'model.lm_head.q_weight')
+  const lmHeadScales = find(gpuBuffers, 'lm_head.q_scale', 'model.lm_head.q_scale')
+  const finalNormGamma = find(gpuBuffers, 'transformer.norm.weight', 'model.norm.weight', 'norm.weight')
 
-  // Helper: load a named parameter
-  async function load(name: string, ...alts: string[]): Promise<GPUBuffer> {
-    const rec = find(index, name, ...alts)
-    const shard = await ensureShard(rec.dataPath)
-    return recordToGPUBuffer(device, rec, shard)
-  }
-
-  // 4. Load global weights
-  const embdWeights = await load('transformer.embd.q_weight', 'embed_tokens.q_weight', 'model.embed_tokens.q_weight')
-  const embdScales = await load('transformer.embd.q_scale', 'embed_tokens.q_scale', 'model.embed_tokens.q_scale')
-  const initNormGamma = await load('transformer.h.0.ln.weight', 'model.layers.0.input_layernorm.weight')
-  const lmHeadWeights = await load('lm_head.q_weight', 'model.lm_head.q_weight')
-  const lmHeadScales = await load('lm_head.q_scale', 'model.lm_head.q_scale')
-
-  // 5. Per-layer weights
   const LAYERS = 32
   const layers: LoadedWeights['layers'] = []
-
   for (let L = 0; L < LAYERS; L++) {
     const h = `transformer.h.${L}`
     const p = `model.layers.${L}`
-
-    const qkvWeights = await load(`${h}.mixer.qkv_proj.q_weight`, `${p}.self_attn.qkv_proj.q_weight`)
-    const qkvScales = await load(`${h}.mixer.qkv_proj.q_scale`, `${p}.self_attn.qkv_proj.q_scale`)
-    const oProjWeights = await load(`${h}.mixer.out_proj.q_weight`, `${p}.self_attn.o_proj.q_weight`)
-    const oProjScales = await load(`${h}.mixer.out_proj.q_scale`, `${p}.self_attn.o_proj.q_scale`)
-    const normGamma1 = await load(`${h}.ln.weight`, `${p}.input_layernorm.weight`)
-    const normGamma2 = await load(`${h}.post_attention_layernorm.weight`, `${p}.post_attention_layernorm.weight`)
-    const ffnWeights = await load(`${h}.mlp.gate_up_proj.q_weight`, `${p}.mlp.gate_up_proj.q_weight`)
-    const ffnScales = await load(`${h}.mlp.gate_up_proj.q_scale`, `${p}.mlp.gate_up_proj.q_scale`)
-    const ffnDownWeights = await load(`${h}.mlp.down_proj.q_weight`, `${p}.mlp.down_proj.q_weight`)
-    const ffnDownScales = await load(`${h}.mlp.down_proj.q_scale`, `${p}.mlp.down_proj.q_scale`)
-
     layers.push({
-      qkvWeights, qkvScales,
-      oProjWeights, oProjScales,
-      normGamma1, normGamma2,
-      ffnWeights, ffnScales,
-      ffnDownWeights, ffnDownScales,
+      qkvWeights: find(gpuBuffers, `${h}.mixer.qkv_proj.q_weight`, `${p}.self_attn.qkv_proj.q_weight`),
+      qkvScales: find(gpuBuffers, `${h}.mixer.qkv_proj.q_scale`, `${p}.self_attn.qkv_proj.q_scale`),
+      oProjWeights: find(gpuBuffers, `${h}.mixer.out_proj.q_weight`, `${p}.self_attn.o_proj.q_weight`),
+      oProjScales: find(gpuBuffers, `${h}.mixer.out_proj.q_scale`, `${p}.self_attn.o_proj.q_scale`),
+      normGamma1: find(gpuBuffers, `${h}.ln.weight`, `${p}.input_layernorm.weight`),
+      normGamma2: find(gpuBuffers, `${h}.post_attention_layernorm.weight`, `${p}.post_attention_layernorm.weight`),
+      ffnWeights: find(gpuBuffers, `${h}.mlp.gate_up_proj.q_weight`, `${p}.mlp.gate_up_proj.q_weight`),
+      ffnScales: find(gpuBuffers, `${h}.mlp.gate_up_proj.q_scale`, `${p}.mlp.gate_up_proj.q_scale`),
+      ffnDownWeights: find(gpuBuffers, `${h}.mlp.down_proj.q_weight`, `${p}.mlp.down_proj.q_weight`),
+      ffnDownScales: find(gpuBuffers, `${h}.mlp.down_proj.q_scale`, `${p}.mlp.down_proj.q_scale`),
     })
   }
 
-  const finalNormGamma = await load('transformer.norm.weight', 'model.norm.weight', 'norm.weight')
-
-  // 6. Upload to GPU complete
-  report({
+  onProgress?.({
     phase: 'done',
-    message: 'All weights loaded!',
-    bytesLoaded: totalBytes,
+    message: `Ready · ${(totalBytes / 1e6).toFixed(0)} MB · ${opfs ? 'OPFS active' : 'Cache API fallback'}`,
+    bytesLoaded: totalBytesLoaded,
     bytesTotal: totalBytes,
     percent: 100,
   })
 
   return {
     device,
-    embdWeights, embdScales,
-    lmHeadWeights, lmHeadScales,
+    embdWeights,
+    embdScales,
+    lmHeadWeights,
+    lmHeadScales,
     initNormGamma,
     finalNormGamma,
     layers,
   }
 }
+
+function fromCacheHint(m: Map<string, boolean>, k: string): boolean {
+  return m.get(k) ?? false
+}
+
+// ============================================================
+// Public type (identical shape to zero-tvm's — inference engine agnostic)
+// ============================================================
 
 export interface LoadedWeights {
   device: GPUDevice

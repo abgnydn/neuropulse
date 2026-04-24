@@ -13,13 +13,51 @@
 <meta property="og:image" content="/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
 
+<!-- Structured data: identity + cross-links to the kernel-fusion research line. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://neuropulse.live#site",
+      "url": "https://neuropulse.live",
+      "name": "Neuropulse",
+      "description": "Live 3D rendering of Phi-3-mini running on your GPU. Every tensor drawn one-to-one from real WebGPU activations.",
+      "publisher": { "@id": "https://neuropulse.live#author" },
+      "isPartOf": {
+        "@type": "CreativeWork",
+        "name": "Kernel-fusion research line",
+        "url": "https://kernelfusion.dev"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://neuropulse.live#author",
+      "name": "Ahmet Baris Gunaydin",
+      "url": "https://barisgunaydin.com",
+      "sameAs": [
+        "https://barisgunaydin.com",
+        "https://kernelfusion.dev",
+        "https://gpubench.dev",
+        "https://zerotvm.com",
+        "https://webgpudna.com",
+        "https://neuropulse.live",
+        "https://markview.ai",
+        "https://safenpm.dev",
+        "https://fused-lora.pages.dev",
+        "https://github.com/abgnydn",
+        "https://www.linkedin.com/in/abgnydn/"
+      ]
+    }
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,30..100&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-<!-- Vercel Web Analytics + Speed Insights — auto-injected on Vercel deploys via /_vercel paths -->
-<script defer src="/_vercel/insights/script.js"></script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 
 <style>
   :root {
@@ -33,21 +71,44 @@
     --cyan: #5eead4;
     --cyan-bright: #00e5ff;
     --violet: #c084fc;
-    --pink: #f0abfc;
+    --amber: #ff8c42;
     --serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
     --sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* ── canonical cross-site alias layer (see ~/sites-shared/tokens.css) ── */
+    --surface: var(--bg-warm);
+    --border:  var(--rule);
+    --text:    var(--ink);
+    --muted:   var(--ink-dim);
+    --accent:  var(--cyan-bright);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; overflow-x: clip; }
+  html {
+    scroll-behavior: smooth;
+    overflow-x: clip;
+    /* bg on <html> so the fixed z-index:-1 page canvas sits above it */
+    background: var(--bg);
+  }
   body {
     font-family: var(--sans);
-    background: var(--bg);
+    background: transparent;
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     line-height: 1.6;
+  }
+  /* Full-page persistent Three.js backdrop (src/canvas.ts).
+     z-index:-1 sits above html bg, below all document content. */
+  #page-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    pointer-events: none;
+    display: block;
   }
   ::selection { background: var(--cyan-bright); color: #02020a; }
   a { color: inherit; text-decoration: none; }
@@ -74,9 +135,9 @@
     inset: -20%;
     z-index: 0;
     background:
-      radial-gradient(ellipse 55% 40% at 22% 30%, rgba(94, 234, 212, 0.10), transparent 60%),
-      radial-gradient(ellipse 50% 50% at 78% 70%, rgba(192, 132, 252, 0.09), transparent 60%),
-      radial-gradient(ellipse 40% 30% at 50% 92%, rgba(0, 229, 255, 0.06), transparent 60%);
+      radial-gradient(ellipse 55% 40% at 22% 30%, rgba(94, 234, 212, 0.05), transparent 60%),
+      radial-gradient(ellipse 50% 50% at 78% 70%, rgba(192, 132, 252, 0.04), transparent 60%),
+      radial-gradient(ellipse 40% 30% at 50% 92%, rgba(0, 229, 255, 0.03), transparent 60%);
     animation: hero-drift 40s ease-in-out infinite alternate;
   }
   @keyframes hero-drift {
@@ -84,18 +145,9 @@
     50%  { transform: translate(2%, -1.5%) rotate(1deg) scale(1.05); }
     100% { transform: translate(-1.5%, 2%) rotate(-1deg) scale(1.02); }
   }
-  /* Faint dotted grid — engineered substrate, not decoration */
-  .hero-grid {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    background-image:
-      radial-gradient(circle, rgba(244, 236, 223, 0.05) 1px, transparent 1px);
-    background-size: 32px 32px;
-    background-position: -1px -1px;
-    mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 80%);
-    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 80%);
-  }
+  /* The per-hero canvas is gone — #page-canvas (fixed, z:-1) now handles it
+     across the whole document. The drift gradient on .hero::before stays as
+     a subtle warm tint since the page canvas behind it is transparent. */
   /* Film grain overlay — editorial cinematic texture */
   .hero-grain {
     content: '';
@@ -265,6 +317,44 @@
     flex-wrap: wrap;
     align-items: center;
     animation: heroFadeIn 1.2s cubic-bezier(0.16,1,0.3,1) 0.85s both;
+  }
+
+  /* Hero stats strip — the scale numbers earn the hero, not paragraph 4 */
+  .hero-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px 48px;
+    margin-top: 56px;
+    padding-top: 28px;
+    border-top: 1px solid var(--rule);
+    max-width: 44rem;
+    animation: heroFadeIn 1.2s cubic-bezier(0.16,1,0.3,1) 1.05s both;
+  }
+  .hero-stat { display: flex; flex-direction: column; gap: 8px; }
+  .hero-stat .v {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-variation-settings: "opsz" 144, "SOFT" 60;
+    font-size: 1.85rem;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  .hero-stat .v em {
+    font-style: italic;
+    color: var(--cyan);
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
+  .hero-stat .l {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  @media (max-width: 560px) {
+    .hero-stats { gap: 20px 32px; margin-top: 40px; padding-top: 22px; }
+    .hero-stat .v { font-size: 1.55rem; }
   }
   .btn {
     display: inline-flex;
@@ -617,6 +707,94 @@
     border-radius: 3px;
   }
 
+  /* ─────────────────────────────────────────────────────────
+     "In real numbers" — full-bleed scale payoff between 04 and the CTA.
+     Breaks out of the 680px essay column because these numbers want room.
+     ───────────────────────────────────────────────────────── */
+  .numbers {
+    position: relative;
+    left: 50%;
+    right: 50%;
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    margin-bottom: clamp(80px, 12vh, 140px);
+    padding: clamp(56px, 9vh, 100px) clamp(24px, 5vw, 64px);
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(94, 234, 212, 0.04), transparent 60%),
+      radial-gradient(ellipse 80% 40% at 50% 100%, rgba(192, 132, 252, 0.03), transparent 60%);
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    opacity: 0; transform: translateY(32px);
+    transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1);
+  }
+  .numbers.visible { opacity: 1; transform: translateY(0); }
+  .numbers-inner { max-width: 1280px; margin: 0 auto; position: relative; z-index: 2; }
+  /* Per-section numbers canvas is gone — #page-canvas's prog uniform
+     ramps up horizontal flow automatically in this region. */
+  .numbers h2 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+    font-size: clamp(2rem, 4.4vw, 3.4rem);
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin: 24px 0 60px;
+    max-width: 22ch;
+  }
+  .numbers h2 em {
+    font-style: italic;
+    color: var(--cyan);
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
+  .numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .numbers-cell {
+    padding: clamp(32px, 5vh, 56px) clamp(24px, 3vw, 40px);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    transition: background 0.35s;
+  }
+  .numbers-cell:hover { background: var(--bg-warm); }
+  .numbers-num {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+    font-size: clamp(3rem, 6.4vw, 5.2rem);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .numbers-num em {
+    font-style: italic;
+    color: var(--cyan);
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
+  .numbers-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--cyan);
+  }
+  .numbers-sub {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 32ch;
+  }
+
   /* End-of-essay closing CTA */
   .essay-end {
     text-align: left;
@@ -722,13 +900,16 @@
 </head>
 <body>
 
+  <!-- Persistent page-wide Three.js backdrop. One canvas, scroll-driven. -->
+  <canvas id="page-canvas" aria-hidden="true"></canvas>
+
   <!-- ───────────────────────────────────────────────
        HERO — type-only editorial void.
        Deliberately no preview of the demo: the reveal
-       is the surprise behind the CTA.
+       is the surprise behind the CTA. Page canvas sits
+       behind this entire section at z:-1.
        ─────────────────────────────────────────────── -->
   <section class="hero">
-    <div class="hero-grid"></div>
     <div class="hero-grain"></div>
     <div class="hero-vignette"></div>
 
@@ -756,7 +937,7 @@
         A real transformer, <em>laid&nbsp;bare.</em>
       </h1>
       <p class="hero-lede">
-        Three-point-eight billion parameters running in your browser. Every neuron, every attention head, every activation — drawn one-to-one from real GPU tensors. <strong>No mockup. No diorama.</strong> The model itself.
+        3.8 billion parameters. On your GPU, in your browser. Every point, every line, every pulse — a real tensor, read one-to-one. <strong>No mockup. No fake.</strong>
       </p>
       <div class="cta-row">
         <a href="/app/" class="btn btn-primary">
@@ -764,6 +945,25 @@
           <span class="arrow">→</span>
         </a>
         <a href="#essay" class="btn btn-ghost">Read the essay</a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="v"><em>3.8</em>B</div>
+          <div class="l">parameters</div>
+        </div>
+        <div class="hero-stat">
+          <div class="v">292</div>
+          <div class="l">dispatches / token</div>
+        </div>
+        <div class="hero-stat">
+          <div class="v">22</div>
+          <div class="l">GPU buffers</div>
+        </div>
+        <div class="hero-stat">
+          <div class="v"><em>0</em></div>
+          <div class="l">servers</div>
+        </div>
       </div>
     </div>
 
@@ -781,10 +981,10 @@
     <section class="essay-section lead">
       <div class="essay-num">01 · The Promise</div>
       <h2>No mockups. <em>The actual model.</em></h2>
-      <p>Most "AI visualizations" you see online are decoration. Animated dots that pulse to a fake rhythm. Particles that don't connect to anything. A nice-looking metaphor with no model behind the curtain.</p>
-      <p>Neuropulse is the opposite. Every brightness, every line, every motion you see is a direct readout of a real <span class="mono">WebGPU</span> buffer in a real Phi-3-mini forward pass. When the model thinks about your prompt, you watch <em>it</em> think — not a representation of it.</p>
+      <p>Most "AI visualizations" online are decoration. Dots pulsing to a fake rhythm. A metaphor with no model behind it.</p>
+      <p>Neuropulse is the opposite. Every brightness, every line, every motion is a direct readout of a real <span class="mono">WebGPU</span> buffer mid-forward-pass. When the model thinks, you watch <em>it</em> think — not a representation.</p>
       <p class="pull">Strict 1:1. Every pixel a function of a real tensor.</p>
-      <p>It runs entirely on your machine. The 3.8B-parameter model is loaded into your GPU's memory, the attention math is done in <span class="mono">WGSL</span> compute shaders, and the next-token logits are sampled in your tab. There is no server. There is no API key. Close the tab and the inference stops.</p>
+      <p>3.8B weights in your GPU. Attention in <span class="mono">WGSL</span>. Next-token sampled in your tab. No server. No API key. Close the tab and the inference stops.</p>
 
       <div class="evidence">
         <div class="evidence-row">
@@ -807,7 +1007,9 @@
     <section class="essay-section">
       <div class="essay-num">02 · What you're watching</div>
       <h2>Every part of the model, <em>labeled.</em></h2>
-      <p>The 3D scene is not a metaphor. Each glowing element corresponds to a specific tensor in Phi-3-mini's compute graph. The 3,072 points of the residual stream are laid out by a PCA of the model's own layer-0 <code>qkv_proj</code> weights — so dims that get read into attention together end up near each other — and on every step the brightness of each point is the <em>live</em> value of that residual dimension. If you hover an attention head, the brightness you see <em>is</em> that head's output magnitude.</p>
+      <p>The 3D scene is not a metaphor. Every glowing element maps to a specific tensor in Phi-3-mini's compute graph.</p>
+      <p>The 3,072 points of the residual stream are laid out by PCA of the model's layer-0 <code>qkv_proj</code> weights — so dims read into attention together sit near each other. Each point's brightness is the <em>live</em> value of that residual dim on every step.</p>
+      <p>Hover an attention head — the brightness you see <em>is</em> that head's output magnitude.</p>
 
       <figure class="anatomy-figure">
         <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
@@ -844,8 +1046,8 @@
           </g>
           <text x="278" y="340" font-family="JetBrains Mono, monospace" font-size="9" fill="#5eead4">KV cache</text>
 
-          <circle cx="200" cy="370" r="14" fill="#f0abfc" opacity="0.5"/>
-          <text x="135" y="395" font-family="JetBrains Mono, monospace" font-size="9" fill="#f0abfc">LM head → next token</text>
+          <circle cx="200" cy="370" r="14" fill="#ff8c42" opacity="0.5"/>
+          <text x="135" y="395" font-family="JetBrains Mono, monospace" font-size="9" fill="#ff8c42">LM head → next token</text>
 
           <circle cx="200" cy="30" r="10" fill="#c084fc" opacity="0.7"/>
         </svg>
@@ -899,7 +1101,7 @@
         <div><span class="label">[6]</span> <span class="ok">Sampler</span> — 5,000-sample empirical distribution vs softmax, JSD &lt; 1e-2</div>
       </div>
 
-      <p>What you should expect: tiny deltas at the hidden-state level (the cost of int4 quantization, not implementation drift) and identical top-1 tokens against the fp16 reference on the test set. That last bit is the bar that matters for a faithful rendering — and it's the one you can re-run yourself, on your own machine, in under a minute.</p>
+      <p>Expect tiny deltas at the hidden-state level — that's the cost of int4, not drift. What matters is the last line: <strong>identical top-1 tokens vs fp16 Phi-3</strong> on the test set. Re-run it on your own machine in under a minute.</p>
     </section>
 
     <hr class="essay-rule"/>
@@ -939,10 +1141,39 @@
 
     <hr class="essay-rule"/>
 
+    <section class="numbers" id="numbers">
+      <div class="numbers-inner">
+        <div class="essay-num">05 · In real numbers</div>
+        <h2>What it <em>actually</em> is.</h2>
+        <div class="numbers-grid">
+          <div class="numbers-cell">
+            <div class="numbers-num"><em>3.8</em>B</div>
+            <div class="numbers-label">parameters</div>
+            <div class="numbers-sub">Phi-3-mini, q4f16_1. The same weights Microsoft ships — loaded into your GPU, not emulated.</div>
+          </div>
+          <div class="numbers-cell">
+            <div class="numbers-num">1,024</div>
+            <div class="numbers-label">attention heads, live</div>
+            <div class="numbers-sub">32 layers × 32 heads. Every one of them drawn from its real output magnitude on every token.</div>
+          </div>
+          <div class="numbers-cell">
+            <div class="numbers-num">292</div>
+            <div class="numbers-label">dispatches / token</div>
+            <div class="numbers-sub">13 WGSL pipelines, 22 GPU buffers. One full forward pass, in your browser tab.</div>
+          </div>
+          <div class="numbers-cell">
+            <div class="numbers-num"><em>0</em></div>
+            <div class="numbers-label">servers</div>
+            <div class="numbers-sub">No API calls. No telemetry. No key. Close the tab and the inference stops.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="essay-end">
       <div class="essay-num">Now you</div>
       <h2>See it for <em>yourself.</em></h2>
-      <p>Open Neuropulse, feed it a prompt, and watch a model think. The first load downloads about 2&nbsp;GB of weights into your browser cache; subsequent visits start instantly.</p>
+      <p>Open Neuropulse. Feed it a prompt. Watch the model think. First load streams ~2&nbsp;GB into your GPU; next visit is instant (OPFS-cached to disk).</p>
       <a href="/app/" class="btn btn-primary">
         Launch Neuropulse
         <span class="arrow">→</span>
@@ -969,9 +1200,10 @@
       </div>
       <div class="footer-related">
         <span class="label">More by Ahmet</span>
-        <a href="https://zerotvm.com" target="_blank" rel="noopener">zero-tvm</a>
-        <a href="https://github.com/abgnydn/kernelfusion" target="_blank" rel="noopener">kernelfusion</a>
-        <a href="https://github.com/abgnydn/gpubench" target="_blank" rel="noopener">gpubench</a>
+        <a href="https://kernelfusion.dev" target="_blank" rel="noopener">kernelfusion.dev</a>
+        <a href="https://gpubench.dev" target="_blank" rel="noopener">gpubench.dev</a>
+        <a href="https://zerotvm.com" target="_blank" rel="noopener">zerotvm.com</a>
+        <a href="https://webgpudna.com" target="_blank" rel="noopener">webgpudna.com</a>
       </div>
       <div class="footer-bottom">
         <div>real forward pass · built with WebGPU + Three.js · MIT licensed</div>
@@ -998,7 +1230,7 @@
         }
       }
     } catch {}
-    fetch('https://api.github.com/repos/abgnydn/neural-pulse')
+    fetch('https://api.github.com/repos/abgnydn/neuropulse')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d || typeof d.stargazers_count !== 'number') {
@@ -1019,7 +1251,7 @@
   const revealObs = new IntersectionObserver((entries) => {
     entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); } });
   }, { threshold: 0.15 });
-  document.querySelectorAll('.essay-section, .essay-end').forEach(el => revealObs.observe(el));
+  document.querySelectorAll('.essay-section, .essay-end, .numbers').forEach(el => revealObs.observe(el));
 
   // Mobile guard — the demo needs ~2 GB of GPU memory and WebGPU, neither
   // of which work on phones. Intercept /app/ links on narrow screens and
@@ -1035,7 +1267,7 @@
       <div class="mg-card">
         <div class="mg-eyebrow">Desktop only</div>
         <h3>Neuropulse runs a real 2 GB model on your GPU.</h3>
-        <p>Your phone browser doesn't have enough GPU memory — it will crash mid-download. Open <strong>neuropulse.zerotvm.com</strong> on a desktop Chrome, Edge, or Safari TP to try it.</p>
+        <p>Your phone browser doesn't have enough GPU memory — it will crash mid-download. Open <strong>neuropulse.live</strong> on a desktop Chrome, Edge, or Safari TP to try it.</p>
         <div class="mg-actions">
           <button class="mg-btn mg-copy" type="button">Copy link</button>
           <button class="mg-btn mg-dismiss" type="button">Got it</button>
@@ -1074,7 +1306,7 @@
     modal.querySelector('.mg-backdrop').addEventListener('click', closeGate);
     const copyBtn = modal.querySelector('.mg-copy');
     copyBtn.addEventListener('click', () => {
-      const url = 'https://neuropulse.zerotvm.com';
+      const url = 'https://neuropulse.live';
       navigator.clipboard?.writeText(url).then(() => {
         copyBtn.textContent = 'Copied ✓';
         copyBtn.classList.add('copied');
@@ -1083,6 +1315,10 @@
     });
   })();
 </script>
+
+<!-- Persistent page-wide Three.js backdrop — scroll drives particle morph,
+     readability-fade dims during essay body, brightens at hero/numbers/CTA. -->
+<script type="module" src="/src/canvas.ts"></script>
 
 </body>
 </html>
