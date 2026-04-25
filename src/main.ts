@@ -169,6 +169,8 @@ function initAblationPanel() {
     </div>
   `
   inputWrap.parentNode?.insertBefore(panel, inputWrap)
+  // Drag-to-move with localStorage persistence (`neuropulse:panel-pos:ablate-panel`).
+  makeDraggable(panel, 'ablate-panel')
 
   const statusEl = panel.querySelector<HTMLSpanElement>('#ablateStatus')!
   const runBtn = panel.querySelector<HTMLButtonElement>('#ablateRunBtn')!
@@ -519,6 +521,76 @@ function wireJourney(): void {
   journey.enter()
 }
 
+/** Make any element drag-to-move with viewport-clamped position persisted to
+ *  localStorage. Click-vs-drag is settled by a 5px movement threshold so a
+ *  small click on a pip still triggers the existing expand/collapse. While
+ *  dragging the .dragging class is added (cursor: grabbing, z-index bump). */
+function makeDraggable(el: HTMLElement, key: string) {
+  const STORAGE_KEY = `neuropulse:panel-pos:${key}`
+  const THRESH = 5
+
+  // Restore saved position (if any). We override top/right via inline
+  // styles so the per-class CSS dock is the *default*, not the cap.
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const { x, y } = JSON.parse(saved)
+      el.style.left = `${x}px`
+      el.style.top = `${y}px`
+      el.style.right = 'auto'
+      el.style.bottom = 'auto'
+    }
+  } catch { /* malformed JSON — fall back to CSS defaults */ }
+
+  el.addEventListener('mousedown', (e) => {
+    // Don't drag from interactive children — let buttons/inputs/sliders
+    // receive their own clicks.
+    const target = e.target as HTMLElement
+    if (target.closest('button, input, select, textarea, a')) return
+    // Only primary button.
+    if (e.button !== 0) return
+
+    const startX = e.clientX
+    const startY = e.clientY
+    const rect = el.getBoundingClientRect()
+    const offsetX = startX - rect.left
+    const offsetY = startY - rect.top
+    let moved = false
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX
+      const dy = ev.clientY - startY
+      if (!moved && (Math.abs(dx) > THRESH || Math.abs(dy) > THRESH)) {
+        moved = true
+        el.classList.add('dragging')
+      }
+      if (moved) {
+        const x = Math.max(0, Math.min(window.innerWidth  - 24, ev.clientX - offsetX))
+        const y = Math.max(0, Math.min(window.innerHeight - 24, ev.clientY - offsetY))
+        el.style.left = `${x}px`
+        el.style.top  = `${y}px`
+        el.style.right = 'auto'
+        el.style.bottom = 'auto'
+      }
+    }
+    const onUp = (ev: MouseEvent) => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      if (moved) {
+        el.classList.remove('dragging')
+        const r = el.getBoundingClientRect()
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: r.left, y: r.top })) } catch { /* quota */ }
+        // Swallow the click so it doesn't trigger expand/collapse on
+        // panels whose own click handler runs after mouseup.
+        ev.stopPropagation()
+        ev.preventDefault()
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  })
+}
+
 /** Click a pip panel → .expanded; click the injected × → collapse.
  * Also injects an "i" button that toggles the educational data-info caption.
  * Inputs/buttons/canvases inside an expanded panel don't collapse on click. */
@@ -560,6 +632,10 @@ function wirePanelToggles(): void {
     }
 
     panel.addEventListener('click', (e) => {
+      // If a drag just happened, mouseup already swallowed propagation.
+      // Belt-and-suspenders: ignore the click immediately after a drag
+      // by checking the lingering `dragging` class.
+      if (panel.classList.contains('dragging')) return
       if (!panel.classList.contains('expanded')) {
         panel.classList.add('expanded')
         return
@@ -569,7 +645,14 @@ function wirePanelToggles(): void {
       const t = e.target as HTMLElement
       if (t === panel) panel.classList.remove('expanded')
     })
+
+    // Drag-to-move with localStorage persistence. Key is class+id so each
+    // panel has a stable identity across reloads.
+    const key = (panel.id || '') + ':' + (panel.className || '').split(/\s+/)[0]
+    makeDraggable(panel, key)
   })
+  // (The ablation panel wires its own makeDraggable inside initAblationPanel
+  // since it lives outside .side and is created later.)
 }
 
 // ─── Replay scrubber — per-token snapshots of panel state + timeline UI ───

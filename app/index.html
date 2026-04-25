@@ -1084,6 +1084,23 @@ body.mode-journey .side > * {
   color: transparent;
 }
 
+/* In pip mode, force every CHILD element invisible — kills the streaming-
+   token content of .output-area leaking through as vertical letters in the
+   collapsed circle, and any chart/canvas that ignored font-size: 0. */
+body.mode-scene .side > *:not(.expanded) > *,
+body.mode-journey .side > *:not(.expanded) > * {
+  display: none !important;
+}
+
+/* Show the "drag me" cursor on every panel + ablation panel so users
+   know the layout is theirs to rearrange. */
+body.mode-scene .side > [data-anchor],
+body.mode-journey .side > [data-anchor],
+.ablate-panel { cursor: grab; }
+body.mode-scene .side > [data-anchor].dragging,
+body.mode-journey .side > [data-anchor].dragging,
+.ablate-panel.dragging { cursor: grabbing; z-index: 100; }
+
 /* ─── Game-HUD dock positions ────────────────────────────────────────
    Right rail starts BELOW the ablation panel which sits top:64..~340.
    Left rail starts at top: 64. Each pip is 16x16; stack with 36px gap.
@@ -1210,7 +1227,9 @@ body.mode-journey .side > *.expanded {
   height: auto;
   max-width: 380px;
   min-width: 220px;
-  padding: 16px 20px;
+  /* 36px top padding so the absolutely-positioned i + × buttons (top:6,
+     22px tall) don't overlap the first line of content. */
+  padding: 36px 20px 16px 20px;
   border-radius: 12px;
   background: rgba(8, 6, 15, 0.82);
   border: 1px solid rgba(94, 234, 212, 0.3);
