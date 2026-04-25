@@ -731,13 +731,26 @@ body.mode-scene .input-wrap:hover {
     inset 0 0 26px rgba(0, 229, 255, 0.08);
 }
 
-/* Sizing — prompt is wider (input + buttons), token-strip narrower */
+/* Sizing — prompt is wider (input + buttons), token-strip narrower.
+   Was max-width 560px + width:max-content — that caused the prompt input
+   to collapse to ~12px because flex:1 + max-content fights min-width on
+   the buttons, and let the goBtn's opaque background paint past the
+   container's rounded border. Now: fixed-ish width with a real min for
+   the text input so the layout stops eating itself. */
 body.mode-journey .input-wrap,
 body.mode-scene .input-wrap {
   padding: 10px 14px;
-  max-width: 560px;
-  width: max-content;
+  width: min(820px, calc(100vw - 40px));
+  max-width: none;
   gap: 8px;
+  /* Keep the rounded border clipping any oversized child backgrounds. */
+  overflow: hidden;
+}
+body.mode-journey .input-wrap input[type=text],
+body.mode-scene .input-wrap input[type=text] {
+  /* Prompt text input gets real estate to actually be a text input. */
+  min-width: 220px;
+  flex: 1 1 220px;
 }
 body.mode-journey .token-strip,
 body.mode-scene .token-strip {
