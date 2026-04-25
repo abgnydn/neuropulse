@@ -64,8 +64,10 @@ const TRANSCRIPT: { role: "user" | "assistant"; content: string }[] = [
 ]
 
 // Question whose correct answer requires the planted needle (msg 4).
-const NEEDLE_QUESTION = "Quick reminder — what was the actual root cause of the flaky session test?"
-const NEEDLE_FACT = "The root cause was that Date.now() was being called twice — once inside issueToken for the `exp` field, and once in the test assertion. On slow CI the two reads could land on different seconds, causing the off-by-one. It's a clock race, not a logic bug."
+// Phrased to require the SPECIFIC code-level mistake — pretraining alone
+// shouldn't be enough to answer correctly without the actual context.
+const NEEDLE_QUESTION = "Looking at lib/jwt.ts specifically — what is the exact code mistake that causes the off-by-one second in CI? Name the function and what it does wrong."
+const NEEDLE_FACT = "issueToken in lib/jwt.ts reads Date.now() once to compute the `exp` field. The test assertion ALSO reads Date.now() (a second time). On slow CI those two reads can land on different seconds, causing the off-by-one. The mistake is the second Date.now() read in the test — there should be one captured `now` shared between the call and the assertion."
 
 // Off-topic noise injected between metamorphoses. All clearly melt-able.
 const NOISE_BATCH: { role: "user" | "assistant"; content: string }[] = [
@@ -113,15 +115,24 @@ function parseTag(raw: string): "keep" | "summarize" | "melt" {
   return "keep" // fallback: don't lose info
 }
 
-// Loose match: did the answer mention the load-bearing parts of the needle?
-function checkPreservation(answer: string): "hit" | "miss" {
-  const a = answer.toLowerCase()
-  const hits = [
-    /date\.?now/.test(a),
-    /(twice|two\s+(times|reads|calls))/.test(a),
-    /(race|timing|clock)/.test(a),
-  ].filter(Boolean).length
-  return hits >= 2 ? "hit" : "miss"
+// LLM-as-judge: ask Phi-3 to grade the answer against the expected fact.
+// Replaces the regex heuristic — it was too strict and ignored partial
+// answers that an honest reader would credit. One extra engine call (~3s)
+// per arm; cheap enough to swap in.
+async function judgeAnswer(
+  engine: InferenceEngine,
+  question: string,
+  expectedFact: string,
+  answer: string,
+): Promise<"hit" | "partial" | "miss"> {
+  const prompt = `<|system|>\nYou grade whether an answer accurately conveys an expected fact for context-compaction evaluation.\n\nReturn STRICTLY a single digit at the END of your response:\n  2 = HIT     — answer accurately conveys the full expected fact (paraphrasing fine)\n  1 = PARTIAL — answer preserves the load-bearing identification (file, function, mechanism — what an engineer needs to act) but mis-states or omits a detail\n  0 = MISS    — fact missing, vague, or invented\n\nThe LAST CHARACTER of your reply MUST be 0, 1, or 2. Nothing after.<|end|>\n<|user|>\nQUESTION: ${question}\nEXPECTED FACT: ${expectedFact}\nANSWER:\n${answer}\n\nGrade. End with 0, 1, or 2.<|end|>\n<|assistant|>\n`
+  const raw = await engine.generate(prompt, 80, {})
+  const cleaned = raw.trim()
+  // Find LAST occurrence of 0/1/2 in the response
+  const m = cleaned.match(/[012](?!.*[012])/s)
+  if (!m) return "miss"
+  const score = Number(m[0])
+  return score === 2 ? "hit" : score === 1 ? "partial" : "miss"
 }
 
 // ─── Public API ──────────────────────────────────────────────────
@@ -225,8 +236,9 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     .bfly-arm-text { color: #f4ecdf; font-size: 11px; line-height: 1.4; word-break: break-word; max-height: 100px; overflow-y: auto; }
     .bfly-arm.win { box-shadow: 0 0 12px rgba(183, 148, 246, 0.4); }
     .bfly-verdict { font-size: 11px; margin-top: 4px; font-weight: 600; }
-    .bfly-verdict.hit  { color: #5fd8d4; }
-    .bfly-verdict.miss { color: #ff6b6b; }
+    .bfly-verdict.hit     { color: #5fd8d4; }
+    .bfly-verdict.partial { color: #ffd93d; }
+    .bfly-verdict.miss    { color: #ff6b6b; }
   `
   document.head.appendChild(style)
 
@@ -360,7 +372,7 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
         const tags: ("keep" | "summarize" | "melt")[] = []
         for (let i = 0; i < messages.length; i++) {
           const m = messages[i]
-          const prompt = `<|system|>\nClassify this single conversation message for context compaction. Reply with EXACTLY one word: keep, summarize, or melt.\n- keep = irreplaceable fact (root cause, owner, file:line, decision)\n- summarize = substantive but a one-line gist suffices\n- melt = greeting, ack, or filler<|end|>\n<|user|>\n[${m.role}]\n${m.content}<|end|>\n<|assistant|>\n`
+          const prompt = `<|system|>\nClassify ONE conversation message for context compaction. Reply with EXACTLY one word.\n\nDistribution: most messages are MELT. Use KEEP only when the message contains something irreplaceable.\n\nkeep      = irreplaceable atom — root cause named, owner+channel, file:line, decision, code snippet that was committed\nsummarize = substantive but a one-line gist suffices (multi-step explanation, verbose tool dump with one fact)\nmelt      = greetings, acks, "lgtm/ok/sure", restatements, dead-end tangents, polite framing\n\nExamples:\n"Sure. Share the file." -> melt\n"lgtm pushing." -> melt\n"agreed, ticket later" -> melt\n"Root cause: Date.now() called twice across an assertion boundary." -> keep\n"issueToken in lib/jwt.ts uses Date.now() to set exp; the test reads Date.now() again — clock race." -> keep\n"Sarah owns @company/jwt-utils, #auth-platform" -> keep\n"Read 87 lines, confirmed bug" -> summarize\n"Two reasons CI fails more: shared CPU stalls; narrow race window." -> summarize<|end|>\n<|user|>\n[${m.role}]\n${m.content}<|end|>\n<|assistant|>\n`
 
           // Capture per-layer post-norm residuals (step 8) during this tagger
           // call. Phi-3 has 32 layers × 3072-dim residual, so each tagger call
@@ -446,16 +458,26 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
 
       const aBfly = await engine.generate(ansPromptBfly, ANSWER_MAX, {})
       ansBfly.textContent = aBfly || "(empty)"
-      const vBfly = checkPreservation(aBfly)
-      verdictBfly.textContent = vBfly === "hit" ? "✓ needle preserved" : "✗ needle lost"
+
+      setStatus("Judging butterfly answer with Phi-3 (rubric)…")
+      const vBfly = await judgeAnswer(engine, NEEDLE_QUESTION, NEEDLE_FACT, aBfly)
+      verdictBfly.textContent =
+        vBfly === "hit" ? "✓ full preservation" :
+        vBfly === "partial" ? "◐ partial preservation" :
+        "✗ needle lost"
       verdictBfly.className = `bfly-verdict ${vBfly}`
       if (vBfly === "hit") armBfly.classList.add("win")
 
-      setProgress(95)
+      setProgress(92)
       const aLast = await engine.generate(ansPromptLast, ANSWER_MAX, {})
       ansLastn.textContent = aLast || "(empty)"
-      const vLast = checkPreservation(aLast)
-      verdictLast.textContent = vLast === "hit" ? "✓ needle preserved" : "✗ needle lost"
+
+      setStatus("Judging lastN answer with Phi-3 (rubric)…")
+      const vLast = await judgeAnswer(engine, NEEDLE_QUESTION, NEEDLE_FACT, aLast)
+      verdictLast.textContent =
+        vLast === "hit" ? "✓ full preservation" :
+        vLast === "partial" ? "◐ partial preservation" :
+        "✗ needle lost"
       verdictLast.className = `bfly-verdict ${vLast}`
       if (vLast === "hit") armLastn.classList.add("win")
 
