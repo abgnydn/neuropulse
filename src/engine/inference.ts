@@ -259,6 +259,11 @@ export interface ValidationReport {
 
 export interface InferenceEngine {
   generate(prompt: string, maxTokens: number, callbacks: InferenceCallbacks, ablations?: Ablation[]): Promise<string>
+  /** Request the in-flight `generate()` to stop at the next token boundary.
+   *  Returns truthfully whether a run was active when called. The promise
+   *  returned by the original generate() resolves cleanly with whatever was
+   *  decoded so far — it does NOT reject. */
+  interrupt(): boolean
   /** Dispatch only the embedding kernel for one token id and read back the
    *  first 32 dims. Purely a debugging hook for comparing the GPU's q4
    *  embedding against an HF fp16 reference. */
@@ -827,12 +832,29 @@ export async function createInferenceEngine(
 
   const STOP = new Set([2, 32000, 32007])
 
+  // Interrupt mechanism — engine.interrupt() flips this to true. The decode
+  // loop checks it after each token and exits cleanly with the partial
+  // string. Reset to false on every generate() entry.
+  let interruptRequested = false
+  let generationActive = false
+
+  function interrupt(): boolean {
+    const wasActive = generationActive
+    if (wasActive) interruptRequested = true
+    return wasActive
+  }
+
   async function generate(
     prompt: string,
     maxTokens: number,
     callbacks: InferenceCallbacks,
     ablations?: Ablation[]
   ): Promise<string> {
+    // Reset the interrupt latch and mark a run as active so engine.interrupt()
+    // can request a clean stop at the next token boundary.
+    interruptRequested = false
+    generationActive = true
+
     // Build a per-layer lookup once: layer -> Set<head> (empty set = ablate all heads)
     const ablationByLayer = new Map<number, Set<number> | 'all'>()
     for (const a of ablations ?? []) {
@@ -882,6 +904,9 @@ export async function createInferenceEngine(
 
     for (let i = 0; i < maxTokens; i++) {
       if (tokenId < 0 || tokenId >= PHI3.VOCAB || STOP.has(tokenId)) break
+      // External interrupt — caller wants to stop NOW (e.g. user typed a new
+      // prompt while we were generating). Bail with whatever we've decoded.
+      if (interruptRequested) break
 
       allIds.push(tokenId)
       const fullText = tokenizer.decode(allIds)
@@ -913,6 +938,8 @@ export async function createInferenceEngine(
       )
     }
 
+    generationActive = false
+    interruptRequested = false
     return tokenizer.decode(allIds)
   }
 
@@ -1568,7 +1595,7 @@ export async function createInferenceEngine(
   report('Engine ready!', { phase: 'done', percent: 100 })
 
   return {
-    generate, validateLastAttention, runValidationSuite, tokenizer,
+    generate, interrupt, validateLastAttention, runValidationSuite, tokenizer,
     debugEmbedToken,
     ready: true,
   }

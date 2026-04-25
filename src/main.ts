@@ -2269,9 +2269,32 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
 // ─── Dispatch ───
 function startInference(mode: 'think' | 'ask' = 'think') {
   const prompt = promptInput.value.trim()
-  if (!prompt || isRunning || isValidating) return
+  if (!prompt) return
+  if (isValidating) return  // never interrupt the validation suite
   if (!engine) return // no engine = no inference (error screen is already up)
   promptInput.value = ''
+
+  // If a generation is already running, ask it to stop at the next token
+  // boundary, then start the new one once the in-flight promise settles.
+  // The user's intent is "this prompt is now stale, run the new one."
+  if (isRunning) {
+    const wasInFlight = (engine as unknown as { interrupt?: () => boolean })
+      .interrupt?.() ?? false
+    if (wasInFlight) {
+      // Wait one frame so the await chain inside the running generate()
+      // can unwind cleanly (isRunning gets reset in its finally block).
+      const pollForIdle = () => {
+        if (!isRunning) {
+          runRealInference(prompt, mode)
+        } else {
+          requestAnimationFrame(pollForIdle)
+        }
+      }
+      requestAnimationFrame(pollForIdle)
+      return
+    }
+  }
+
   runRealInference(prompt, mode)
 }
 

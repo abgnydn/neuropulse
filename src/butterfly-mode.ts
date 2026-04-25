@@ -20,6 +20,33 @@
 // run one after the other. ~25-30 s per full run on M2-class hardware.
 
 import type { InferenceEngine } from "./engine/inference"
+import { normalizeFull } from "./engine/activation-reducer"
+
+// ─── 3D viz integration (v2) ─────────────────────────────────────
+// We hold an opaque viz handle. Only `updateResidualLayer(layer, vec)` is
+// called — that recolors one of the 32 residual-stream layer slabs the
+// neuropulse scene shows. By writing tag-modulated activations during the
+// butterfly run, the viewer literally watches keep-tagged content stay
+// bright across metamorphoses while melt-tagged content fades.
+interface ResidualViz {
+  updateResidualLayer(layer: number, vec: Float32Array): void
+}
+
+const RESIDUAL_DIM = 3072
+const RESIDUAL_LAYERS = 32
+
+// Modulation factors per tag: keep=bright, summarize=medium, melt=dim.
+// Multiplied with the *normalized* activation magnitude (0..1).
+const TAG_BRIGHTNESS = { keep: 1.0, summarize: 0.55, melt: 0.12 } as const
+
+// Decay applied to the accumulated slab between messages within one
+// generation, so older messages don't dominate forever. 0.7 = each new
+// message starts the previous-state at 70%, then accumulates fresh.
+const INTRA_GEN_DECAY = 0.7
+
+// Decay between generations — emphasizes that surviving brightness is the
+// "memory traces that made it through metamorphosis."
+const INTER_GEN_DECAY = 0.4
 
 // ─── Built-in demo content ───────────────────────────────────────
 
@@ -103,6 +130,9 @@ export interface ButterflyPanelOpts {
   getEngine: () => InferenceEngine | null
   isBusy: () => boolean
   setBusy: (busy: boolean) => void
+  /** Optional residual-stream visualizer. When provided, butterfly-mode
+   *  paints per-tag importance into the neuropulse 3D scene during a run. */
+  viz?: ResidualViz
 }
 
 export function initButterflyPanel(opts: ButterflyPanelOpts): void {
@@ -303,22 +333,75 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     let lastnMessages = TRANSCRIPT.slice()  // separate chain for the lastN baseline
     let lastChrysalis = ""
 
+    // ─── v2: residual-stream visualization ──────────────────────
+    // Per-layer accumulator. We modulate each tagged message's post-norm
+    // residual by its tag importance and write into the neuropulse 3D scene.
+    // Across the N generations, melt-tagged content fades; keep-tagged
+    // content stays bright — the metamorphosis-survival visual.
+    const slabAcc: Map<number, Float32Array> = new Map()
+    const decaySlab = (factor: number) => {
+      for (const [, vec] of slabAcc) for (let i = 0; i < vec.length; i++) vec[i] *= factor
+    }
+    const writeSlabToViz = () => {
+      if (!opts.viz) return
+      for (const [layer, vec] of slabAcc) opts.viz.updateResidualLayer(layer, vec)
+    }
+
     try {
       for (let gen = 1; gen <= N_GENERATIONS; gen++) {
         genNumEl.textContent = String(gen)
         setStatus(`Gen ${gen}/${N_GENERATIONS}: tagging ${messages.length} messages with Phi-3…`)
         tagsRow.innerHTML = ""
+
+        // Inter-generation fade: emphasize that surviving brightness is
+        // memory traces that made it through metamorphosis.
+        if (gen > 1) { decaySlab(INTER_GEN_DECAY); writeSlabToViz() }
+
         const tags: ("keep" | "summarize" | "melt")[] = []
         for (let i = 0; i < messages.length; i++) {
           const m = messages[i]
           const prompt = `<|system|>\nClassify this single conversation message for context compaction. Reply with EXACTLY one word: keep, summarize, or melt.\n- keep = irreplaceable fact (root cause, owner, file:line, decision)\n- summarize = substantive but a one-line gist suffices\n- melt = greeting, ack, or filler<|end|>\n<|user|>\n[${m.role}]\n${m.content}<|end|>\n<|assistant|>\n`
-          const raw = await engine.generate(prompt, TAG_MAX_TOKENS, {})
+
+          // Capture per-layer post-norm residuals (step 8) during this tagger
+          // call. Phi-3 has 32 layers × 3072-dim residual, so each tagger call
+          // populates a fresh per-layer slice. Only collect when viz is wired.
+          const layerActs: Map<number, Float32Array> = new Map()
+          const cb = opts.viz ? {
+            onLayer: (layer: number, step: number, _name: string, act?: Float32Array) => {
+              // step 8 = post-residual-norm hidden state, 3072 dims, after each layer's FFN
+              if (step === 8 && act && act.length === RESIDUAL_DIM && layer < RESIDUAL_LAYERS) {
+                layerActs.set(layer, new Float32Array(act))
+              }
+            }
+          } : {}
+
+          const raw = await engine.generate(prompt, TAG_MAX_TOKENS, cb)
           const tag = parseTag(raw)
           tags.push(tag)
           const chip = document.createElement("span")
           chip.className = `bfly-tag ${tag}`
           chip.textContent = `${i}: ${tag}`
           tagsRow.appendChild(chip)
+
+          // Modulate captured residuals by tag importance and accumulate.
+          if (opts.viz && layerActs.size > 0) {
+            const factor = TAG_BRIGHTNESS[tag]
+            decaySlab(INTRA_GEN_DECAY)  // fade older messages slightly each step
+            for (const [layer, raw] of layerActs) {
+              // Normalize raw activations to 0..1 using the engine's helper,
+              // multiply by the tag's brightness factor, max-pool with
+              // existing accumulator so brighter contributions dominate.
+              const normalized = normalizeFull(raw, true)
+              let acc = slabAcc.get(layer)
+              if (!acc) { acc = new Float32Array(RESIDUAL_DIM); slabAcc.set(layer, acc) }
+              for (let j = 0; j < RESIDUAL_DIM; j++) {
+                const contribution = normalized[j] * factor
+                if (contribution > acc[j]) acc[j] = contribution
+              }
+            }
+            writeSlabToViz()
+          }
+
           setProgress(((gen - 1) / N_GENERATIONS) * 100 + ((i + 1) / messages.length) * (100 / N_GENERATIONS) * 0.4)
         }
         const counts = tags.reduce(
