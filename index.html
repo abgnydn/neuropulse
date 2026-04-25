@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Neuropulse — Watch a real transformer think</title>
-<meta name="description" content="A live 3D rendering of Phi-3-mini running on your GPU. Every neuron, every attention head, every activation — drawn one-to-one from real WebGPU tensors. No server. No fakery." />
+<meta name="description" content="A live 3D rendering of Phi-3-mini running on your GPU. Every neuron, every attention head, every activation — drawn one-to-one from real WebGPU tensors. The whole model runs in your tab; close it and the inference stops." />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
@@ -937,7 +937,7 @@
         A real transformer, <em>laid&nbsp;bare.</em>
       </h1>
       <p class="hero-lede">
-        3.8 billion parameters. On your GPU, in your browser. Every point, every line, every pulse — a real tensor, read one-to-one. <strong>No mockup. No fake.</strong> <em>Shift-click any of the 1,024 attention heads to turn it off and watch what breaks.</em>
+        3.8 billion parameters. On your GPU, in your browser. Every point, every line, every pulse — a real tensor, read one-to-one. <strong>The model itself, drawn from the inside.</strong> <em>Shift-click any of the 1,024 attention heads to turn it off and watch what breaks.</em>
       </p>
       <div class="cta-row">
         <a href="/app/" class="btn btn-primary">
@@ -980,11 +980,11 @@
 
     <section class="essay-section lead">
       <div class="essay-num">01 · The Promise</div>
-      <h2>No mockups. <em>The actual model.</em></h2>
-      <p>Most "AI visualizations" online are decoration. Dots pulsing to a fake rhythm. A metaphor with no model behind it.</p>
-      <p>Neuropulse is the opposite. Every brightness, every line, every motion is a direct readout of a real <span class="mono">WebGPU</span> buffer mid-forward-pass. When the model thinks, you watch <em>it</em> think — not a representation.</p>
+      <h2>The model, <em>drawn from inside.</em></h2>
+      <p>Most "AI visualizations" online are decoration — dots pulsing to a chosen rhythm, animated metaphors built on top of static images. The model itself sits somewhere else entirely.</p>
+      <p>Neuropulse takes the opposite path. Every brightness, every line, every motion is a direct readout of a real <span class="mono">WebGPU</span> buffer mid-forward-pass. When the model thinks, you watch <em>it</em> think — the thing itself, not a representation of it.</p>
       <p class="pull">Strict 1:1. Every pixel a function of a real tensor.</p>
-      <p>3.8B weights in your GPU. Attention in <span class="mono">WGSL</span>. Next-token sampled in your tab. No server. No API key. Close the tab and the inference stops.</p>
+      <p>3.8B weights in your GPU. Attention in <span class="mono">WGSL</span>. Next-token sampled in your tab. The whole pipeline lives inside this page — close it and the inference stops with it.</p>
 
       <div class="evidence">
         <div class="evidence-row">
@@ -1108,21 +1108,21 @@
 
     <section class="essay-section">
       <div class="essay-num">04 · Causal Scrubbing</div>
-      <h2>You can <em>turn pieces off.</em></h2>
-      <p>Watching is the easy part. The new thing: <strong>shift-click any of the 1,024 attention-head spheres</strong> in the 3D scene and that head's contribution to the residual stream gets zeroed before O-projection — the canonical mech-interp single-head ablation, running live on the same WebGPU context that just rendered the frame. Click <strong>Run&nbsp;ablated</strong> and the same prompt generates twice, side-by-side: with the head, without it.</p>
+      <h2>And you can <em>reach in.</em></h2>
+      <p>Watching is the easy half. The harder, more interesting half: <strong>shift-click any of the 1,024 attention-head spheres</strong> and that head's contribution to the residual stream is zeroed before O-projection — the canonical single-head ablation from the mech-interp literature, running live on the same WebGPU context that just rendered the frame. Press <strong>Run&nbsp;ablated</strong> and the same prompt generates twice, side by side: once whole, once missing that one head.</p>
 
-      <p>Or pick a layer and run a 32-head sweep. Every head gets one short generation with itself alone zeroed; the panel paints a strip showing how much each head mattered. <strong>Cyan = this head did nothing here. Red = removing it broke the answer.</strong> About sixty seconds for one layer's importance map.</p>
+      <p>Or pick a layer, run a sweep, and let it ablate every head in turn. The panel paints a strip the model itself authored — each cell colored by how much the answer moved when that head went silent. <strong>Cool tones for the heads the prompt didn't need; warm ones for the heads it leaned on.</strong> About sixty seconds buys you a layer's importance map.</p>
 
       <div class="proof">
         <div class="head">═══ Verified ablation gradient · prompt: "Paris is the capital of" ═══</div>
         <div>&nbsp;</div>
-        <div><span class="label">{L0}</span> <span class="ok">all heads off</span> — barely moves the output. Layer-0 attention near the embeddings is heavily redundant.</div>
-        <div><span class="label">{L31}</span> <span class="ok">all heads off</span> — diverges at low-certainty positions. Final-layer FFN + residual still carry the decision.</div>
+        <div><span class="label">{L0}</span> <span class="ok">all heads off</span> — output barely shifts. Layer-0 attention near the embeddings is heavily redundant.</div>
+        <div><span class="label">{L31}</span> <span class="ok">all heads off</span> — diverges at the low-certainty positions. The final layer's FFN and residual still carry the decision.</div>
         <div><span class="label">{L28..L31}</span> <span class="ok">stacked</span> — generation hits the stop token early. Compounded ablation bites.</div>
-        <div><span class="label">all 32 layers off</span> — pure FFN + residual, zero token-to-token information flow. <span class="k">"-,unlintzegesenma\\. #quierudo\\i'mʔholmo&lt;0x95&gt;-"</span></div>
+        <div><span class="label">every layer off</span> — pure FFN + residual, no token-to-token information flow. <span class="k">"-,unlintzegesenma\\. #quierudo\\i'mʔholmo&lt;0x95&gt;-"</span></div>
       </div>
 
-      <p>This is the standard mech-interp primitive that has lived in Python notebooks on CPUs and A100s. <strong>Now it's in a browser, on your laptop, in real time, on a 3.8B model.</strong> The same trick that found "induction heads" — but you can run it yourself in the next thirty seconds.</p>
+      <p>This is the same primitive that found "induction heads" and traced the circuits behind in-context learning — work that, until now, lived in Python notebooks tethered to CPUs and A100s. <strong>Here it runs in a browser tab, on your laptop, in real time, on a 3.8B-parameter model.</strong> The next thirty seconds of your life can look exactly like a mech-interp paper figure.</p>
     </section>
 
     <hr class="essay-rule"/>
@@ -1185,7 +1185,7 @@
           <div class="numbers-cell">
             <div class="numbers-num"><em>0</em></div>
             <div class="numbers-label">servers</div>
-            <div class="numbers-sub">No API calls. No telemetry. No key. Close the tab and the inference stops.</div>
+            <div class="numbers-sub">Inference begins and ends inside this tab — every weight, every kernel, every readback. Close the tab; it's gone with you.</div>
           </div>
         </div>
       </div>
