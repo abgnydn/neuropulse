@@ -1,5 +1,6 @@
 import { BrainVisualizer, LayerActivation } from './visualizer'
 import { createInferenceEngine, InferenceEngine, LoadProgress, TopKEntry, Ablation } from './engine/inference'
+import { initButterflyPanel } from './butterfly-mode'
 import { reduceQKVForAttnHeads, reduceForAttnHeads, reduceForFFNGroups, reduceForResidual, normalizeFull } from './engine/activation-reducer'
 import { createJourney, JourneyHandle } from './journey'
 import { SpatialPanels } from './spatial-panels'
@@ -491,6 +492,10 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'a' || e.key === 'A') {
     // Toggle just the ablation panel.
     ;(window as unknown as { __toggleAblatePanel?: () => void }).__toggleAblatePanel?.()
+  } else if (e.key === 's' || e.key === 'S') {
+    // Toggle soft Gaussian-sprite rendering — discrete spheres become
+    // soft volumetric puffs. Picking still works (meshes stay raycastable).
+    ;(viz as unknown as { toggleSoftMode?: () => void }).toggleSoftMode?.()
   } else if (e.key === 'r' || e.key === 'R') {
     // Reset camera to home position via OrbitControls
     const controls = (viz as unknown as { controls?: { reset?: () => void } }).controls
@@ -2358,6 +2363,17 @@ async function initEngine() {
     })
 
     hideLoading()
+
+    // Butterfly mode (?mode=butterfly): floating panel runs an in-browser
+    // transgenerational compaction demo using the same Phi-3 instance.
+    // See src/butterfly-mode.ts.
+    if (new URLSearchParams(window.location.search).get('mode') === 'butterfly') {
+      initButterflyPanel({
+        getEngine: () => engine,
+        isBusy:    () => isRunning || isValidating,
+        setBusy:   (b) => { isRunning = b },
+      })
+    }
 
     // Devtools smoke test: window.__ablate('prompt', [{layer: 15}])
     // Runs two short generations — baseline and ablated — and logs both.

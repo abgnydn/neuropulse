@@ -123,6 +123,15 @@ export class BrainVisualizer {
   private neuronsByLayer: Map<number, NeuronData[]> = new Map()
 
   // ─── REAL-ARCHITECTURE GEOMETRY ─────────────────────────────
+  // Soft "Gaussian splat" view of the 1056 discrete neurons (32 layers × 32
+  // attn heads + 32 residual markers). One Points draw call, per-vertex
+  // color + size driven from the same `n.activation` the mesh path uses.
+  // The look-alike of 3DGS without 3DGS's training/photo-fit machinery.
+  private softPoints: THREE.Points | null = null
+  private softColors: Float32Array | null = null
+  private softSizes: Float32Array | null = null
+  private softMode = false
+
   // Dense residual column: 32 × 3072 instances as Points
   private residualSlab!: THREE.Points
   private residualSlabColors!: Float32Array
@@ -274,6 +283,7 @@ export class BrainVisualizer {
     this.generateKvStrips()
     this.generateEmbeddingNode()
     this.generateLmHead()
+    this.generateSoftPoints()
     // Journey-only cosmic backdrop — hidden by default, doesn't affect
     // strict 1:1 rendering in classic modes.
     this.generateStarfield()
@@ -737,6 +747,137 @@ export class BrainVisualizer {
     this.lmHeadStrip = new THREE.Points(geo, mat)
     this.scene.add(this.lmHeadStrip)
   }
+
+  // ─── Soft "Gaussian-splat" mode ─────────────────────────────
+  // One Points cloud over every discrete neuron position. Custom shader
+  // emits a perspective-scaled gl_PointSize; fragment shader does a radial
+  // exp(-r² × k) for a soft Gaussian falloff. Per-vertex color + size are
+  // updated each frame from the same `n.activation` / `n.ablated` state
+  // the existing mesh path uses, so the animation stays in sync.
+  //
+  // Hidden by default — toggled via setSoftMode(true) from main.ts (S key).
+  private generateSoftPoints() {
+    const n = this.neurons.length
+    const positions = new Float32Array(n * 3)
+    this.softColors = new Float32Array(n * 3)
+    this.softSizes = new Float32Array(n)
+
+    for (let i = 0; i < n; i++) {
+      const ne = this.neurons[i]
+      positions[i * 3]     = ne.position.x
+      positions[i * 3 + 1] = ne.position.y
+      positions[i * 3 + 2] = ne.position.z
+      // initial color: dim base
+      this.softColors[i * 3]     = 0.2
+      this.softColors[i * 3 + 1] = 0.6
+      this.softColors[i * 3 + 2] = 0.8
+      this.softSizes[i] = ne.role === 'residual' ? 0.18 : 0.13
+    }
+
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geo.setAttribute('aColor', new THREE.BufferAttribute(this.softColors, 3))
+    geo.setAttribute('aSize',  new THREE.BufferAttribute(this.softSizes,  1))
+
+    const mat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uPixelRatio: { value: Math.min(2, window.devicePixelRatio || 1) },
+        uViewportH:  { value: this.renderer.domElement.clientHeight || 1 },
+      },
+      vertexShader: /* glsl */ `
+        attribute vec3 aColor;
+        attribute float aSize;
+        varying vec3 vColor;
+        varying float vAlpha;
+        uniform float uPixelRatio;
+        uniform float uViewportH;
+        void main() {
+          vColor = aColor;
+          // Brightness rides on alpha (color × alpha = additive blend).
+          vAlpha = clamp(length(aColor), 0.0, 1.5);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mv;
+          // Perspective-scale: world-size aSize → pixel size via projection.
+          // Keeps each splat the right physical size as you zoom.
+          float pix = aSize * uPixelRatio * uViewportH * 0.5 / max(0.0001, -mv.z);
+          gl_PointSize = pix;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+          // Radial Gaussian: r in [0..1] across the sprite quad.
+          vec2 d = gl_PointCoord - vec2(0.5);
+          float r2 = dot(d, d) * 4.0;
+          float a = exp(-r2 * 4.0);
+          if (a < 0.01) discard;
+          gl_FragColor = vec4(vColor, a * vAlpha);
+        }
+      `,
+    })
+
+    this.softPoints = new THREE.Points(geo, mat)
+    this.softPoints.visible = false
+    this.softPoints.frustumCulled = false
+    this.scene.add(this.softPoints)
+  }
+
+  /** Drive per-vertex color/size from `n.activation` / `n.ablated` each
+   *  frame. Cheap — just rewrites two Float32Arrays once per frame. */
+  private updateSoftPoints() {
+    if (!this.softPoints || !this.softColors || !this.softSizes) return
+    const n = this.neurons.length
+    for (let i = 0; i < n; i++) {
+      const ne = this.neurons[i]
+      const act = ne.activation
+      let r: number, g: number, b: number, sz: number
+      if (ne.ablated) {
+        // Amber, pulse mirrors the mesh path
+        const pulse = 0.55 + 0.35 * Math.sin(performance.now() * 0.006)
+        r = 1.0 * pulse
+        g = 0.55 * pulse
+        b = 0.12 * pulse
+        sz = 0.22
+      } else if (ne.role === 'residual') {
+        // Cyan-teal stream
+        r = 0.10 + act * 0.30
+        g = 0.85 + act * 0.15
+        b = 0.95
+        sz = 0.20 + act * 0.18
+      } else {
+        // Attn heads: layer-tinted, brighter on activation
+        const t = ne.layer / 31
+        r = (0.20 + 0.40 * t) + act * 0.40
+        g = (0.55 + 0.30 * (1 - t)) + act * 0.20
+        b = 0.95 - 0.20 * t
+        sz = 0.13 + act * 0.18
+      }
+      this.softColors[i * 3]     = r
+      this.softColors[i * 3 + 1] = g
+      this.softColors[i * 3 + 2] = b
+      this.softSizes[i] = sz
+    }
+    const geo = this.softPoints.geometry
+    ;(geo.getAttribute('aColor') as THREE.BufferAttribute).needsUpdate = true
+    ;(geo.getAttribute('aSize')  as THREE.BufferAttribute).needsUpdate = true
+    // Keep viewport-height uniform fresh in case of resize.
+    const mat = this.softPoints.material as THREE.ShaderMaterial
+    mat.uniforms.uViewportH.value = this.renderer.domElement.clientHeight || 1
+  }
+
+  /** Toggle the soft-Gaussian render path. When on, the existing hard-
+   *  sphere meshes fade to opacity 0 (still raycastable for shift-click
+   *  picking) and the soft Points cloud takes over the visual. */
+  public setSoftMode(on: boolean): void {
+    this.softMode = on
+    if (this.softPoints) this.softPoints.visible = on
+  }
+  public toggleSoftMode(): void { this.setSoftMode(!this.softMode) }
+  public isSoftMode(): boolean { return this.softMode }
 
   // Curved synapse using quadratic bezier for the architectural wiring diagram
   private addCurvedSynapse(i: number, j: number) {
@@ -1361,6 +1502,18 @@ export class BrainVisualizer {
       const mat = this.lmHeadStrip.material as THREE.PointsMaterial
       mat.opacity = 0.5 + this.lmHeadActivation * 0.5
       this.lmHeadActivation = Math.max(0.2, this.lmHeadActivation - 0.005)
+    }
+
+    // Soft mode: drive the Gaussian-splat cloud from current activations,
+    // and collapse the hard-sphere meshes to invisible (still raycastable
+    // because mesh.visible stays true and material.transparent = true).
+    if (this.softMode) {
+      this.updateSoftPoints()
+      for (const n of this.neurons) {
+        const mat = n.mesh.material as THREE.MeshStandardMaterial
+        mat.opacity = 0
+        ;(n.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0
+      }
     }
 
     this.renderer.render(this.scene, this.camera)
