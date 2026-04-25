@@ -774,15 +774,16 @@ body.mode-journey .brain-wrap { opacity: 1 !important; }
   display: none;
   opacity: 0;
   pointer-events: none;
-  padding: 22px max(32px, 6vw) 40px;
+  /* Tighter padding so the HUD eats less of the bottom — was 22 / 40, now 12 / 16 */
+  padding: 12px max(32px, 6vw) 16px;
   background: linear-gradient(180deg,
     transparent 0%,
-    rgba(8, 6, 15, 0.45) 35%,
-    rgba(8, 6, 15, 0.82) 100%);
+    rgba(8, 6, 15, 0.42) 50%,
+    rgba(8, 6, 15, 0.78) 100%);
   transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: 'Inter', -apple-system, sans-serif;
 }
-.journey-inner { max-width: 960px; margin: 16px auto 0; }
+.journey-inner { max-width: 960px; margin: 8px auto 0; }
 
 /* 32-layer dot strip at the top of the HUD — shows past (cyan), current
    (amber, scaled up), and upcoming (dim neutral) layers at a glance. */
@@ -888,28 +889,29 @@ body.mode-journey .brain-wrap { opacity: 1 !important; }
   font-family: 'Fraunces', 'Iowan Old Style', Georgia, serif;
   font-variation-settings: 'opsz' 144, 'SOFT' 50;
   font-weight: 400;
-  font-size: clamp(2.1rem, 4.4vw, 3.6rem);
-  line-height: 1;
-  letter-spacing: -0.025em;
+  /* Was clamp(2.1, 4.4vw, 3.6) — too tall; tightened to fit a compact HUD */
+  font-size: clamp(1.15rem, 2.2vw, 1.7rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   color: #f4ecdf;
-  margin-bottom: 12px;
-  /* replay-able pop animation on caption change */
+  margin-bottom: 4px;
 }
 .journey-caption.flash {
   animation: journeyCaptionFlash 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 @keyframes journeyCaptionFlash {
-  0%   { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+  0%   { opacity: 0; transform: translateY(6px); filter: blur(2px); }
   100% { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
 .journey-sub {
   font-weight: 300;
-  font-size: 1.02rem;
-  line-height: 1.55;
+  /* Was 1.02 / 1.55 / 28 — way too much. Now compact two-liner max. */
+  font-size: 0.82rem;
+  line-height: 1.4;
   color: #8a8170;
-  max-width: 64ch;
-  margin-bottom: 28px;
+  max-width: 72ch;
+  margin-bottom: 10px;
 }
 
 .journey-bar-wrap {
@@ -991,9 +993,9 @@ body.mode-journey .brain-wrap { opacity: 1 !important; }
 body.panels-hidden .side { display: none !important; }
 
 @media (max-width: 720px) {
-  #journey-hud { padding: 40px 20px 24px; }
-  .journey-sub { font-size: 0.94rem; }
-  .journey-caption { font-size: clamp(1.7rem, 7vw, 2.4rem); }
+  #journey-hud { padding: 12px 16px 14px; }
+  .journey-sub { font-size: 0.78rem; margin-bottom: 8px; }
+  .journey-caption { font-size: clamp(1.05rem, 4.5vw, 1.4rem); margin-bottom: 4px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════

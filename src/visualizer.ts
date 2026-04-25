@@ -205,7 +205,8 @@ export class BrainVisualizer {
     // Camera
     const aspect = canvas.clientWidth / canvas.clientHeight
     this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 300)
-    this.camera.position.set(0, 1.2, 5.5)
+    // Slightly higher start so the model centers above the bottom HUD/prompt
+    this.camera.position.set(0, 1.6, 6.5)
 
     // Controls — user-driven only (no autoRotate in strict mode)
     this.controls = new OrbitControls(this.camera, canvas)
@@ -213,7 +214,12 @@ export class BrainVisualizer {
     this.controls.dampingFactor = 0.03
     this.controls.enableZoom = true
     this.controls.minDistance = 1.5
-    this.controls.maxDistance = 10
+    // Was 10 — bumped to 16 so the user can actually pull back when the
+    // bottom HUD + top-right ablation panel both want screen space.
+    this.controls.maxDistance = 16
+    // Lift the orbit target a touch so the model sits in the upper 60% of
+    // the viewport rather than dead-center, leaving the bottom strip clear.
+    this.controls.target.set(0, 0.4, 0)
 
     // Lights — plain illumination of the real geometry (no post-processing)
     this.scene.add(new THREE.AmbientLight(0x0a0a1e, 0.3))
