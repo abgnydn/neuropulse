@@ -1035,13 +1035,16 @@ body.mode-journey .side {
   grid-row: unset;
 }
 
-/* Each direct child of .side becomes a free-floating glass card. JS sets
-   its `transform` every frame from a projected 3D anchor point. */
+/* Game-HUD docking. Panels are absolutely positioned at fixed viewport
+   corners — not projected from 3D anchors. Each panel class gets a
+   specific corner via the rules below this block. The transform property
+   is reserved for pip-pulse animation; positioning is via top/right/etc.
+   so JS no longer needs to overwrite transforms every frame. */
 body.mode-scene .side > *,
 body.mode-journey .side > * {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: auto;
+  left: auto;
   margin: 0;
   pointer-events: auto;
   transform-origin: 50% 50%;
@@ -1067,6 +1070,67 @@ body.mode-journey .side > * {
   font-size: 0;  /* collapse all text to invisibility */
   color: transparent;
 }
+
+/* ─── Game-HUD dock positions ────────────────────────────────────────
+   Right rail starts BELOW the ablation panel which sits top:64..~340.
+   Left rail starts at top: 64. Each pip is 16x16; stack with 36px gap.
+   Expanded panels grow toward the center (transform-origin at the
+   anchored edge) so they don't fly off-screen.                       */
+
+/* Left rail — analytical readouts */
+body.mode-scene .side > .residual-panel,
+body.mode-journey .side > .residual-panel { top: 72px;  left: 16px; transform-origin: 0% 50%; }
+body.mode-scene .side > .delta-panel,
+body.mode-journey .side > .delta-panel    { top: 108px; left: 16px; transform-origin: 0% 50%; }
+body.mode-scene .side > .resstrip-panel,
+body.mode-journey .side > .resstrip-panel { top: 144px; left: 16px; transform-origin: 0% 50%; }
+body.mode-scene .side > .heatmap-panel,
+body.mode-journey .side > .heatmap-panel  { top: 180px; left: 16px; transform-origin: 0% 50%; }
+body.mode-scene .side > .raw-panel,
+body.mode-journey .side > .raw-panel      { top: 216px; left: 16px; transform-origin: 0% 50%; }
+
+/* Right rail — output stack (below ablation panel which ends ≈340px) */
+body.mode-scene .side > .side-header,
+body.mode-journey .side > .side-header     { top: 360px; right: 16px; left: auto; transform-origin: 100% 50%; }
+body.mode-scene .side > .output-area,
+body.mode-journey .side > .output-area     { top: 396px; right: 16px; left: auto; transform-origin: 100% 50%; }
+body.mode-scene .side > #topkPanel,
+body.mode-journey .side > #topkPanel       { top: 432px; right: 16px; left: auto; transform-origin: 100% 50%; }
+body.mode-scene .side > .confidence-panel,
+body.mode-journey .side > .confidence-panel { top: 468px; right: 16px; left: auto; transform-origin: 100% 50%; }
+
+/* Bottom-left — KV cache (just above the journey HUD) */
+body.mode-scene .side > #kvPanel,
+body.mode-journey .side > #kvPanel { bottom: 200px; left: 16px; top: auto; transform-origin: 0% 100%; }
+
+/* Token strip stays top-center as a wide bar (it's outside .side, but the
+   rule below ensures it sits where the user expects regardless of scene). */
+.token-strip { transform-origin: 50% 0%; }
+
+/* When a panel expands, it grows from its anchored edge — push it inward
+   instead of off-screen. We need an !important here because the .expanded
+   rule sets `width: max-content` which interacts with auto sizing. */
+body.mode-scene .side > .residual-panel.expanded,
+body.mode-scene .side > .delta-panel.expanded,
+body.mode-scene .side > .resstrip-panel.expanded,
+body.mode-scene .side > .heatmap-panel.expanded,
+body.mode-scene .side > .raw-panel.expanded,
+body.mode-journey .side > .residual-panel.expanded,
+body.mode-journey .side > .delta-panel.expanded,
+body.mode-journey .side > .resstrip-panel.expanded,
+body.mode-journey .side > .heatmap-panel.expanded,
+body.mode-journey .side > .raw-panel.expanded { z-index: 6; }
+
+body.mode-scene .side > .side-header.expanded,
+body.mode-scene .side > .output-area.expanded,
+body.mode-scene .side > #topkPanel.expanded,
+body.mode-scene .side > .confidence-panel.expanded,
+body.mode-scene .side > #kvPanel.expanded,
+body.mode-journey .side > .side-header.expanded,
+body.mode-journey .side > .output-area.expanded,
+body.mode-journey .side > #topkPanel.expanded,
+body.mode-journey .side > .confidence-panel.expanded,
+body.mode-journey .side > #kvPanel.expanded { z-index: 6; }
 
 /* Pip pulse so each anchor has visible life even when quiet */
 body.mode-scene .side > *:not(.expanded)::before,

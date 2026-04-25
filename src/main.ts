@@ -441,8 +441,9 @@ function setMode(mode: ViewMode) {
     btn.classList.toggle('active', btn.dataset.mode === mode)
   }
   if (mode === 'journey' && journey) journey.enter()
-  // Universe view: 3D-anchored floating panels are live only in scene mode.
-  if (spatial) spatial.enable(mode === 'scene')
+  // Spatial-panel projection is permanently disabled — panels dock via CSS
+  // (game-style HUD). Left here as a no-op for symmetry; do not re-enable.
+  if (spatial) spatial.enable(false)
   // Force a one-shot re-render of mode-specific views from cached state so
   // the hero isn't blank when switching mid-decode.
   if (mode === 'attention' && lastAttentionScores) {
@@ -507,14 +508,15 @@ window.addEventListener('keydown', (e) => {
 function wireJourney(): void {
   if (journey) return
   journey = createJourney(viz)
+  // SpatialPanels (camera-space projection of [data-anchor] elements) is
+  // intentionally NOT enabled here. Game-quality HUDs dock to viewport
+  // corners; they do not orbit with the camera. CSS rules in app/index.html
+  // handle per-panel docking by class. The instance is still created so
+  // any code that calls into it remains a no-op.
   spatial = new SpatialPanels(viz)
   spatial.registerFromDOM()
   wirePanelToggles()
-  // Unified universe: always-on journey camera + always-on spatial panels.
-  // No matter which legacy mode class is on <body>, the floating-pips UX
-  // is present everywhere.
   journey.enter()
-  spatial.enable(true)
 }
 
 /** Click a pip panel → .expanded; click the injected × → collapse.
