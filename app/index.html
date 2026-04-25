@@ -1101,66 +1101,157 @@ body.mode-scene .side > [data-anchor].dragging,
 body.mode-journey .side > [data-anchor].dragging,
 .ablate-panel.dragging { cursor: grabbing; z-index: 100; }
 
-/* ─── Game-HUD dock positions ────────────────────────────────────────
-   Right rail starts BELOW the ablation panel which sits top:64..~340.
-   Left rail starts at top: 64. Each pip is 16x16; stack with 36px gap.
-   Expanded panels grow toward the center (transform-origin at the
-   anchored edge) so they don't fly off-screen.                       */
+/* ─── Game-HUD layout v2 ─────────────────────────────────────────────
+   TOP-LEFT  : input bar (Ask / Think + tools)
+   TOP-CENTER: answer card — always open, streams the live generation
+   TOP-RIGHT : PANELS toggle + ablation panel
+   BOTTOM    : horizontal pip rail above the journey HUD (positioned by JS)
+   CENTER    : the 3D model — never obstructed by panels */
 
-/* Left rail — analytical readouts */
-body.mode-scene .side > .residual-panel,
-body.mode-journey .side > .residual-panel { top: 72px;  left: 16px; transform-origin: 0% 50%; }
-body.mode-scene .side > .delta-panel,
-body.mode-journey .side > .delta-panel    { top: 108px; left: 16px; transform-origin: 0% 50%; }
-body.mode-scene .side > .resstrip-panel,
-body.mode-journey .side > .resstrip-panel { top: 144px; left: 16px; transform-origin: 0% 50%; }
-body.mode-scene .side > .heatmap-panel,
-body.mode-journey .side > .heatmap-panel  { top: 180px; left: 16px; transform-origin: 0% 50%; }
-body.mode-scene .side > .raw-panel,
-body.mode-journey .side > .raw-panel      { top: 216px; left: 16px; transform-origin: 0% 50%; }
+/* Input bar pinned top-left */
+body.mode-scene .input-wrap,
+body.mode-journey .input-wrap {
+  top: 16px;
+  left: 16px;
+  bottom: auto;
+  right: auto;
+  transform: none !important;
+  width: min(720px, calc(100vw - 460px));
+}
 
-/* Right rail — output stack (below ablation panel which ends ≈340px) */
+/* "AI Output" label panel is redundant now — the top-center answer card
+   carries that role. Hide it so it doesn't show up as a stray pip. */
 body.mode-scene .side > .side-header,
-body.mode-journey .side > .side-header     { top: 360px; right: 16px; left: auto; transform-origin: 100% 50%; }
-body.mode-scene .side > .output-area,
-body.mode-journey .side > .output-area     { top: 396px; right: 16px; left: auto; transform-origin: 100% 50%; }
-body.mode-scene .side > #topkPanel,
-body.mode-journey .side > #topkPanel       { top: 432px; right: 16px; left: auto; transform-origin: 100% 50%; }
-body.mode-scene .side > .confidence-panel,
-body.mode-journey .side > .confidence-panel { top: 468px; right: 16px; left: auto; transform-origin: 100% 50%; }
+body.mode-journey .side > .side-header { display: none !important; }
 
-/* Bottom-left — KV cache (just above the journey HUD) */
-body.mode-scene .side > #kvPanel,
-body.mode-journey .side > #kvPanel { bottom: 200px; left: 16px; top: auto; transform-origin: 0% 100%; }
+/* Output (#output) becomes the always-open top-center answer card.
+   Override every aspect of the pip system so it doesn't collapse. */
+body.mode-scene .side > #output,
+body.mode-journey .side > #output {
+  position: fixed !important;
+  top: 96px !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translateX(-50%) !important;
+  width: min(640px, calc(100vw - 760px));
+  min-width: 320px !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: 38vh;
+  padding: 14px 20px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(94, 234, 212, 0.3) !important;
+  background: rgba(8, 6, 15, 0.82) !important;
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 14px 50px rgba(0, 0, 0, 0.55), inset 0 0 22px rgba(0, 229, 255, 0.05);
+  font-size: 14px !important;
+  color: #f4ecdf !important;
+  line-height: 1.55;
+  cursor: default !important;
+  overflow: auto !important;
+  z-index: 18;
+}
+body.mode-scene .side > #output > *,
+body.mode-journey .side > #output > * {
+  display: revert !important;  /* undo pip-mode display:none */
+}
+body.mode-scene .side > #output::before,
+body.mode-journey .side > #output::before { display: none !important; }
+body.mode-scene .side > #output:not(.expanded),
+body.mode-journey .side > #output:not(.expanded) {
+  font-size: 14px !important;
+  color: #f4ecdf !important;
+  border-radius: 12px !important;
+}
 
-/* Token strip stays top-center as a wide bar (it's outside .side, but the
-   rule below ensures it sits where the user expects regardless of scene). */
-.token-strip { transform-origin: 50% 0%; }
+/* All other [data-anchor] panels start as small orbs in the bottom rail.
+   Exact horizontal position is computed by layoutBottomOrbRail() in JS so
+   the row stays centered + responsive. CSS just sets the bottom offset. */
+body.mode-scene .side > [data-anchor]:not(#output):not(.side-header),
+body.mode-journey .side > [data-anchor]:not(#output):not(.side-header) {
+  bottom: 200px;
+  top: auto;
+  right: auto;
+  transform-origin: 50% 100%;
+}
 
-/* When a panel expands, it grows from its anchored edge — push it inward
-   instead of off-screen. We need an !important here because the .expanded
-   rule sets `width: max-content` which interacts with auto sizing. */
-body.mode-scene .side > .residual-panel.expanded,
-body.mode-scene .side > .delta-panel.expanded,
-body.mode-scene .side > .resstrip-panel.expanded,
-body.mode-scene .side > .heatmap-panel.expanded,
-body.mode-scene .side > .raw-panel.expanded,
-body.mode-journey .side > .residual-panel.expanded,
-body.mode-journey .side > .delta-panel.expanded,
-body.mode-journey .side > .resstrip-panel.expanded,
-body.mode-journey .side > .heatmap-panel.expanded,
-body.mode-journey .side > .raw-panel.expanded { z-index: 6; }
+/* Different orb hue per panel — each gets its own identity color so the
+   rail reads as a palette, not a stamp set. Pip mode only. */
+body.mode-scene #kvPanel:not(.expanded),
+body.mode-journey #kvPanel:not(.expanded) {
+  border-color: rgba(255, 140, 66, 0.78);
+  background: radial-gradient(circle, rgba(255, 140, 66, 0.7), rgba(255, 140, 66, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(255, 140, 66, 0.55), inset 0 0 6px rgba(255, 140, 66, 0.6);
+}
+body.mode-scene .residual-panel:not(.expanded),
+body.mode-journey .residual-panel:not(.expanded) {
+  border-color: rgba(94, 234, 212, 0.78);
+  background: radial-gradient(circle, rgba(94, 234, 212, 0.7), rgba(94, 234, 212, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(94, 234, 212, 0.55), inset 0 0 6px rgba(94, 234, 212, 0.6);
+}
+body.mode-scene .delta-panel:not(.expanded),
+body.mode-journey .delta-panel:not(.expanded) {
+  border-color: rgba(255, 200, 100, 0.78);
+  background: radial-gradient(circle, rgba(255, 200, 100, 0.7), rgba(255, 200, 100, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(255, 200, 100, 0.55), inset 0 0 6px rgba(255, 200, 100, 0.6);
+}
+body.mode-scene .resstrip-panel:not(.expanded),
+body.mode-journey .resstrip-panel:not(.expanded) {
+  border-color: rgba(180, 130, 255, 0.78);
+  background: radial-gradient(circle, rgba(180, 130, 255, 0.7), rgba(180, 130, 255, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(180, 130, 255, 0.55), inset 0 0 6px rgba(180, 130, 255, 0.6);
+}
+body.mode-scene .heatmap-panel:not(.expanded),
+body.mode-journey .heatmap-panel:not(.expanded) {
+  border-color: rgba(255, 100, 180, 0.78);
+  background: radial-gradient(circle, rgba(255, 100, 180, 0.7), rgba(255, 100, 180, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(255, 100, 180, 0.55), inset 0 0 6px rgba(255, 100, 180, 0.6);
+}
+body.mode-scene #topkPanel:not(.expanded),
+body.mode-journey #topkPanel:not(.expanded) {
+  border-color: rgba(0, 229, 255, 0.78);
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.7), rgba(0, 229, 255, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.55), inset 0 0 6px rgba(0, 229, 255, 0.6);
+}
+body.mode-scene .confidence-panel:not(.expanded),
+body.mode-journey .confidence-panel:not(.expanded) {
+  border-color: rgba(150, 255, 100, 0.78);
+  background: radial-gradient(circle, rgba(150, 255, 100, 0.7), rgba(150, 255, 100, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(150, 255, 100, 0.55), inset 0 0 6px rgba(150, 255, 100, 0.6);
+}
+body.mode-scene .raw-panel:not(.expanded),
+body.mode-journey .raw-panel:not(.expanded) {
+  border-color: rgba(244, 236, 223, 0.55);
+  background: radial-gradient(circle, rgba(244, 236, 223, 0.45), rgba(244, 236, 223, 0.08) 70%);
+  box-shadow: 0 0 16px rgba(244, 236, 223, 0.32), inset 0 0 6px rgba(244, 236, 223, 0.4);
+}
 
-body.mode-scene .side > .side-header.expanded,
-body.mode-scene .side > .output-area.expanded,
-body.mode-scene .side > #topkPanel.expanded,
-body.mode-scene .side > .confidence-panel.expanded,
-body.mode-scene .side > #kvPanel.expanded,
-body.mode-journey .side > .side-header.expanded,
-body.mode-journey .side > .output-area.expanded,
-body.mode-journey .side > #topkPanel.expanded,
-body.mode-journey .side > .confidence-panel.expanded,
-body.mode-journey .side > #kvPanel.expanded { z-index: 6; }
+/* CSS-only hover tooltip for orbs — uses the data-title attribute. */
+body.mode-scene .side > [data-anchor]:not(.expanded):hover::after,
+body.mode-journey .side > [data-anchor]:not(.expanded):hover::after {
+  content: attr(data-title);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  background: rgba(8, 6, 15, 0.92);
+  border: 1px solid rgba(244, 236, 223, 0.18);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #f4ecdf;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  z-index: 20;
+}
+
+/* Expanded panel z-index bump so it floats above peers */
+body.mode-scene .side > [data-anchor].expanded,
+body.mode-journey .side > [data-anchor].expanded { z-index: 6; }
 
 /* Pip pulse so each anchor has visible life even when quiet */
 body.mode-scene .side > *:not(.expanded)::before,

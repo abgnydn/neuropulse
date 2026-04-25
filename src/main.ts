@@ -73,8 +73,33 @@ function initAblationPanel() {
       color: #f4ecdf; font-family: inherit; font-size: 12px;
       box-shadow: 0 0 24px rgba(255, 154, 31, 0.18);
       display: none;
+      transition: width 0.25s ease, height 0.25s ease, padding 0.25s ease, border-radius 0.25s ease;
     }
     .ablate-panel.open { display: block; }
+    /* Collapsed pip mode — same size + treatment as the bottom-rail orbs,
+       amber-tinted to keep its identity. Click to re-expand. */
+    .ablate-panel.collapsed {
+      width: 18px; height: 18px;
+      padding: 0;
+      overflow: hidden;
+      border-radius: 50%;
+      border-width: 2px;
+      background: radial-gradient(circle, rgba(255, 154, 31, 0.7), rgba(255, 154, 31, 0.12) 70%);
+      box-shadow: 0 0 16px rgba(255, 154, 31, 0.55), inset 0 0 6px rgba(255, 154, 31, 0.6);
+      cursor: pointer;
+    }
+    .ablate-panel.collapsed > * { display: none !important; }
+    .ablate-panel.collapsed:hover::after {
+      content: 'Ablation';
+      position: absolute;
+      top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+      padding: 4px 10px;
+      background: rgba(8, 6, 15, 0.92);
+      border: 1px solid rgba(244, 236, 223, 0.18);
+      border-radius: 4px; font-size: 11px; color: #f4ecdf;
+      white-space: nowrap; pointer-events: none;
+      letter-spacing: 0.02em;
+    }
     /* Sync with the global panels toggle (P / Tab) — when other panels hide,
        this hides too. Pressing A re-toggles it independently. */
     body.panels-hidden .ablate-panel { display: none !important; }
@@ -186,13 +211,32 @@ function initAblationPanel() {
   function setPanelOpen(open: boolean) {
     panel.classList.toggle('open', open)
   }
+  function setCollapsed(collapsed: boolean) {
+    panel.classList.toggle('collapsed', collapsed)
+  }
   // Open by default. Shift-clicking heads will also force-open it.
   setPanelOpen(true)
-  closeBtn.addEventListener('click', () => setPanelOpen(false))
 
-  // Expose toggle for the global keymap (A key).
+  // × button collapses to a pip rather than hiding entirely. Click the pip
+  // to expand. Drag still works on both states.
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    setCollapsed(true)
+  })
+  panel.addEventListener('click', (e) => {
+    if (!panel.classList.contains('collapsed')) return
+    if (panel.dataset.justDragged) return
+    // Don't expand from a child button — but the close button doesn't exist
+    // in collapsed mode (children hidden), so any click is a "wake up".
+    setCollapsed(false)
+    e.stopPropagation()
+  })
+
+  // Expose toggle for the global keymap (A key) — toggles collapsed state
+  // when the panel is open, and toggles open visibility otherwise.
   ;(window as unknown as { __toggleAblatePanel: () => void }).__toggleAblatePanel = () => {
-    setPanelOpen(!panel.classList.contains('open'))
+    if (!panel.classList.contains('open')) { setPanelOpen(true); setCollapsed(false); return }
+    setCollapsed(!panel.classList.contains('collapsed'))
   }
 
   function setSelectionStatus(abls: { layer: number; head: number }[]) {
@@ -577,6 +621,12 @@ function makeDraggable(el: HTMLElement, key: string) {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       if (moved) {
+        // Mark the post-drag window so the click handler bails. Use a data
+        // attribute (read by the click handler) and a delayed cleanup —
+        // the click event fires AFTER mouseup so we have to be still set
+        // when it lands.
+        el.dataset.justDragged = '1'
+        setTimeout(() => { delete el.dataset.justDragged }, 200)
         el.classList.remove('dragging')
         const r = el.getBoundingClientRect()
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: r.left, y: r.top })) } catch { /* quota */ }
@@ -632,9 +682,10 @@ function wirePanelToggles(): void {
     }
 
     panel.addEventListener('click', (e) => {
-      // If a drag just happened, mouseup already swallowed propagation.
-      // Belt-and-suspenders: ignore the click immediately after a drag
-      // by checking the lingering `dragging` class.
+      // Drag must NOT trigger expand. justDragged is set by makeDraggable
+      // immediately after a real movement; cleared 200 ms later. The click
+      // event fires after mouseup so it lands inside that window.
+      if (panel.dataset.justDragged) return
       if (panel.classList.contains('dragging')) return
       if (!panel.classList.contains('expanded')) {
         panel.classList.add('expanded')
@@ -653,6 +704,46 @@ function wirePanelToggles(): void {
   })
   // (The ablation panel wires its own makeDraggable inside initAblationPanel
   // since it lives outside .side and is created later.)
+
+  // Set the hover tooltip on every orb from data-title.
+  document.querySelectorAll<HTMLElement>('.side > [data-anchor][data-title]').forEach(p => {
+    if (!p.hasAttribute('title')) p.setAttribute('title', p.dataset.title || '')
+  })
+
+  layoutBottomOrbRail()
+  window.addEventListener('resize', layoutBottomOrbRail)
+}
+
+/** Lay out every [data-anchor] panel except #output (top-center answer
+ *  card) and .side-header (hidden) as a centered horizontal pip rail
+ *  along the bottom, just above the journey HUD. Saved positions in
+ *  localStorage trump these defaults. */
+function layoutBottomOrbRail() {
+  const ORB_GAP = 32
+  const ORB_SIZE = 16
+  const RAIL_BOTTOM = 200
+
+  const panels = Array.from(
+    document.querySelectorAll<HTMLElement>('.side > [data-anchor]')
+  ).filter(p => p.id !== 'output' && !p.classList.contains('side-header')
+                 && getComputedStyle(p).display !== 'none')
+
+  const total = panels.length
+  if (total === 0) return
+  const totalWidth = total * ORB_SIZE + (total - 1) * ORB_GAP
+  const startX = (window.innerWidth - totalWidth) / 2
+
+  panels.forEach((p, i) => {
+    // Honor any user-dragged position saved in localStorage.
+    const key = (p.id || '') + ':' + (p.className || '').split(/\s+/)[0]
+    const saved = localStorage.getItem(`neuropulse:panel-pos:${key}`)
+    if (saved) return
+
+    p.style.left = `${startX + i * (ORB_SIZE + ORB_GAP)}px`
+    p.style.bottom = `${RAIL_BOTTOM}px`
+    p.style.top = 'auto'
+    p.style.right = 'auto'
+  })
 }
 
 // ─── Replay scrubber — per-token snapshots of panel state + timeline UI ───
