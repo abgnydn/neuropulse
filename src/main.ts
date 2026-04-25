@@ -2397,6 +2397,9 @@ async function initEngine() {
         getEngine: () => engine,
         isBusy:    () => isRunning || isValidating,
         setBusy:   (b) => { isRunning = b },
+        // v2: pass the visualizer so butterfly-mode paints tag importance
+        // into the residual-stream slab during a run.
+        viz:       viz as unknown as { updateResidualLayer(layer: number, vec: Float32Array): void },
       })
     }
 
