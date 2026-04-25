@@ -64,8 +64,8 @@ function initAblationPanel() {
   const style = document.createElement('style')
   style.textContent = `
     .ablate-panel {
-      position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%);
-      width: min(900px, calc(100vw - 32px));
+      position: fixed; top: 64px; right: 20px;
+      width: 360px; max-height: calc(100vh - 100px); overflow-y: auto;
       background: rgba(12, 14, 20, 0.92); backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 154, 31, 0.45);
       border-radius: 10px; padding: 12px 14px; z-index: 20;
@@ -74,8 +74,22 @@ function initAblationPanel() {
       display: none;
     }
     .ablate-panel.open { display: block; }
-    .ablate-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-    .ablate-status { color: #ff9a1f; font-weight: 600; flex: 1; min-width: 120px; }
+    /* Sync with the global panels toggle (P / Tab) — when other panels hide,
+       this hides too. Pressing A re-toggles it independently. */
+    body.panels-hidden .ablate-panel { display: none !important; }
+    @media (max-width: 900px) {
+      .ablate-panel { right: 10px; left: 10px; width: auto; }
+    }
+    .ablate-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .ablate-status { color: #ff9a1f; font-weight: 600; flex: 1 1 100%; min-width: 0; font-size: 11px; }
+    .ablate-close {
+      background: transparent; border: 1px solid rgba(244,236,223,0.18);
+      color: #8a7f6c; width: 22px; height: 22px; border-radius: 50%;
+      cursor: pointer; font-size: 11px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      flex: 0 0 auto;
+    }
+    .ablate-close:hover { color: #f4ecdf; border-color: #f4ecdf; }
     .ablate-hint { color: #8a7f6c; font-size: 11px; font-style: italic; }
     .ablate-btn {
       background: rgba(255, 154, 31, 0.18); color: #ffd28a;
@@ -89,7 +103,8 @@ function initAblationPanel() {
     .ablate-btn.clear:hover { color: #f4ecdf; border-color: #514a3e; }
     .ablate-btn.sweep { background: rgba(0, 229, 255, 0.12); color: #00e5ff; border-color: rgba(0, 229, 255, 0.5); }
     .ablate-btn.sweep:hover { background: rgba(0, 229, 255, 0.22); color: #fff; }
-    .ablate-outputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    /* Stacked vertically — top-right panel is narrow, side-by-side wraps badly */
+    .ablate-outputs { display: flex; flex-direction: column; gap: 8px; }
     .ablate-output { background: rgba(0,0,0,0.35); border-radius: 6px; padding: 8px 10px; min-height: 36px; }
     .ablate-output-label { color: #8a7f6c; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
     .ablate-output-label.abl { color: #ff9a1f; }
@@ -132,6 +147,7 @@ function initAblationPanel() {
       <span class="ablate-status" id="ablateStatus">No heads ablated — shift-click attention spheres, or sweep a layer to see impact.</span>
       <button class="ablate-btn" id="ablateRunBtn" type="button" disabled>Run ablated</button>
       <button class="ablate-btn clear" id="ablateClearBtn" type="button">Clear</button>
+      <button class="ablate-close" id="ablateCloseBtn" type="button" aria-label="Hide ablation panel (A)" title="Hide · A">✕</button>
     </div>
     <div class="ablate-sweep-row">
       <label for="ablateSweepLayer">Sweep layer</label>
@@ -162,6 +178,19 @@ function initAblationPanel() {
   const sweepBtn = panel.querySelector<HTMLButtonElement>('#ablateSweepBtn')!
   const sweepStatus = panel.querySelector<HTMLSpanElement>('#ablateSweepStatus')!
   const stripEl = panel.querySelector<HTMLDivElement>('#ablateStrip')!
+  const closeBtn = panel.querySelector<HTMLButtonElement>('#ablateCloseBtn')!
+
+  function setPanelOpen(open: boolean) {
+    panel.classList.toggle('open', open)
+  }
+  // Open by default. Shift-clicking heads will also force-open it.
+  setPanelOpen(true)
+  closeBtn.addEventListener('click', () => setPanelOpen(false))
+
+  // Expose toggle for the global keymap (A key).
+  ;(window as unknown as { __toggleAblatePanel: () => void }).__toggleAblatePanel = () => {
+    setPanelOpen(!panel.classList.contains('open'))
+  }
 
   function setSelectionStatus(abls: { layer: number; head: number }[]) {
     if (abls.length === 0) {
@@ -177,6 +206,9 @@ function initAblationPanel() {
 
   viz.onAblationChange = (abls) => {
     setSelectionStatus(abls)
+    // When the user shift-clicks a head, force the panel open so they
+    // see what just happened. Closing it is on them (× button or A key).
+    if (abls.length > 0) setPanelOpen(true)
     // Sync the strip's picked markers with the visualizer's truth.
     const picked = new Set(abls.map(a => `${a.layer}:${a.head}`))
     stripEl.querySelectorAll<HTMLDivElement>('.ablate-strip-cell').forEach(cell => {
@@ -265,6 +297,17 @@ function initAblationPanel() {
     if (isRunning || isValidating) { alert('Inference already in flight.'); return }
     const L = Math.max(0, Math.min(31, Number(sweepLayerInput.value) || 0))
     sweepLayerInput.value = String(L)
+
+    // Heads-up before a multi-minute GPU load. The mobile guard already
+    // blocks phones from reaching the panel at all (__NEUROPULSE_MOBILE_BLOCK__
+    // / matchMedia ≤ 820px in app/index.html); this confirm protects desktops
+    // with weak/integrated GPUs from inadvertently melting their fans.
+    const ok = confirm(
+      `Sweep layer ${L}: 33 short generations on your GPU (1 baseline + 32 ablated).\n\n` +
+      `Roughly 60 seconds of sustained full GPU load. Laptop fans will spin up.\n\n` +
+      `Continue?`
+    )
+    if (!ok) return
 
     const prompt = (promptInput.value.trim() || 'Paris is the capital of')
     const maxTokens = 8  // short: sweep is qualitative, not the final answer
@@ -445,6 +488,9 @@ window.addEventListener('keydown', (e) => {
     togglePanels()
   } else if (e.key === 'h' || e.key === 'H') {
     toggleJourneyHud()
+  } else if (e.key === 'a' || e.key === 'A') {
+    // Toggle just the ablation panel.
+    ;(window as unknown as { __toggleAblatePanel?: () => void }).__toggleAblatePanel?.()
   } else if (e.key === 'r' || e.key === 'R') {
     // Reset camera to home position via OrbitControls
     const controls = (viz as unknown as { controls?: { reset?: () => void } }).controls
