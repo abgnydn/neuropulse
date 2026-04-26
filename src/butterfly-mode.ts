@@ -81,7 +81,7 @@ const NOISE_BATCH: { role: "user" | "assistant"; content: string }[] = [
 
 const N_GENERATIONS = 3      // metamorphoses per run
 const TARGET_TOKENS = 400    // chrysalis budget per gen
-const TAG_MAX_TOKENS = 6     // for the tagger to emit just one word
+const TAG_MAX_TOKENS = 28    // label + brief reason ("keep | off-by-one diagnosis")
 const CHRYSALIS_MAX = 500    // generous, model usually undershoots
 const ANSWER_MAX = 200
 
@@ -105,14 +105,31 @@ function pickLastN(msgs: typeof TRANSCRIPT, budget: number): typeof TRANSCRIPT {
   return out
 }
 
-// Parse the tagger's word output. Phi-3 sometimes prefixes/suffixes; we
-// just look for the first occurrence of one of our three labels.
-function parseTag(raw: string): "keep" | "summarize" | "melt" {
+// Parse the tagger's output. New format requested from Phi-3:
+//   "label | brief 4-7-word reason"
+// We accept any prefix/suffix garbage and pick out (a) the first matching
+// label keyword and (b) anything after a pipe (or after the label itself
+// if no pipe) as the reason. Fallback "keep" with no reason if it's
+// completely garbled — never lose information silently.
+interface TagOutput { label: "keep" | "summarize" | "melt"; reason: string }
+function parseTag(raw: string): TagOutput {
   const s = raw.toLowerCase()
-  if (s.includes("keep")) return "keep"
-  if (s.includes("summarize") || s.includes("summary")) return "summarize"
-  if (s.includes("melt") || s.includes("drop")) return "melt"
-  return "keep" // fallback: don't lose info
+  let label: TagOutput["label"] = "keep"
+  if (/\bkeep\b/.test(s))                          label = "keep"
+  else if (/\b(summarize|summary|summ)\b/.test(s)) label = "summarize"
+  else if (/\b(melt|drop)\b/.test(s))              label = "melt"
+
+  // Reason: prefer text after the first '|', else trim the label out.
+  let reason = ""
+  const pipeIdx = raw.indexOf("|")
+  if (pipeIdx !== -1) {
+    reason = raw.slice(pipeIdx + 1).trim()
+  } else {
+    reason = raw.replace(/keep|summarize|summary|melt|drop/gi, "").trim()
+  }
+  // Strip any markdown/quotes/end-of-turn artifacts; cap at ~50 chars
+  reason = reason.replace(/[<>|`*"\n\r]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 50)
+  return { label, reason }
 }
 
 // LLM-as-judge: ask Phi-3 to grade the answer against the expected fact.
@@ -224,6 +241,41 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     }
     .bfly-stage-text.empty { color: #514a3e; font-style: italic; }
 
+    .bfly-throwaway {
+      font-size: 10px; color: #8a7f6c; line-height: 1.5;
+      margin-top: 4px;
+    }
+    .bfly-throwaway-row {
+      padding: 2px 6px; background: rgba(0,0,0,0.2); border-radius: 3px;
+      margin: 2px 0; display: inline-block; margin-right: 4px;
+    }
+    .bfly-throwaway-row .gen { color: #b794f6; font-weight: 600; }
+    .bfly-throwaway-row .dropped { color: #ff6b6b; }
+
+    /* Collapsible "what each arm actually saw" — opt-in, default closed
+       so the panel doesn't balloon. The interesting part for learners is
+       contrasting the two contexts side by side. */
+    .bfly-context-detail {
+      background: rgba(0,0,0,0.35); border-radius: 6px;
+      padding: 6px 10px; margin-bottom: 6px; cursor: pointer;
+    }
+    .bfly-context-detail summary {
+      list-style: none; color: #b794f6; font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      display: flex; justify-content: space-between;
+    }
+    .bfly-context-detail summary::-webkit-details-marker { display: none; }
+    .bfly-context-detail.lastn summary { color: #8a7f6c; }
+    .bfly-context-detail summary::after { content: '▸'; transition: transform 0.15s; }
+    .bfly-context-detail[open] summary::after { transform: rotate(90deg); }
+    .bfly-context-detail-text {
+      color: #f4ecdf; font-size: 11px; line-height: 1.4;
+      white-space: pre-wrap; word-break: break-word;
+      max-height: 140px; overflow-y: auto;
+      margin-top: 6px; padding-top: 6px;
+      border-top: 1px solid rgba(244,236,223,0.08);
+    }
+
     .bfly-result {
       display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
     }
@@ -275,6 +327,20 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       <div class="bfly-stage-text empty" id="bflyChrysalisText">—</div>
     </div>
 
+    <div class="bfly-stage" id="bflyThrowawayStage" style="display:none;">
+      <div class="bfly-stage-label"><span>What lastN truncation threw away each round</span></div>
+      <div class="bfly-throwaway" id="bflyThrowawayLog"></div>
+    </div>
+
+    <details class="bfly-context-detail bfly" id="bflyCtxBflyDetails" style="display:none;">
+      <summary><span>What butterfly's answer arm saw</span><span id="bflyCtxBflyTokens"></span></summary>
+      <div class="bfly-context-detail-text" id="bflyCtxBflyText"></div>
+    </details>
+    <details class="bfly-context-detail lastn" id="bflyCtxLastDetails" style="display:none;">
+      <summary><span>What lastN's answer arm saw</span><span id="bflyCtxLastTokens"></span></summary>
+      <div class="bfly-context-detail-text" id="bflyCtxLastText"></div>
+    </details>
+
     <div class="bfly-result">
       <div class="bfly-arm bfly" id="bflyArmBfly">
         <div class="bfly-arm-label">Butterfly</div>
@@ -307,6 +373,15 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
   const verdictLast = $<HTMLDivElement>("bflyVerdictLastn")
   const armBfly     = $<HTMLDivElement>("bflyArmBfly")
   const armLastn    = $<HTMLDivElement>("bflyArmLastn")
+  // v2.2 — Tier A: contexts + throwaway log
+  const throwawayStage = $<HTMLDivElement>("bflyThrowawayStage")
+  const throwawayLog   = $<HTMLDivElement>("bflyThrowawayLog")
+  const ctxBflyDetails = $<HTMLDetailsElement>("bflyCtxBflyDetails")
+  const ctxBflyTokens  = $<HTMLSpanElement>("bflyCtxBflyTokens")
+  const ctxBflyText    = $<HTMLDivElement>("bflyCtxBflyText")
+  const ctxLastDetails = $<HTMLDetailsElement>("bflyCtxLastDetails")
+  const ctxLastTokens  = $<HTMLSpanElement>("bflyCtxLastTokens")
+  const ctxLastText    = $<HTMLDivElement>("bflyCtxLastText")
 
   function setStatus(msg: string) { statusEl.textContent = msg }
   function setProgress(pct: number) { bar.style.width = `${Math.max(0, Math.min(100, pct))}%` }
@@ -321,6 +396,11 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     ansBfly.textContent = "—"; ansLastn.textContent = "—"
     verdictBfly.textContent = ""; verdictLast.textContent = ""
     armBfly.classList.remove("win"); armLastn.classList.remove("win")
+    // Tier A — clear throwaway log + hide context details until next run.
+    throwawayLog.innerHTML = ""
+    throwawayStage.style.display = "none"
+    ctxBflyDetails.style.display = "none"; ctxBflyText.textContent = ""; ctxBflyTokens.textContent = ""
+    ctxLastDetails.style.display = "none"; ctxLastText.textContent = ""; ctxLastTokens.textContent = ""
   }
 
   closeBtn.addEventListener("click", () => panel.classList.remove("open"))
@@ -369,10 +449,10 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
         // memory traces that made it through metamorphosis.
         if (gen > 1) { decaySlab(INTER_GEN_DECAY); writeSlabToViz() }
 
-        const tags: ("keep" | "summarize" | "melt")[] = []
+        const tags: TagOutput[] = []
         for (let i = 0; i < messages.length; i++) {
           const m = messages[i]
-          const prompt = `<|system|>\nClassify ONE conversation message for context compaction. Reply with EXACTLY one word.\n\nDistribution: most messages are MELT. Use KEEP only when the message contains something irreplaceable.\n\nkeep      = irreplaceable atom — root cause named, owner+channel, file:line, decision, code snippet that was committed\nsummarize = substantive but a one-line gist suffices (multi-step explanation, verbose tool dump with one fact)\nmelt      = greetings, acks, "lgtm/ok/sure", restatements, dead-end tangents, polite framing\n\nExamples:\n"Sure. Share the file." -> melt\n"lgtm pushing." -> melt\n"agreed, ticket later" -> melt\n"Root cause: Date.now() called twice across an assertion boundary." -> keep\n"issueToken in lib/jwt.ts uses Date.now() to set exp; the test reads Date.now() again — clock race." -> keep\n"Sarah owns @company/jwt-utils, #auth-platform" -> keep\n"Read 87 lines, confirmed bug" -> summarize\n"Two reasons CI fails more: shared CPU stalls; narrow race window." -> summarize<|end|>\n<|user|>\n[${m.role}]\n${m.content}<|end|>\n<|assistant|>\n`
+          const prompt = `<|system|>\nClassify ONE conversation message for context compaction. Reply in this EXACT format:\n  label | brief reason\n\nThe label is exactly one of: keep, summarize, melt. The reason is 4-7 words.\n\nDistribution prior: most messages are MELT. Use KEEP only when the message contains something irreplaceable.\n\nkeep      = irreplaceable atom — root cause named, owner+channel, file:line, decision, code snippet that was committed\nsummarize = substantive but a one-line gist suffices (multi-step explanation, verbose tool dump with one fact)\nmelt      = greetings, acks, "lgtm/ok/sure", restatements, dead-end tangents, polite framing\n\nExamples (note "label | reason" format):\n"Sure. Share the file." -> melt | ack only\n"lgtm pushing." -> melt | ack only\n"agreed, ticket later" -> melt | ack/tangent\n"Root cause: Date.now() called twice across an assertion boundary." -> keep | root cause named\n"issueToken uses Date.now() for exp; test reads Date.now() again." -> keep | bug location + mechanism\n"Sarah owns @company/jwt-utils, #auth-platform" -> keep | ownership info\n"Read 87 lines, confirmed bug" -> summarize | tool output, one fact\n"Two reasons CI fails more: shared CPU stalls; narrow race window." -> summarize | multi-part explanation<|end|>\n<|user|>\n[${m.role}]\n${m.content}<|end|>\n<|assistant|>\n`
 
           // Capture per-layer post-norm residuals (step 8) during this tagger
           // call. Phi-3 has 32 layers × 3072-dim residual, so each tagger call
@@ -391,13 +471,18 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
           const tag = parseTag(raw)
           tags.push(tag)
           const chip = document.createElement("span")
-          chip.className = `bfly-tag ${tag}`
-          chip.textContent = `${i}: ${tag}`
+          chip.className = `bfly-tag ${tag.label}`
+          // Inline reason if short; tooltip always shows the full thing.
+          const reasonShort = tag.reason ? ` — ${tag.reason}` : ""
+          chip.textContent = `${i}: ${tag.label}${reasonShort}`
+          chip.title = tag.reason
+            ? `${tag.label}: ${tag.reason}\n\nMessage: "${m.content.slice(0, 200)}${m.content.length > 200 ? "…" : ""}"`
+            : `${tag.label}\n\nMessage: "${m.content.slice(0, 200)}${m.content.length > 200 ? "…" : ""}"`
           tagsRow.appendChild(chip)
 
           // Modulate captured residuals by tag importance and accumulate.
           if (opts.viz && layerActs.size > 0) {
-            const factor = TAG_BRIGHTNESS[tag]
+            const factor = TAG_BRIGHTNESS[tag.label]
             decaySlab(INTRA_GEN_DECAY)  // fade older messages slightly each step
             for (const [layer, raw] of layerActs) {
               // Normalize raw activations to 0..1 using the engine's helper,
@@ -417,13 +502,13 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
           setProgress(((gen - 1) / N_GENERATIONS) * 100 + ((i + 1) / messages.length) * (100 / N_GENERATIONS) * 0.4)
         }
         const counts = tags.reduce(
-          (acc, t) => ({ ...acc, [t]: (acc[t] || 0) + 1 }),
+          (acc, t) => ({ ...acc, [t.label]: (acc[t.label] || 0) + 1 }),
           {} as Record<string, number>
         )
         tagCountsEl.textContent = `keep:${counts.keep || 0} summ:${counts.summarize || 0} melt:${counts.melt || 0}`
 
         setStatus(`Gen ${gen}/${N_GENERATIONS}: chrysalis (rebuilding to ~${TARGET_TOKENS} tokens)…`)
-        const taggedBlock = messages.map((m, i) => `[#${i} ${m.role} action=${tags[i]}]\n${m.content}`).join("\n\n")
+        const taggedBlock = messages.map((m, i) => `[#${i} ${m.role} action=${tags[i].label}]\n${m.content}`).join("\n\n")
         const chrysPrompt = `<|system|>\nYou rebuild a tagged conversation transcript into a small coherent context the agent will resume from. HARD CONSTRAINT: ~${TARGET_TOKENS} tokens (~${TARGET_TOKENS * 4} chars). KEEP messages: preserve every load-bearing fact, name, file:line, decision. SUMMARIZE messages: collapse to one phrase. MELT messages: drop entirely. Output ONLY the rebuilt context, no preamble.<|end|>\n<|user|>\nTAGGED TRANSCRIPT:\n\n${taggedBlock}<|end|>\n<|assistant|>\n`
         const rebuilt = await engine.generate(chrysPrompt, CHRYSALIS_MAX, {})
         lastChrysalis = rebuilt
@@ -440,18 +525,45 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
             { role: "assistant" as const, content: `[REBUILT FROM GEN ${gen}]\n${rebuilt}` },
             ...NOISE_BATCH,
           ]
-          // LastN chain just keeps appending noise to the original transcript
-          // and truncating each round.
+          // LastN chain: truncate then add noise. Track what got dropped
+          // so we can show the learner the failure mechanism.
+          const beforeLen = lastnMessages.length
           const truncated = pickLastN(lastnMessages, TARGET_TOKENS)
+          const droppedCount = beforeLen - truncated.length
+          if (droppedCount > 0) {
+            const row = document.createElement("span")
+            row.className = "bfly-throwaway-row"
+            row.innerHTML = `<span class="gen">G${gen}</span>: <span class="dropped">−${droppedCount}</span> oldest msgs`
+            row.title = `LastN truncated to ~${TARGET_TOKENS} tokens. Dropped ${droppedCount} message${droppedCount === 1 ? "" : "s"} from the front of the chain.`
+            throwawayLog.appendChild(row)
+            throwawayStage.style.display = ""
+          }
           lastnMessages = [...truncated, ...NOISE_BATCH]
         }
       }
 
       // Final question — answer with each arm's last context.
       setStatus("Asking the needle question through both arms…")
+      const beforeFinal = lastnMessages.length
       const finalLastN = pickLastN(lastnMessages, TARGET_TOKENS)
+      const finalDropped = beforeFinal - finalLastN.length
+      if (finalDropped > 0) {
+        const row = document.createElement("span")
+        row.className = "bfly-throwaway-row"
+        row.innerHTML = `<span class="gen">final</span>: <span class="dropped">−${finalDropped}</span> oldest msgs`
+        throwawayLog.appendChild(row)
+        throwawayStage.style.display = ""
+      }
       const ctxBfly = `[REBUILT CONTEXT]\n${lastChrysalis}`
       const ctxLast = asText(finalLastN)
+
+      // Surface what each answer arm actually saw — collapsible.
+      ctxBflyText.textContent = ctxBfly
+      ctxBflyTokens.textContent = `~${tokens(ctxBfly)} tok`
+      ctxBflyDetails.style.display = ""
+      ctxLastText.textContent = ctxLast || "(empty — everything was truncated away)"
+      ctxLastTokens.textContent = `~${tokens(ctxLast)} tok`
+      ctxLastDetails.style.display = ""
 
       const ansPromptBfly = `<|system|>\nYou continue a prior conversation. Answer the follow-up using ONLY the prior context. If a fact isn't there, say so plainly — do not invent. Be concise.<|end|>\n<|user|>\nPRIOR CONTEXT:\n\n${ctxBfly}\n\nFOLLOW-UP: ${NEEDLE_QUESTION}<|end|>\n<|assistant|>\n`
       const ansPromptLast = `<|system|>\nYou continue a prior conversation. Answer the follow-up using ONLY the prior context. If a fact isn't there, say so plainly — do not invent. Be concise.<|end|>\n<|user|>\nPRIOR CONTEXT:\n\n${ctxLast}\n\nFOLLOW-UP: ${NEEDLE_QUESTION}<|end|>\n<|assistant|>\n`
