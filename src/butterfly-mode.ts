@@ -252,6 +252,52 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     .bfly-throwaway-row .gen { color: #b794f6; font-weight: 600; }
     .bfly-throwaway-row .dropped { color: #ff6b6b; }
 
+    /* Tier B: custom mode (editable transcript/question/needle) and
+       step-by-step pause between metamorphoses. */
+    .bfly-custom-toggle {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: #8a7f6c;
+      margin-bottom: 6px; flex-wrap: wrap;
+    }
+    .bfly-custom-toggle label { cursor: pointer; user-select: none; }
+    .bfly-custom-toggle input { cursor: pointer; }
+    .bfly-custom-edit {
+      background: rgba(0,0,0,0.35); border-radius: 6px;
+      padding: 8px 10px; margin-bottom: 8px;
+    }
+    .bfly-custom-edit label {
+      display: block; font-size: 10px; color: #b794f6;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin: 6px 0 3px;
+    }
+    .bfly-custom-edit textarea, .bfly-custom-edit input[type="text"] {
+      width: 100%; background: rgba(0,0,0,0.4); color: #f4ecdf;
+      border: 1px solid #3a3429; border-radius: 4px;
+      padding: 6px 8px; font-family: inherit; font-size: 11px;
+      line-height: 1.4; resize: vertical; box-sizing: border-box;
+    }
+    .bfly-custom-edit textarea { min-height: 60px; max-height: 180px; }
+    .bfly-custom-edit .bfly-custom-hint { color: #514a3e; font-size: 10px; font-style: italic; }
+    .bfly-pause-banner {
+      display: none; background: rgba(255, 217, 61, 0.12);
+      border: 1px solid rgba(255, 217, 61, 0.45); color: #ffd93d;
+      padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;
+      font-size: 11px; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .bfly-pause-banner.visible { display: flex; }
+    .bfly-pause-banner button { background: rgba(255, 217, 61, 0.25); color: #ffd93d; border: 1px solid rgba(255, 217, 61, 0.5); border-radius: 4px; padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 11px; }
+    .bfly-pause-banner button:hover { background: rgba(255, 217, 61, 0.4); color: #fff; }
+
+    .bfly-stats {
+      font-size: 10px; color: #8a7f6c; margin-top: 6px;
+      padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 4px;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px;
+    }
+    .bfly-stats .stat-bfly  { color: #b794f6; }
+    .bfly-stats .stat-lastn { color: #8a7f6c; }
+    .bfly-stats .stat-clear { color: #514a3e; cursor: pointer; text-decoration: underline; }
+    .bfly-stats .stat-clear:hover { color: #ff6b6b; }
+
     /* Collapsible "what each arm actually saw" — opt-in, default closed
        so the panel doesn't balloon. The interesting part for learners is
        contrasting the two contexts side by side. */
@@ -306,6 +352,26 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       Phi-3 tags each message (keep / summarize / melt), rebuilds a smaller context, repeats. Watch what survives. Compare to naive recency truncation at the same budget.
     </div>
     <div class="bfly-progress"><div class="bfly-progress-bar" id="bflyBar"></div></div>
+
+    <div class="bfly-pause-banner" id="bflyPauseBanner">
+      <span id="bflyPauseLabel">Paused after stage. Inspect, then continue.</span>
+      <button id="bflyContinueBtn" type="button">Continue →</button>
+    </div>
+
+    <div class="bfly-custom-toggle">
+      <label><input type="checkbox" id="bflyCustomToggle"> Edit transcript / question</label>
+      <label><input type="checkbox" id="bflyStepToggle"> Step-by-step</label>
+    </div>
+    <div class="bfly-custom-edit" id="bflyCustomEdit" style="display:none;">
+      <label>Transcript (one message per line, prefixed with <code>user:</code> or <code>assistant:</code>)</label>
+      <textarea id="bflyCustomTranscript" spellcheck="false"></textarea>
+      <label>Question to ask after the metamorphoses</label>
+      <input type="text" id="bflyCustomQuestion" spellcheck="false">
+      <label>Expected fact (used by the judge to grade answers)</label>
+      <textarea id="bflyCustomNeedle" spellcheck="false" style="min-height:40px;"></textarea>
+      <div class="bfly-custom-hint">Empty = use the built-in JWT-flake demo. Click "Reset to default" to restore.</div>
+    </div>
+
     <div style="display: flex; gap: 8px; margin-bottom: 10px;">
       <button class="bfly-btn" id="bflyRunBtn" type="button">Run butterfly demo</button>
       <button class="bfly-btn" id="bflyResetBtn" type="button">Reset</button>
@@ -353,6 +419,11 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
         <div class="bfly-verdict" id="bflyVerdictLastn"></div>
       </div>
     </div>
+
+    <div class="bfly-stats" id="bflyStats" style="display:none;">
+      <span><span class="stat-bfly">butterfly: 0/0</span> · <span class="stat-lastn">lastN: 0/0</span> · across <span id="bflyStatsRuns">0</span> runs</span>
+      <span class="stat-clear" id="bflyStatsClear">clear</span>
+    </div>
   `
   inputWrap.parentNode?.insertBefore(panel, inputWrap)
 
@@ -382,6 +453,102 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
   const ctxLastDetails = $<HTMLDetailsElement>("bflyCtxLastDetails")
   const ctxLastTokens  = $<HTMLSpanElement>("bflyCtxLastTokens")
   const ctxLastText    = $<HTMLDivElement>("bflyCtxLastText")
+  // v2.3 — Tier B: edit / pause / stats
+  const customToggle    = $<HTMLInputElement>("bflyCustomToggle")
+  const stepToggle      = $<HTMLInputElement>("bflyStepToggle")
+  const customEdit      = $<HTMLDivElement>("bflyCustomEdit")
+  const customTranscript = $<HTMLTextAreaElement>("bflyCustomTranscript")
+  const customQuestion  = $<HTMLInputElement>("bflyCustomQuestion")
+  const customNeedle    = $<HTMLTextAreaElement>("bflyCustomNeedle")
+  const pauseBanner     = $<HTMLDivElement>("bflyPauseBanner")
+  const pauseLabel      = $<HTMLSpanElement>("bflyPauseLabel")
+  const continueBtn     = $<HTMLButtonElement>("bflyContinueBtn")
+  const statsEl         = $<HTMLDivElement>("bflyStats")
+  const statsRunsEl     = $<HTMLSpanElement>("bflyStatsRuns")
+  const statsClearEl    = $<HTMLSpanElement>("bflyStatsClear")
+
+  // ─── Tier B helpers ───────────────────────────────────────────────
+  // (a) Pre-fill custom textareas with the built-in defaults so users
+  //     can see the format and tweak from there.
+  const defaultTranscriptText = TRANSCRIPT.map(m => `${m.role}: ${m.content}`).join("\n")
+  customTranscript.value = defaultTranscriptText
+  customQuestion.value   = NEEDLE_QUESTION
+  customNeedle.value     = NEEDLE_FACT
+
+  customToggle.addEventListener("change", () => {
+    customEdit.style.display = customToggle.checked ? "" : "none"
+  })
+
+  // (b) Parser — "user: ..." or "assistant: ..." lines into typed messages.
+  //     Multi-line content is allowed; subsequent lines append until the
+  //     next role line or end. Falls back to the built-in transcript if
+  //     the textarea is empty or unparseable.
+  function parseTranscriptText(text: string): typeof TRANSCRIPT {
+    const out: typeof TRANSCRIPT = []
+    const lines = text.split(/\r?\n/)
+    let currentRole: "user" | "assistant" | null = null
+    let buf: string[] = []
+    const flush = () => {
+      if (currentRole && buf.length > 0) {
+        out.push({ role: currentRole, content: buf.join("\n").trim() })
+      }
+      buf = []
+    }
+    for (const line of lines) {
+      const m = /^\s*(user|assistant)\s*:\s*(.*)$/i.exec(line)
+      if (m) {
+        flush()
+        currentRole = m[1].toLowerCase() as "user" | "assistant"
+        if (m[2]) buf.push(m[2])
+      } else if (currentRole) {
+        buf.push(line)
+      }
+    }
+    flush()
+    return out.length > 0 ? out : TRANSCRIPT.slice()
+  }
+
+  // (c) Pause-and-continue mechanism for step-by-step mode. `awaitContinue`
+  //     resolves when the user clicks the Continue button. We re-create
+  //     the resolver each call so multiple pauses chain cleanly.
+  let pauseResolver: (() => void) | null = null
+  continueBtn.addEventListener("click", () => {
+    pauseBanner.classList.remove("visible")
+    if (pauseResolver) { pauseResolver(); pauseResolver = null }
+  })
+  async function awaitContinue(label: string): Promise<void> {
+    if (!stepToggle.checked) return                  // off → no-op
+    pauseLabel.textContent = label
+    pauseBanner.classList.add("visible")
+    return new Promise<void>(resolve => { pauseResolver = resolve })
+  }
+
+  // (d) localStorage stats — running tally across all runs in this browser.
+  interface StatsEntry { bfly: 0|1|2; lastN: 0|1|2; ts: number }
+  const STATS_KEY = "butterfly-mode-stats-v1"
+  const loadStats = (): StatsEntry[] => {
+    try { const raw = localStorage.getItem(STATS_KEY); return raw ? JSON.parse(raw) : [] }
+    catch { return [] }
+  }
+  const saveStats = (entries: StatsEntry[]) => {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(entries)) } catch { /* ignore */ }
+  }
+  const renderStats = () => {
+    const entries = loadStats()
+    if (entries.length === 0) { statsEl.style.display = "none"; return }
+    const bflyHits  = entries.filter(e => e.bfly  > 0).length
+    const lastnHits = entries.filter(e => e.lastN > 0).length
+    statsEl.style.display = ""
+    statsRunsEl.textContent = String(entries.length)
+    statsEl.querySelector(".stat-bfly")!.textContent  = `butterfly: ${bflyHits}/${entries.length}`
+    statsEl.querySelector(".stat-lastn")!.textContent = `lastN: ${lastnHits}/${entries.length}`
+  }
+  statsClearEl.addEventListener("click", () => {
+    if (!confirm("Clear all run stats from this browser?")) return
+    saveStats([])
+    renderStats()
+  })
+  renderStats()
 
   function setStatus(msg: string) { statusEl.textContent = msg }
   function setProgress(pct: number) { bar.style.width = `${Math.max(0, Math.min(100, pct))}%` }
@@ -421,8 +588,13 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     resetUI()
 
     const t0 = performance.now()
-    let messages = TRANSCRIPT.slice()
-    let lastnMessages = TRANSCRIPT.slice()  // separate chain for the lastN baseline
+    // Tier B: pull editable inputs (or fall back to defaults if untouched).
+    const useCustom = customToggle.checked
+    const transcriptForRun = useCustom ? parseTranscriptText(customTranscript.value) : TRANSCRIPT.slice()
+    const questionForRun   = (useCustom && customQuestion.value.trim()) ? customQuestion.value.trim() : NEEDLE_QUESTION
+    const needleForRun     = (useCustom && customNeedle.value.trim())   ? customNeedle.value.trim()   : NEEDLE_FACT
+    let messages = transcriptForRun.slice()
+    let lastnMessages = transcriptForRun.slice()
     let lastChrysalis = ""
 
     // ─── v2: residual-stream visualization ──────────────────────
@@ -565,14 +737,14 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       ctxLastTokens.textContent = `~${tokens(ctxLast)} tok`
       ctxLastDetails.style.display = ""
 
-      const ansPromptBfly = `<|system|>\nYou continue a prior conversation. Answer the follow-up using ONLY the prior context. If a fact isn't there, say so plainly — do not invent. Be concise.<|end|>\n<|user|>\nPRIOR CONTEXT:\n\n${ctxBfly}\n\nFOLLOW-UP: ${NEEDLE_QUESTION}<|end|>\n<|assistant|>\n`
-      const ansPromptLast = `<|system|>\nYou continue a prior conversation. Answer the follow-up using ONLY the prior context. If a fact isn't there, say so plainly — do not invent. Be concise.<|end|>\n<|user|>\nPRIOR CONTEXT:\n\n${ctxLast}\n\nFOLLOW-UP: ${NEEDLE_QUESTION}<|end|>\n<|assistant|>\n`
+      const ansPromptBfly = `<|system|>\nYou continue a prior conversation. Answer the follow-up using ONLY the prior context. If a fact isn't there, say so plainly — do not invent. Be concise.<|end|>\n<|user|>\nPRIOR CONTEXT:\n\n${ctxBfly}\n\nFOLLOW-UP: ${questionForRun}<|end|>\n<|assistant|>\n`
+      const ansPromptLast = `<|system|>\nYou continue a prior conversation. Answer the follow-up using ONLY the prior context. If a fact isn't there, say so plainly — do not invent. Be concise.<|end|>\n<|user|>\nPRIOR CONTEXT:\n\n${ctxLast}\n\nFOLLOW-UP: ${questionForRun}<|end|>\n<|assistant|>\n`
 
       const aBfly = await engine.generate(ansPromptBfly, ANSWER_MAX, {})
       ansBfly.textContent = aBfly || "(empty)"
 
       setStatus("Judging butterfly answer with Phi-3 (rubric)…")
-      const vBfly = await judgeAnswer(engine, NEEDLE_QUESTION, NEEDLE_FACT, aBfly)
+      const vBfly = await judgeAnswer(engine, questionForRun, needleForRun, aBfly)
       verdictBfly.textContent =
         vBfly === "hit" ? "✓ full preservation" :
         vBfly === "partial" ? "◐ partial preservation" :
@@ -585,7 +757,7 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       ansLastn.textContent = aLast || "(empty)"
 
       setStatus("Judging lastN answer with Phi-3 (rubric)…")
-      const vLast = await judgeAnswer(engine, NEEDLE_QUESTION, NEEDLE_FACT, aLast)
+      const vLast = await judgeAnswer(engine, questionForRun, needleForRun, aLast)
       verdictLast.textContent =
         vLast === "hit" ? "✓ full preservation" :
         vLast === "partial" ? "◐ partial preservation" :
@@ -596,6 +768,14 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       const elapsed = ((performance.now() - t0) / 1000).toFixed(1)
       setStatus(`Done in ${elapsed}s. Butterfly: ${vBfly}. LastN: ${vLast}.`)
       setProgress(100)
+
+      // Tier B: persist to localStorage tally + re-render the stats line.
+      const scoreNum = (v: "hit" | "partial" | "miss"): 0|1|2 =>
+        v === "hit" ? 2 : v === "partial" ? 1 : 0
+      const entries = loadStats()
+      entries.push({ bfly: scoreNum(vBfly), lastN: scoreNum(vLast), ts: Date.now() })
+      saveStats(entries)
+      renderStats()
     } catch (err) {
       setStatus(`Error: ${err}`)
     } finally {

@@ -1,5 +1,6 @@
 import { BrainVisualizer, LayerActivation } from './visualizer'
-import { createInferenceEngine, InferenceEngine, LoadProgress, TopKEntry, Ablation } from './engine/inference'
+import { createInferenceEngine, InferenceEngine, InferenceCallbacks, LoadProgress, TopKEntry, Ablation } from './engine/inference'
+import { initStoryteller, mergeCallbacks } from './storyteller'
 import { initButterflyPanel } from './butterfly-mode'
 import { reduceQKVForAttnHeads, reduceForAttnHeads, reduceForFFNGroups, reduceForResidual, normalizeFull } from './engine/activation-reducer'
 import { createJourney, JourneyHandle } from './journey'
@@ -285,12 +286,24 @@ function initAblationPanel() {
     ablOut.textContent = 'waiting…'
     isRunning = true
     try {
-      const cb = {}
-      const base = await engine.generate(prompt, 40, cb)
+      const cb: InferenceCallbacks = {}
+      const merged = mergeCallbacks(cb, storyteller.hooks())
+      storyteller.say(`Let me try first without anything covered...`, 'phi')
+      const base = await engine.generate(prompt, 40, merged)
       baseOut.textContent = base || '(empty)'
       ablOut.textContent = 'generating…'
-      const abl = await engine.generate(prompt, 40, cb, abls)
+      const layers = new Set(abls.map(a => a.layer))
+      storyteller.say(
+        `Now I'll cover up ${abls.length} of my lookers in step${layers.size === 1 ? '' : 's'} ${[...layers].join(', ')} and try again...`,
+        'ablate',
+      )
+      const abl = await engine.generate(prompt, 40, merged, abls)
       ablOut.textContent = abl || '(empty)'
+      if (base !== abl) {
+        storyteller.say(`Look! My answer changed when I covered those lookers — they were doing important work.`, 'good')
+      } else {
+        storyteller.say(`Hmm, my answer is the same. Those lookers weren't needed for this question.`, 'phi')
+      }
     } catch (err) {
       ablOut.textContent = `error: ${err}`
     } finally {
@@ -427,6 +440,10 @@ let isValidating = false
 let totalTokens = 0
 let engine: InferenceEngine | null = null
 
+// Phi the Storyteller — kid-mode narration overlay (K key toggles).
+// Off by default; merged into engine.generate callbacks when active.
+const storyteller = initStoryteller()
+
 // Speed control
 const speedSlider = document.getElementById('speedSlider') as HTMLInputElement
 const speedLabel = document.getElementById('speedLabel')!
@@ -543,6 +560,9 @@ window.addEventListener('keydown', (e) => {
     // Toggle soft Gaussian-sprite rendering — discrete spheres become
     // soft volumetric puffs. Picking still works (meshes stay raycastable).
     ;(viz as unknown as { toggleSoftMode?: () => void }).toggleSoftMode?.()
+  } else if (e.key === 'k' || e.key === 'K') {
+    // Toggle Phi the Storyteller — kid-mode narration overlay.
+    storyteller.toggleActive()
   } else if (e.key === 'r' || e.key === 'R') {
     // Reset camera to home position via OrbitControls
     const controls = (viz as unknown as { controls?: { reset?: () => void } }).controls
@@ -2233,7 +2253,7 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
   selectedHeadIdx = -1
 
   try {
-  await engine.generate(realPrompt, mode === 'ask' ? 300 : 500, {
+  const baseCallbacks: InferenceCallbacks = {
     async onLayer(layer, step, _stepName, activations) {
       // Build role-specific activation data from GPU readback
       let data: LayerActivation
@@ -2411,7 +2431,12 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
       rawState.kvLen = position
       renderRawReadout()
     },
-  })
+  }
+  await engine.generate(
+    realPrompt,
+    mode === 'ask' ? 300 : 500,
+    mergeCallbacks(baseCallbacks, storyteller.hooks()),
+  )
 
   viz.setDone()
   const c2 = output.querySelector('.cursor')
