@@ -690,6 +690,12 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
 
         setProgress((gen / N_GENERATIONS) * 100 * 0.85)
 
+        // Tier B: pause for inspection before the next generation, if step-mode is on.
+        if (gen < N_GENERATIONS && stepToggle.checked) {
+          setStatus(`Paused after gen ${gen}. Inspect the chrysalis output, tags, and contexts. Then click Continue.`)
+          await awaitContinue(`Gen ${gen} done. Click Continue to start gen ${gen + 1}.`)
+        }
+
         // Replace messages with one synthetic system message (the rebuild)
         // and inject noise for the next generation, except the final.
         if (gen < N_GENERATIONS) {
