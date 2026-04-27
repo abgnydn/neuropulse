@@ -2599,6 +2599,10 @@ async function initEngine() {
         // v2: pass the visualizer so butterfly-mode paints tag importance
         // into the residual-stream slab during a run.
         viz:       viz as unknown as { updateResidualLayer(layer: number, vec: Float32Array): void },
+        // v2.4: snapshot the ablation panel's selection at run-start. Heads
+        // shift-clicked in the 3D scene are zeroed inside butterfly's tagger,
+        // chrysalis, and answer arms (judge stays unablated as the meter).
+        getAblations: () => viz.getAblations() as Ablation[],
       })
     }
 

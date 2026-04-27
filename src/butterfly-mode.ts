@@ -19,7 +19,7 @@
 // (yet), so tagger / chrysalis / answer all share one Phi-3 instance and
 // run one after the other. ~25-30 s per full run on M2-class hardware.
 
-import type { InferenceEngine } from "./engine/inference"
+import type { InferenceEngine, Ablation } from "./engine/inference"
 import { normalizeFull } from "./engine/activation-reducer"
 
 // ─── 3D viz integration (v2) ─────────────────────────────────────
@@ -161,6 +161,12 @@ export interface ButterflyPanelOpts {
   /** Optional residual-stream visualizer. When provided, butterfly-mode
    *  paints per-tag importance into the neuropulse 3D scene during a run. */
   viz?: ResidualViz
+  /** Snapshot of current attention-head ablations (from the ablation panel).
+   *  Snapshotted once at run-start and passed into every tagger / chrysalis /
+   *  answer-arm generate call. Judge stays unablated (rubric meter must be
+   *  stable across conditions, otherwise we're measuring "ablation broke the
+   *  grader" rather than "ablation broke importance-tagging"). */
+  getAblations?: () => Ablation[]
 }
 
 export function initButterflyPanel(opts: ButterflyPanelOpts): void {
@@ -337,6 +343,33 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     .bfly-verdict.hit     { color: #5fd8d4; }
     .bfly-verdict.partial { color: #ffd93d; }
     .bfly-verdict.miss    { color: #ff6b6b; }
+
+    /* Ablation badge: amber stripe across the panel showing which heads
+       are zeroed for this run. Hidden when getAblations() returns empty. */
+    .bfly-ablation-badge {
+      display: none;
+      background: rgba(255, 154, 31, 0.10);
+      border: 1px solid rgba(255, 154, 31, 0.45);
+      color: #ff9a1f;
+      padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;
+      font-size: 10px; line-height: 1.4;
+      letter-spacing: 0.04em;
+    }
+    .bfly-ablation-badge.visible { display: block; }
+    .bfly-ablation-badge .label {
+      text-transform: uppercase; font-weight: 600; letter-spacing: 0.08em;
+      margin-right: 6px;
+    }
+    .bfly-ablation-badge .heads {
+      color: #ffcd87; font-family: ui-monospace, SFMono-Regular, monospace;
+      word-break: break-all;
+    }
+    .bfly-arm-abl-tag {
+      display: inline-block; margin-left: 6px; padding: 1px 6px;
+      font-size: 9px; letter-spacing: 0.05em; border-radius: 3px;
+      background: rgba(255,154,31,0.12); color: #ff9a1f;
+      border: 1px solid rgba(255,154,31,0.35);
+    }
   `
   document.head.appendChild(style)
 
@@ -352,6 +385,11 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       Phi-3 tags each message (keep / summarize / melt), rebuilds a smaller context, repeats. Watch what survives. Compare to naive recency truncation at the same budget.
     </div>
     <div class="bfly-progress"><div class="bfly-progress-bar" id="bflyBar"></div></div>
+
+    <div class="bfly-ablation-badge" id="bflyAblationBadge">
+      <span class="label">Ablating</span>
+      <span class="heads" id="bflyAblationHeads"></span>
+    </div>
 
     <div class="bfly-pause-banner" id="bflyPauseBanner">
       <span id="bflyPauseLabel">Paused after stage. Inspect, then continue.</span>
@@ -466,6 +504,33 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
   const statsEl         = $<HTMLDivElement>("bflyStats")
   const statsRunsEl     = $<HTMLSpanElement>("bflyStatsRuns")
   const statsClearEl    = $<HTMLSpanElement>("bflyStatsClear")
+  const ablationBadge   = $<HTMLDivElement>("bflyAblationBadge")
+  const ablationHeads   = $<HTMLSpanElement>("bflyAblationHeads")
+
+  function fmtAblations(abls: Ablation[]): string {
+    if (abls.length === 0) return ""
+    const byLayer = new Map<number, (number | "all")[]>()
+    for (const a of abls) {
+      const arr = byLayer.get(a.layer) ?? []
+      arr.push(a.head ?? "all")
+      byLayer.set(a.layer, arr)
+    }
+    const layers = [...byLayer.keys()].sort((a, b) => a - b)
+    return layers.map(L => {
+      const heads = byLayer.get(L)!
+      if (heads.includes("all")) return `L${L}:all`
+      return `L${L}:${(heads as number[]).sort((a, b) => a - b).join(",")}`
+    }).join(" · ")
+  }
+  function renderAblationBadge(abls: Ablation[]) {
+    if (abls.length === 0) {
+      ablationBadge.classList.remove("visible")
+      ablationHeads.textContent = ""
+    } else {
+      ablationBadge.classList.add("visible")
+      ablationHeads.textContent = `${abls.length} head${abls.length === 1 ? "" : "s"} → ${fmtAblations(abls)}`
+    }
+  }
 
   // ─── Tier B helpers ───────────────────────────────────────────────
   // (a) Pre-fill custom textareas with the built-in defaults so users
@@ -524,7 +589,9 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
   }
 
   // (d) localStorage stats — running tally across all runs in this browser.
-  interface StatsEntry { bfly: 0|1|2; lastN: 0|1|2; ts: number }
+  // abls: string-encoded ablation set (e.g. "L0:h3 · L15:h7"), empty for control runs.
+  // Schema-version bumped when abls field added; legacy entries silently lack it.
+  interface StatsEntry { bfly: 0|1|2; lastN: 0|1|2; ts: number; abls?: string }
   const STATS_KEY = "butterfly-mode-stats-v1"
   const loadStats = (): StatsEntry[] => {
     try { const raw = localStorage.getItem(STATS_KEY); return raw ? JSON.parse(raw) : [] }
@@ -568,6 +635,10 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     throwawayStage.style.display = "none"
     ctxBflyDetails.style.display = "none"; ctxBflyText.textContent = ""; ctxBflyTokens.textContent = ""
     ctxLastDetails.style.display = "none"; ctxLastText.textContent = ""; ctxLastTokens.textContent = ""
+    // Ablation badge clears too — it gets re-rendered at run-start with
+    // the live snapshot from opts.getAblations().
+    ablationBadge.classList.remove("visible")
+    ablationHeads.textContent = ""
   }
 
   closeBtn.addEventListener("click", () => panel.classList.remove("open"))
@@ -597,6 +668,12 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     let lastnMessages = transcriptForRun.slice()
     let lastChrysalis = ""
 
+    // Ablation snapshot: frozen at run-start so all calls within this run
+    // see the same intervention. Empty array = unablated control. Passed
+    // to tagger + chrysalis + both answer arms; judge stays unablated.
+    const ablations: Ablation[] = (opts.getAblations?.() ?? []).slice()
+    renderAblationBadge(ablations)
+
     // ─── v2: residual-stream visualization ──────────────────────
     // Per-layer accumulator. We modulate each tagged message's post-norm
     // residual by its tag importance and write into the neuropulse 3D scene.
@@ -612,9 +689,10 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     }
 
     try {
+      const ablPrefix = ablations.length > 0 ? `[ablating ${ablations.length}h] ` : ""
       for (let gen = 1; gen <= N_GENERATIONS; gen++) {
         genNumEl.textContent = String(gen)
-        setStatus(`Gen ${gen}/${N_GENERATIONS}: tagging ${messages.length} messages with Phi-3…`)
+        setStatus(`${ablPrefix}Gen ${gen}/${N_GENERATIONS}: tagging ${messages.length} messages with Phi-3…`)
         tagsRow.innerHTML = ""
 
         // Inter-generation fade: emphasize that surviving brightness is
@@ -639,7 +717,7 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
             }
           } : {}
 
-          const raw = await engine.generate(prompt, TAG_MAX_TOKENS, cb)
+          const raw = await engine.generate(prompt, TAG_MAX_TOKENS, cb, ablations)
           const tag = parseTag(raw)
           tags.push(tag)
           const chip = document.createElement("span")
@@ -682,7 +760,7 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
         setStatus(`Gen ${gen}/${N_GENERATIONS}: chrysalis (rebuilding to ~${TARGET_TOKENS} tokens)…`)
         const taggedBlock = messages.map((m, i) => `[#${i} ${m.role} action=${tags[i].label}]\n${m.content}`).join("\n\n")
         const chrysPrompt = `<|system|>\nYou rebuild a tagged conversation transcript into a small coherent context the agent will resume from. HARD CONSTRAINT: ~${TARGET_TOKENS} tokens (~${TARGET_TOKENS * 4} chars). KEEP messages: preserve every load-bearing fact, name, file:line, decision. SUMMARIZE messages: collapse to one phrase. MELT messages: drop entirely. Output ONLY the rebuilt context, no preamble.<|end|>\n<|user|>\nTAGGED TRANSCRIPT:\n\n${taggedBlock}<|end|>\n<|assistant|>\n`
-        const rebuilt = await engine.generate(chrysPrompt, CHRYSALIS_MAX, {})
+        const rebuilt = await engine.generate(chrysPrompt, CHRYSALIS_MAX, {}, ablations)
         lastChrysalis = rebuilt
         chrysText.textContent = rebuilt || "(empty)"
         chrysText.classList.remove("empty")
@@ -746,7 +824,7 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       const ansPromptBfly = `<|system|>\nYou continue a prior conversation. Answer the follow-up using ONLY the prior context. If a fact isn't there, say so plainly — do not invent. Be concise.<|end|>\n<|user|>\nPRIOR CONTEXT:\n\n${ctxBfly}\n\nFOLLOW-UP: ${questionForRun}<|end|>\n<|assistant|>\n`
       const ansPromptLast = `<|system|>\nYou continue a prior conversation. Answer the follow-up using ONLY the prior context. If a fact isn't there, say so plainly — do not invent. Be concise.<|end|>\n<|user|>\nPRIOR CONTEXT:\n\n${ctxLast}\n\nFOLLOW-UP: ${questionForRun}<|end|>\n<|assistant|>\n`
 
-      const aBfly = await engine.generate(ansPromptBfly, ANSWER_MAX, {})
+      const aBfly = await engine.generate(ansPromptBfly, ANSWER_MAX, {}, ablations)
       ansBfly.textContent = aBfly || "(empty)"
 
       setStatus("Judging butterfly answer with Phi-3 (rubric)…")
@@ -759,7 +837,7 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       if (vBfly === "hit") armBfly.classList.add("win")
 
       setProgress(92)
-      const aLast = await engine.generate(ansPromptLast, ANSWER_MAX, {})
+      const aLast = await engine.generate(ansPromptLast, ANSWER_MAX, {}, ablations)
       ansLastn.textContent = aLast || "(empty)"
 
       setStatus("Judging lastN answer with Phi-3 (rubric)…")
@@ -772,14 +850,18 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       if (vLast === "hit") armLastn.classList.add("win")
 
       const elapsed = ((performance.now() - t0) / 1000).toFixed(1)
-      setStatus(`Done in ${elapsed}s. Butterfly: ${vBfly}. LastN: ${vLast}.`)
+      const ablSuffix = ablations.length > 0
+        ? ` · ablating ${ablations.length} head${ablations.length === 1 ? "" : "s"} (${fmtAblations(ablations)})`
+        : ""
+      setStatus(`Done in ${elapsed}s. Butterfly: ${vBfly}. LastN: ${vLast}.${ablSuffix}`)
       setProgress(100)
 
       // Tier B: persist to localStorage tally + re-render the stats line.
       const scoreNum = (v: "hit" | "partial" | "miss"): 0|1|2 =>
         v === "hit" ? 2 : v === "partial" ? 1 : 0
       const entries = loadStats()
-      entries.push({ bfly: scoreNum(vBfly), lastN: scoreNum(vLast), ts: Date.now() })
+      const ablStr = ablations.length > 0 ? fmtAblations(ablations) : ""
+      entries.push({ bfly: scoreNum(vBfly), lastN: scoreNum(vLast), ts: Date.now(), abls: ablStr })
       saveStats(entries)
       renderStats()
     } catch (err) {
