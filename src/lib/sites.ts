@@ -177,6 +177,18 @@ export const SITES = {
     githubRepo: "https://github.com/abgnydn/webgpu-dna",
     cta: "Open preview →",
   },
+  webgpuq: {
+    key: "webgpuq",
+    url: "https://webgpu-q.vercel.app",
+    domain: "webgpu-q.vercel.app",
+    name: "webgpu-q",
+    tagline: "Full-featured quantum circuit simulator in a single browser tab.",
+    shortDesc:
+      "Statevector + MPS quantum simulator running on commodity hardware via WebGPU compute. Six-level research ladder from bandwidth-bound statevector through MPS, kernel fusion, WebRTC swarm, IBM hardware cross-verify, to chemistry/VQE. No CUDA, no install.",
+    category: "Quantum",
+    badge: "research",
+    cta: "Open the simulator →",
+  },
 } as const satisfies Record<string, SiteInfo>;
 
 export type SiteKey = keyof typeof SITES;
@@ -197,6 +209,7 @@ export const SAME_AS: readonly string[] = [
   SITES.zerotvm.url,
   SITES.webgpudna.url,
   SITES.neuropulse.url,
+  SITES.webgpuq.url,
   SITES.markview.url,
   SITES.safenpm.url,
   SITES.fusedlora.url,
@@ -208,14 +221,15 @@ export const SAME_AS: readonly string[] = [
 // Order matters — first entry gets the featured / flagship slot where the
 // rendering host elevates one card.
 export const CROSSLINKS: Record<SiteKey, readonly SiteKey[]> = {
-  kernelfusion:  ["webgpudna", "gpubench", "zerotvm", "neuropulse"],
-  webgpudna:     ["kernelfusion", "gpubench", "zerotvm", "neuropulse"],
-  zerotvm:       ["kernelfusion", "webgpudna", "gpubench", "neuropulse"],
-  gpubench:      ["kernelfusion", "webgpudna", "zerotvm", "neuropulse"],
-  neuropulse:    ["kernelfusion", "webgpudna", "zerotvm", "gpubench"],
-  barisgunaydin: ["kernelfusion", "webgpudna", "gpubench", "zerotvm", "neuropulse", "markview", "safenpm"],
+  kernelfusion:  ["webgpudna", "gpubench", "zerotvm", "neuropulse", "webgpuq", "barisgunaydin"],
+  webgpudna:     ["kernelfusion", "gpubench", "zerotvm", "neuropulse", "webgpuq", "barisgunaydin"],
+  zerotvm:       ["kernelfusion", "webgpudna", "gpubench", "neuropulse", "webgpuq", "barisgunaydin"],
+  gpubench:      ["kernelfusion", "webgpudna", "zerotvm", "neuropulse", "webgpuq", "barisgunaydin"],
+  neuropulse:    ["kernelfusion", "webgpudna", "zerotvm", "gpubench", "webgpuq", "barisgunaydin"],
+  barisgunaydin: ["kernelfusion", "webgpudna", "gpubench", "zerotvm", "neuropulse", "webgpuq", "markview", "safenpm"],
   markview:      ["barisgunaydin", "kernelfusion"],
   safenpm:       ["barisgunaydin", "kernelfusion"],
   fusedlora:     ["kernelfusion", "zerotvm", "barisgunaydin"],
+  webgpuq:       ["kernelfusion", "webgpudna", "gpubench", "zerotvm", "neuropulse", "barisgunaydin"],
   webgpuDna:     ["webgpudna"],
 };

@@ -223,9 +223,9 @@ export function mergeCallbacks(
       ;(out as Record<string, unknown>)[key] = b
       continue
     }
-    ;(out as Record<string, unknown>)[key] = (...args: unknown[]) => {
-      try { a(...args) } catch { /* ignore */ }
-      try { b(...args) } catch { /* ignore */ }
+    ;(out as Record<string, unknown>)[key] = async (...args: unknown[]) => {
+      try { await a(...args) } catch { /* ignore */ }
+      try { await b(...args) } catch { /* ignore */ }
     }
   }
   return out

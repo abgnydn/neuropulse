@@ -334,6 +334,16 @@ body.mode-cinema .cinema-controls { display: flex; }
 body:not(.mode-scene) .scene-only { display: none !important; }
 .side-header { padding: 14px 18px; border-bottom: 1px solid rgba(244,236,223,0.08); font-size: 0.68rem; color: #5eead4; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
 .output-area { flex: 1; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: #cbc1ad; white-space: pre-wrap; word-wrap: break-word; min-height: 120px; }
+
+/* Hide scrollbars across scrolling regions while keeping wheel/touch scroll */
+.side, .output-area, .token-strip, .mode-bar, .attn-detail-tokens, .hero-lens .lens-hero-body, .raw-vec { scrollbar-width: none; -ms-overflow-style: none; }
+.side::-webkit-scrollbar,
+.output-area::-webkit-scrollbar,
+.token-strip::-webkit-scrollbar,
+.mode-bar::-webkit-scrollbar,
+.attn-detail-tokens::-webkit-scrollbar,
+.hero-lens .lens-hero-body::-webkit-scrollbar,
+.raw-vec::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .output-area .token { display: inline; transition: opacity 0.3s, text-shadow 0.5s; }
 .output-area .token.new { color: #fff; text-shadow: 0 0 25px rgba(94,234,212,0.5), 0 0 50px rgba(255,140,66,0.3); }
 .cursor { display: inline-block; width: 2px; height: 1em; background: #00e5ff; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; box-shadow: 0 0 8px rgba(244,236,223,0.35); }
@@ -366,14 +376,14 @@ body:not(.mode-scene) .scene-only { display: none !important; }
 .preset-chip:hover { border-color: #f4ecdf; background: rgba(244,236,223,0.06); color: #f4ecdf; }
 
 /* Input bar */
-.input-wrap { grid-column: 1; grid-row: 6; padding: 8px 18px 12px; border-top: 1px solid rgba(244,236,223,0.08); display: flex; gap: 10px; align-items: center; background: rgba(8,6,15,0.6); backdrop-filter: blur(8px); }
-.input-wrap input[type=text] { flex: 1; background: rgba(8,6,15,0.8); border: 1px solid rgba(244,236,223,0.18); border-radius: 4px; padding: 10px 14px; color: #f4ecdf; font-size: 0.85rem; outline: none; font-family: inherit; min-width: 0; }
+.input-wrap { grid-column: 1; grid-row: 6; padding: 8px 14px 12px; border-top: 1px solid rgba(244,236,223,0.08); display: flex; gap: 6px; align-items: center; background: rgba(8,6,15,0.6); backdrop-filter: blur(8px); flex-wrap: nowrap; }
+.input-wrap input[type=text] { flex: 1 1 0; background: rgba(8,6,15,0.8); border: 1px solid rgba(244,236,223,0.18); border-radius: 4px; padding: 9px 12px; color: #f4ecdf; font-size: 0.85rem; outline: none; font-family: inherit; min-width: 0; }
 .input-wrap input[type=text]:focus { border-color: #f4ecdf; box-shadow: 0 0 0 2px rgba(244,236,223,0.08); }
 .input-wrap input[type=text]::placeholder { color: #514a3e; }
-.speed-control { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: #514a3e; font-family: 'JetBrains Mono', monospace; }
-.speed-control input[type=range] { width: 70px; accent-color: #00e5ff; cursor: pointer; }
-.speed-control span { min-width: 22px; color: #5eead4; }
-.input-wrap button { background: #f4ecdf; color: #08060f; border: 1px solid #f4ecdf; border-radius: 4px; padding: 10px 22px; font-weight: 500; cursor: pointer; font-size: 0.82rem; white-space: nowrap; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
+.speed-control { display: flex; align-items: center; gap: 4px; font-size: 0.65rem; color: #514a3e; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.speed-control input[type=range] { width: 52px; accent-color: #00e5ff; cursor: pointer; }
+.speed-control span { min-width: 20px; color: #5eead4; }
+.input-wrap button { background: #f4ecdf; color: #08060f; border: 1px solid #f4ecdf; border-radius: 4px; padding: 9px 14px; font-weight: 500; cursor: pointer; font-size: 0.8rem; white-space: nowrap; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); flex-shrink: 0; }
 .input-wrap button:hover { background: #00e5ff; border-color: #00e5ff; transform: translateY(-1px); box-shadow: 0 12px 32px rgba(0,229,255,0.32); }
 .input-wrap button:disabled { opacity: 0.4; cursor: default; box-shadow: none; transform: none; }
 
@@ -383,7 +393,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
   background: transparent;
   border: 1px solid rgba(244,236,223,0.18);
   border-radius: 4px;
-  padding: 8px 10px;
+  padding: 7px 8px;
   cursor: pointer;
   font-size: 0.95rem;
   line-height: 1;
@@ -391,6 +401,7 @@ body:not(.mode-scene) .scene-only { display: none !important; }
   font-weight: 400;
   box-shadow: none;
   transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  flex-shrink: 0;
 }
 .input-wrap .tool-btn:hover {
   border-color: #f4ecdf;
@@ -739,19 +750,42 @@ body.mode-scene .input-wrap:hover {
    the text input so the layout stops eating itself. */
 body.mode-journey .input-wrap,
 body.mode-scene .input-wrap {
-  padding: 10px 14px;
-  width: min(820px, calc(100vw - 40px));
+  padding: 10px 12px;
+  width: min(1180px, calc(100vw - 40px));
   max-width: none;
-  gap: 8px;
-  /* Keep the rounded border clipping any oversized child backgrounds. */
-  overflow: hidden;
+  gap: 6px;
+  /* Allow the Ask/Generating button to render past the rounded border
+     when text grows; clipping was masking the overflow you saw. */
+  overflow: visible;
+  flex-wrap: nowrap;
 }
 body.mode-journey .input-wrap input[type=text],
 body.mode-scene .input-wrap input[type=text] {
-  /* Prompt text input gets real estate to actually be a text input. */
-  min-width: 220px;
-  flex: 1 1 220px;
+  /* Prompt text input shrinks gracefully so the buttons keep their room. */
+  min-width: 160px;
+  flex: 1 1 160px;
 }
+body.mode-journey .input-wrap button,
+body.mode-scene .input-wrap button {
+  padding: 9px 12px;
+  font-size: 0.78rem;
+}
+body.mode-journey .input-wrap .tool-btn,
+body.mode-scene .input-wrap .tool-btn {
+  padding: 7px 7px;
+}
+body.mode-journey .input-wrap .speed-control,
+body.mode-scene .input-wrap .speed-control {
+  gap: 3px;
+}
+body.mode-journey .input-wrap .speed-control input[type=range],
+body.mode-scene .input-wrap .speed-control input[type=range] {
+  width: 48px;
+}
+/* Reserve room so "Generating..." (longest state) doesn't shove the
+   rest of the bar around. Use min-width on the Think button. */
+body.mode-journey #goBtn,
+body.mode-scene #goBtn { min-width: 96px; text-align: center; }
 body.mode-journey .token-strip,
 body.mode-scene .token-strip {
   padding: 8px 14px;
@@ -848,7 +882,7 @@ body.mode-journey .brain-wrap { opacity: 1 !important; }
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.journey-meta { color: #514a3e; flex: 1; }
+.journey-meta { color: #b9af9a; flex: 1; }
 
 .journey-play {
   background: transparent;
@@ -918,11 +952,11 @@ body.mode-journey .brain-wrap { opacity: 1 !important; }
 }
 
 .journey-sub {
-  font-weight: 300;
+  font-weight: 400;
   /* Was 1.02 / 1.55 / 28 — way too much. Now compact two-liner max. */
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: #8a8170;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #e4dccb;
   max-width: 72ch;
   margin-bottom: 10px;
 }
@@ -950,16 +984,16 @@ body.mode-journey .brain-wrap { opacity: 1 !important; }
 }
 .journey-hint {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
+  font-size: 0.64rem;
   letter-spacing: 0.14em;
   text-transform: lowercase;
-  color: #8a8170;
+  color: #cbc1ad;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   transition: color 0.8s ease, opacity 0.8s ease;
 }
-.journey-hint .dot { color: rgba(244, 236, 223, 0.18); }
+.journey-hint .dot { color: rgba(244, 236, 223, 0.32); }
 .journey-hint.dim {
   color: #514a3e;
   opacity: 0.55;
@@ -1157,7 +1191,9 @@ body.mode-journey .side > #output > * {
   display: revert !important;  /* undo pip-mode display:none */
 }
 body.mode-scene .side > #output::before,
-body.mode-journey .side > #output::before { display: none !important; }
+body.mode-journey .side > #output::before,
+body.mode-scene .side > #output::after,
+body.mode-journey .side > #output::after { display: none !important; content: none !important; }
 body.mode-scene .side > #output:not(.expanded),
 body.mode-journey .side > #output:not(.expanded) {
   font-size: 14px !important;

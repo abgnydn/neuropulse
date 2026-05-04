@@ -588,17 +588,37 @@ function wireJourney(): void {
 /** Make any element drag-to-move with viewport-clamped position persisted to
  *  localStorage. Click-vs-drag is settled by a 5px movement threshold so a
  *  small click on a pip still triggers the existing expand/collapse. While
- *  dragging the .dragging class is added (cursor: grabbing, z-index bump). */
+ *  dragging the .dragging class is added (cursor: grabbing, z-index bump).
+ *  Works on grid/flex children too: on first drag we snapshot the visible
+ *  rect and switch the element to position:fixed so left/top take effect. */
 function makeDraggable(el: HTMLElement, key: string) {
   const STORAGE_KEY = `neuropulse:panel-pos:${key}`
   const THRESH = 5
+
+  const ensureFixed = () => {
+    const cs = getComputedStyle(el)
+    if (cs.position === 'fixed' || cs.position === 'absolute') return
+    const rect = el.getBoundingClientRect()
+    el.style.position = 'fixed'
+    el.style.left = `${rect.left}px`
+    el.style.top = `${rect.top}px`
+    el.style.right = 'auto'
+    el.style.bottom = 'auto'
+    el.style.width = `${rect.width}px`
+    el.style.zIndex = el.style.zIndex || '90'
+  }
 
   // Restore saved position (if any). We override top/right via inline
   // styles so the per-class CSS dock is the *default*, not the cap.
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
-      const { x, y } = JSON.parse(saved)
+      const { x, y, fixed, w } = JSON.parse(saved)
+      if (fixed) {
+        el.style.position = 'fixed'
+        if (w) el.style.width = `${w}px`
+        el.style.zIndex = el.style.zIndex || '90'
+      }
       el.style.left = `${x}px`
       el.style.top = `${y}px`
       el.style.right = 'auto'
@@ -626,6 +646,7 @@ function makeDraggable(el: HTMLElement, key: string) {
       const dy = ev.clientY - startY
       if (!moved && (Math.abs(dx) > THRESH || Math.abs(dy) > THRESH)) {
         moved = true
+        ensureFixed()
         el.classList.add('dragging')
       }
       if (moved) {
@@ -649,7 +670,8 @@ function makeDraggable(el: HTMLElement, key: string) {
         setTimeout(() => { delete el.dataset.justDragged }, 200)
         el.classList.remove('dragging')
         const r = el.getBoundingClientRect()
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: r.left, y: r.top })) } catch { /* quota */ }
+        const fixed = getComputedStyle(el).position === 'fixed'
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: r.left, y: r.top, fixed, w: r.width })) } catch { /* quota */ }
         // Swallow the click so it doesn't trigger expand/collapse on
         // panels whose own click handler runs after mouseup.
         ev.stopPropagation()
@@ -732,6 +754,27 @@ function wirePanelToggles(): void {
 
   layoutBottomOrbRail()
   window.addEventListener('resize', layoutBottomOrbRail)
+
+  // Make all the other top-level UI containers draggable too. Grid/flex
+  // children get position:fixed snapshotted on first drag (see makeDraggable
+  // → ensureFixed) so they pop out cleanly without breaking layout until
+  // the user actually grabs them.
+  const extraDraggables: Array<[string, string]> = [
+    ['.token-strip', 'token-strip'],
+    ['.input-wrap', 'input-wrap'],
+    ['.preset-row', 'preset-row'],
+    ['.legend', 'legend'],
+    ['.cinema-controls', 'cinema-controls'],
+    ['#journey-hud', 'journey-hud'],
+    ['#tutorialOverlay', 'tutorial-overlay'],
+  ]
+  for (const [sel, key] of extraDraggables) {
+    const el = document.querySelector<HTMLElement>(sel)
+    if (el) {
+      el.style.cursor = el.style.cursor || 'grab'
+      makeDraggable(el, key)
+    }
+  }
 }
 
 /** Lay out every [data-anchor] panel except #output (top-center answer
@@ -2334,15 +2377,18 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
         viz.activateLayer(layer, (step + 1) / 9)
       }
 
-      // Speed-controlled delay
-      const speed = parseInt(speedSlider.value)
-      const delayMs = speed >= 20 ? 0
-        : speed >= 10 ? Math.max(1, Math.round(12 - (speed - 10) * 1.2))
-        : speed >= 4 ? Math.round(30 - (speed - 3) * 3)
-        : Math.round(100 - speed * 20)
-
-      if (delayMs > 0) {
-        await sleep(delayMs)
+      // Speed control — slider value ≈ target tokens/sec ceiling. Apply
+      // the entire gap once per token (at the last step of layer 31) so
+      // the streaming pace is visibly tied to the slider regardless of
+      // GPU speed. 20x removes the cap entirely (GPU-bound).
+      const speed = parseInt(speedSlider.value) || 5
+      if (layer === 31 && step === 8 && speed < 20) {
+        const gapMs = Math.round(1000 / speed)
+        await sleep(gapMs)
+      } else if (speed <= 3) {
+        // At very slow speeds add a tiny per-step delay too, so each
+        // layer's animation through the scene reads as slow-motion.
+        await sleep((4 - speed) * 4)
       }
       // Cinema mode pause/step gate — block here until user presses play
       // or the step button. The engine's GPU work continues but the next
@@ -2434,7 +2480,7 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
   }
   await engine.generate(
     realPrompt,
-    mode === 'ask' ? 300 : 500,
+    mode === 'ask' ? 140 : 180,
     mergeCallbacks(baseCallbacks, storyteller.hooks()),
   )
 
@@ -2445,9 +2491,29 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
     console.warn('[inference] GPU error:', err)
     const cur = output.querySelector('.cursor')
     if (cur) cur.remove()
-    // Show brief error indicator, then auto-retry after GPU settles
-    output.innerHTML += `<span style="color:#f44;opacity:.7"> [GPU hiccup — retrying...]</span>`
-    await sleep(1500)
+    // Detect device-lost: AbortError on mapAsync with "Instance reference"
+    // means the GPUDevice was destroyed mid-generation. Retrying with the same
+    // engine will fail identically — we have to rebuild from scratch.
+    const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+    const deviceLost = /Instance reference|device.*lost|destroyed|context lost/i.test(msg)
+    if (deviceLost) {
+      output.innerHTML += `<span style="color:#f44;opacity:.7"> [GPU device lost — reinitializing...]</span>`
+      engine = null
+      try {
+        engine = await createInferenceEngine((p) => updateLoading(p))
+        hideLoading()
+      } catch (initErr) {
+        console.error('[inference] reinit failed:', initErr)
+        output.innerHTML += `<span style="color:#f44;opacity:.7"> [reinit failed — please reload the page]</span>`
+        isRunning = false
+        goBtn.disabled = false
+        goBtn.textContent = 'Think'
+        return
+      }
+    } else {
+      output.innerHTML += `<span style="color:#f44;opacity:.7"> [GPU hiccup — retrying...]</span>`
+      await sleep(1500)
+    }
     // Retry once with same prompt
     isRunning = false
     try {

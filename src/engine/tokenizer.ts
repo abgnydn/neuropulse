@@ -231,19 +231,37 @@ export async function loadTokenizer(onProgress?: (msg: string) => void): Promise
   // --------------------------------------------------------
   // Decode: token IDs → text
   //
-  // Simply look up each ID in idToToken, replace ▁ with space.
+  // Look up each ID in idToToken; replace ▁ with space. Byte-fallback
+  // tokens (`<0x00>`..`<0xFF>`) are accumulated into runs and decoded as
+  // UTF-8 so e.g. `<0x0A>` becomes a real newline and emoji split across
+  // 4 byte tokens reassemble correctly. Tolerates partial multi-byte
+  // sequences mid-stream (TextDecoder emits U+FFFD; next call reassembles).
   // --------------------------------------------------------
+  const byteFallbackRe = /^<0x([0-9A-Fa-f]{2})>$/
+  const utf8Decoder = new TextDecoder('utf-8')
   function decode(ids: number[] | Int32Array): string {
     let text = ''
+    let byteRun: number[] = []
+    const flushBytes = () => {
+      if (byteRun.length) {
+        text += utf8Decoder.decode(new Uint8Array(byteRun))
+        byteRun = []
+      }
+    }
     for (const id of ids) {
       if (id < 0) continue
       const tok = idToToken[id]
       if (!tok) continue
-      // Skip BOS/EOS/PAD in output
       if (tok === '<s>' || tok === '</s>' || tok === '<pad>') continue
-      text += tok
+      const m = byteFallbackRe.exec(tok)
+      if (m) {
+        byteRun.push(parseInt(m[1], 16))
+      } else {
+        flushBytes()
+        text += tok
+      }
     }
-    // Replace metaspace with actual space, trim leading space
+    flushBytes()
     return text.replace(new RegExp(METASPACE, 'g'), ' ').trimStart()
   }
 

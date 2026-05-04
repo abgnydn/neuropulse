@@ -295,6 +295,12 @@ export async function createInferenceEngine(
   const device = await adapter.requestDevice({
     requiredFeatures: ['shader-f16' as GPUFeatureName],
   })
+  // Surface device loss explicitly so the app can rebuild the engine instead
+  // of retrying with dead buffers. Triggered by tab backgrounding, GPU process
+  // restart, OOM, or another tab evicting us.
+  device.lost.then((info) => {
+    console.warn('[inference] GPU device lost:', info.reason, info.message)
+  })
 
   report('Loading tokenizer...')
   const tokenizer = await loadTokenizer((msg) => report(msg))
