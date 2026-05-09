@@ -1,0 +1,64 @@
+{
+  "$schema": "./parity.schema.json",
+  "schemaVersion": 1,
+  "_comment": "Reference parity baseline. Numeric tolerances are committed; per-shard SHA-256 hashes and HF input-ids are populated by tools/dump_phi3_reference.py the first time it runs against a pinned HF revision. Until then, the placeholders below are intentional and verify-claims will not fail on this file (it is not in the SURFACES list).",
+  "modelSource": {
+    "repo": "mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
+    "revision": "TBD: pin to a specific HF git rev when the runner first writes this file",
+    "shards": []
+  },
+  "phi3Facts": {
+    "layers": 32,
+    "heads": 32,
+    "headDim": 96,
+    "hiddenDim": 3072,
+    "ffnDim": 8192,
+    "vocab": 32064
+  },
+  "validation": {
+    "validateLayers": [0, 4, 8, 12, 16, 20, 24, 28, 31],
+    "tolerances": {
+      "hiddenRelL2Max": 0.02,
+      "hiddenCosineMin": 0.999,
+      "attnReconRelL2Max": 0.01,
+      "top1Match": 1.0,
+      "meanJsdMax": 0.005,
+      "samplerJsdMax": 0.01
+    },
+    "prompts": [
+      {
+        "text": "The capital of Japan is",
+        "hfInputIds": [],
+        "expectedTopTokens": []
+      },
+      {
+        "text": "Step by step, solve: 17 * 23 =",
+        "hfInputIds": [],
+        "expectedTopTokens": []
+      },
+      {
+        "text": "Explain attention in one sentence.",
+        "hfInputIds": [],
+        "expectedTopTokens": []
+      },
+      {
+        "text": "What is consciousness?",
+        "hfInputIds": [],
+        "expectedTopTokens": []
+      },
+      {
+        "text": "def fibonacci(n):",
+        "hfInputIds": [],
+        "expectedTopTokens": []
+      }
+    ]
+  },
+  "fingerprint": {
+    "buildSha": "baseline",
+    "gpuVendor": "_baseline_not_a_run",
+    "gpuArchitecture": "_baseline_not_a_run",
+    "browser": "_baseline_not_a_run",
+    "platform": "_baseline_not_a_run",
+    "ranAt": "1970-01-01T00:00:00Z"
+  }
+}

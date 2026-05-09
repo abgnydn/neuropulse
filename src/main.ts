@@ -1,5 +1,6 @@
 import { BrainVisualizer, LayerActivation } from './visualizer'
 import { createInferenceEngine, InferenceEngine, InferenceCallbacks, LoadProgress, TopKEntry, Ablation } from './engine/inference'
+import { getStoredWeightStats, clearStoredWeights } from './engine/weight-loader'
 import { initStoryteller, mergeCallbacks } from './storyteller'
 import { initButterflyPanel } from './butterfly-mode'
 import { reduceQKVForAttnHeads, reduceForAttnHeads, reduceForFFNGroups, reduceForResidual, normalizeFull } from './engine/activation-reducer'
@@ -494,9 +495,20 @@ let journey: JourneyHandle | null = null
 // SpatialPanels handle — Universe (scene) mode's floating 3D cards.
 let spatial: SpatialPanels | null = null
 
+// Cinema mode snaps the speed slider down so an in-flight pass becomes
+// visibly cinematic without spawning a second run. We stash the prior value
+// here and restore it when leaving cinema.
+let cinemaPrevSpeed: string | null = null
+const CINEMA_SPEED = '1'
+
 function setMode(mode: ViewMode) {
   if (mode === currentMode) return
   if (currentMode === 'journey' && journey) journey.exit()
+  if (currentMode === 'cinema' && cinemaPrevSpeed !== null) {
+    speedSlider.value = cinemaPrevSpeed
+    speedSlider.dispatchEvent(new Event('input'))
+    cinemaPrevSpeed = null
+  }
   document.body.classList.remove(`mode-${currentMode}`)
   document.body.classList.add(`mode-${mode}`)
   currentMode = mode
@@ -513,7 +525,14 @@ function setMode(mode: ViewMode) {
     renderAttentionGrid(lastAttentionScores, lastAttentionKvLen)
   }
   if (mode === 'lens') refreshLensHero()
-  if (mode === 'cinema') updateCinemaScrub()
+  if (mode === 'cinema') {
+    if (parseInt(speedSlider.value) > parseInt(CINEMA_SPEED)) {
+      cinemaPrevSpeed = speedSlider.value
+      speedSlider.value = CINEMA_SPEED
+      speedSlider.dispatchEvent(new Event('input'))
+    }
+    updateCinemaScrub()
+  }
 }
 
 document.querySelectorAll<HTMLButtonElement>('.mode-btn').forEach((btn) => {
@@ -535,6 +554,25 @@ function togglePanels(show?: boolean): void {
 }
 togglePanelsBtn?.addEventListener('click', () => togglePanels())
 
+// ─── Open-all / collapse-all-to-orbs toggle ───
+// Distinct from the hide-everything button above: this expands every panel
+// in the side rail at once, or collapses them all back to orbs. Output area
+// and side-header stay as they are (always visible labels).
+const expandAllBtn = document.getElementById('panels-expand-all')
+function toggleAllPanels(expand?: boolean): void {
+  const targets = document.querySelectorAll<HTMLElement>(
+    '.side > [data-anchor]:not(#output):not(.side-header)'
+  )
+  const willExpand = expand === undefined
+    ? Array.from(targets).some((p) => !p.classList.contains('expanded'))
+    : expand
+  targets.forEach((p) => p.classList.toggle('expanded', willExpand))
+  expandAllBtn?.classList.toggle('on', willExpand)
+  const label = expandAllBtn?.querySelector('.jx-label')
+  if (label) label.textContent = willExpand ? 'collapse all' : 'expand all'
+}
+expandAllBtn?.addEventListener('click', () => toggleAllPanels())
+
 // Journey HUD has its own dismiss — orthogonal to the panels toggle.
 // Clicking × on the HUD or pressing H hides just the bottom overlay.
 function toggleJourneyHud(show?: boolean): void {
@@ -551,6 +589,9 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'p' || e.key === 'P' || e.key === 'Tab') {
     e.preventDefault()
     togglePanels()
+  } else if (e.key === 'o' || e.key === 'O') {
+    // Expand all panels / collapse all panels back to orbs (does not hide them).
+    toggleAllPanels()
   } else if (e.key === 'h' || e.key === 'H') {
     toggleJourneyHud()
   } else if (e.key === 'a' || e.key === 'A') {
@@ -2159,6 +2200,187 @@ function getSharedPrompt(): string | null {
   const params = new URLSearchParams(window.location.search)
   return params.get('q')
 }
+
+// ─── Runtime fingerprint footer — what code, what GPU, what browser ───
+// Empirical-lab basics: identify the exact build + hardware running this
+// forward pass so a numerical mismatch report is reproducible.
+async function populateFingerprint(): Promise<void> {
+  const fp = document.getElementById('fingerprint') as HTMLDivElement | null
+  if (!fp) return
+  const detail = document.getElementById('fp-detail') as HTMLDivElement | null
+
+  const set = (id: string, v: string) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = v
+  }
+
+  // Build identifiers (substituted by Vite at build time).
+  const sha = typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'dev'
+  const branch = typeof __BUILD_BRANCH__ !== 'undefined' ? __BUILD_BRANCH__ : 'dev'
+  const dirty = typeof __BUILD_DIRTY__ !== 'undefined' ? __BUILD_DIRTY__ : false
+  const builtAt = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : '—'
+  if (dirty) fp.classList.add('dirty')
+
+  set('fp-sha', `${sha}${dirty ? '+dirty' : ''}`)
+  set('fp-build', `${sha}${dirty ? ' (dirty tree)' : ''}`)
+  set('fp-branch', branch)
+  set('fp-time', builtAt)
+
+  // Browser + platform.
+  const ua = navigator.userAgent
+  // Best-effort browser sniff for the summary; the full UA goes in detail.
+  let browserName = 'unknown'
+  const m = ua.match(/(Chrome|Edg|Firefox|Safari|OPR)\/(\d+)/)
+  if (m) browserName = `${m[1].replace('Edg', 'Edge').replace('OPR', 'Opera')} ${m[2]}`
+  set('fp-browser', `${browserName} · ${ua.slice(0, 100)}${ua.length > 100 ? '…' : ''}`)
+  set('fp-platform', navigator.platform || '—')
+  set('fp-screen', `${screen.width}×${screen.height} @${window.devicePixelRatio}x`)
+
+  // GPU — request a fresh adapter (cheap; we discard the device).
+  try {
+    if (!navigator.gpu) {
+      set('fp-gpu', 'no WebGPU')
+      return
+    }
+    const adapter = await navigator.gpu.requestAdapter()
+    if (!adapter) {
+      set('fp-gpu', 'no adapter')
+      return
+    }
+    type AdapterInfo = { vendor?: string; architecture?: string; device?: string; description?: string }
+    let info: AdapterInfo = {}
+    try {
+      const reqInfo = (adapter as unknown as { requestAdapterInfo?: () => Promise<AdapterInfo> }).requestAdapterInfo
+      if (reqInfo) info = await reqInfo.call(adapter)
+      else if ((adapter as unknown as { info?: AdapterInfo }).info) {
+        info = (adapter as unknown as { info: AdapterInfo }).info
+      }
+    } catch { /* ignore */ }
+    const vendor = info.vendor || 'unknown'
+    const arch = info.architecture || ''
+    const device = info.device || ''
+    const summary = arch ? `${vendor} · ${arch}` : vendor
+    set('fp-gpu', `gpu ${summary}`)
+    set('fp-gpu-vendor', vendor)
+    set('fp-gpu-arch', arch || '—')
+    set('fp-gpu-device', device || info.description || '—')
+
+    const limits = adapter.limits as unknown as { maxComputeWorkgroupStorageSize?: number }
+    set('fp-wg', limits.maxComputeWorkgroupStorageSize ? `${limits.maxComputeWorkgroupStorageSize.toLocaleString()} B` : '—')
+    set('fp-f16', adapter.features.has('shader-f16') ? 'yes' : 'no')
+  } catch (err) {
+    console.warn('[fingerprint] gpu probe failed:', err)
+    set('fp-gpu', 'gpu probe failed')
+  }
+
+  // Click to expand/collapse the detail panel.
+  fp.addEventListener('click', () => {
+    if (detail) detail.hidden = !detail.hidden
+  })
+}
+populateFingerprint()
+
+// ─── Model storage modal — see + delete the cached Phi-3 weights ───
+const storageBtn = document.getElementById('storageBtn') as HTMLButtonElement | null
+const storageModal = document.getElementById('storageModal') as HTMLDivElement | null
+const storageTotalEl = document.getElementById('storageTotal')
+const storageCacheEl = document.getElementById('storageCache')
+const storageOpfsEl = document.getElementById('storageOpfs')
+const storageFilesEl = document.getElementById('storageFiles')
+const storageCancelBtn = document.getElementById('storageCancel') as HTMLButtonElement | null
+const storageDeleteBtn = document.getElementById('storageDelete') as HTMLButtonElement | null
+
+function fmtBytes(b: number): string {
+  if (b <= 0) return '0 B'
+  if (b < 1024) return `${b} B`
+  if (b < 1024 ** 2) return `${(b / 1024).toFixed(1)} KB`
+  if (b < 1024 ** 3) return `${(b / 1024 ** 2).toFixed(1)} MB`
+  return `${(b / 1024 ** 3).toFixed(2)} GB`
+}
+
+let storageDeleteArmed = false
+let storageDeleteResetTimer: number | null = null
+
+async function refreshStorageStats(): Promise<void> {
+  if (storageTotalEl) storageTotalEl.textContent = 'measuring…'
+  if (storageCacheEl) storageCacheEl.textContent = '—'
+  if (storageOpfsEl) storageOpfsEl.textContent = '—'
+  if (storageFilesEl) storageFilesEl.textContent = '—'
+  const s = await getStoredWeightStats()
+  if (storageTotalEl) storageTotalEl.textContent = fmtBytes(s.totalBytes)
+  if (storageCacheEl) storageCacheEl.textContent = `${fmtBytes(s.cacheBytes)} · ${s.shardCount} shard${s.shardCount === 1 ? '' : 's'}`
+  if (storageOpfsEl) storageOpfsEl.textContent = `${fmtBytes(s.opfsBytes)} · ${s.opfsFileCount} file${s.opfsFileCount === 1 ? '' : 's'}`
+  if (storageFilesEl) storageFilesEl.textContent = String(s.shardCount + s.opfsFileCount)
+}
+
+function openStorageModal(): void {
+  if (!storageModal) return
+  storageModal.hidden = false
+  // Reset any armed/post-delete state from a previous open.
+  storageDeleteArmed = false
+  storageDeleteDone = false
+  if (storageDeleteResetTimer) {
+    clearTimeout(storageDeleteResetTimer)
+    storageDeleteResetTimer = null
+  }
+  if (storageDeleteBtn) {
+    storageDeleteBtn.classList.remove('confirm')
+    storageDeleteBtn.disabled = false
+    storageDeleteBtn.textContent = 'Delete cached model'
+  }
+  refreshStorageStats()
+}
+
+function closeStorageModal(): void {
+  if (storageModal) storageModal.hidden = true
+}
+
+storageBtn?.addEventListener('click', openStorageModal)
+storageCancelBtn?.addEventListener('click', closeStorageModal)
+storageModal?.addEventListener('click', (e) => {
+  // Click backdrop (the modal element itself, not the card) to close.
+  if (e.target === storageModal) closeStorageModal()
+})
+
+let storageDeleteDone = false
+storageDeleteBtn?.addEventListener('click', async () => {
+  if (!storageDeleteBtn) return
+  // After a successful delete, the button becomes a reload trigger.
+  if (storageDeleteDone) {
+    location.reload()
+    return
+  }
+  // Two-tap confirmation: first click arms, second click commits.
+  if (!storageDeleteArmed) {
+    storageDeleteArmed = true
+    storageDeleteBtn.classList.add('confirm')
+    storageDeleteBtn.textContent = 'Tap again to confirm'
+    if (storageDeleteResetTimer) clearTimeout(storageDeleteResetTimer)
+    storageDeleteResetTimer = window.setTimeout(() => {
+      storageDeleteArmed = false
+      storageDeleteBtn.classList.remove('confirm')
+      storageDeleteBtn.textContent = 'Delete cached model'
+    }, 4000)
+    return
+  }
+  if (storageDeleteResetTimer) {
+    clearTimeout(storageDeleteResetTimer)
+    storageDeleteResetTimer = null
+  }
+  storageDeleteBtn.disabled = true
+  storageDeleteBtn.textContent = 'deleting…'
+  try {
+    await clearStoredWeights()
+  } catch (err) {
+    console.warn('[storage] delete failed:', err)
+  }
+  await refreshStorageStats()
+  storageDeleteBtn.disabled = false
+  storageDeleteBtn.classList.remove('confirm')
+  storageDeleteBtn.textContent = 'Reload to re-download'
+  storageDeleteArmed = false
+  storageDeleteDone = true
+})
 
 // ─── Boot screen (HTML-based, no flash of raw UI) ───
 function showBootLoading() {

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neuropulse.live/parity.schema.json",
+  "title": "Phi-3-mini parity report",
+  "description": "Pinned cross-validation artifact: weight provenance, validation prompts, and expected per-layer / per-token bounds for Phi-3-mini-q4f16_1 running through neuropulse's WGSL pipeline. The runner produces one of these per environment; CI diffs them against the committed snapshot.",
+  "type": "object",
+  "required": ["schemaVersion", "modelSource", "phi3Facts", "validation", "fingerprint"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "Bump on breaking schema changes."
+    },
+    "modelSource": {
+      "type": "object",
+      "required": ["repo", "revision", "shards"],
+      "additionalProperties": false,
+      "properties": {
+        "repo": { "type": "string", "description": "HF repo slug, e.g. mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC" },
+        "revision": { "type": "string", "description": "HF git revision (commit SHA or tag) the shards were pulled from." },
+        "shards": {
+          "type": "array",
+          "description": "List of all weight shards covered by this report.",
+          "items": {
+            "type": "object",
+            "required": ["dataPath", "nbytes", "sha256"],
+            "additionalProperties": false,
+            "properties": {
+              "dataPath": { "type": "string" },
+              "nbytes": { "type": "integer", "minimum": 0 },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+            }
+          }
+        }
+      }
+    },
+    "phi3Facts": {
+      "type": "object",
+      "description": "Snapshot of the architecture constants the rest of this report assumes. Mirror of compiler.ts PHI3.",
+      "required": ["layers", "heads", "headDim", "hiddenDim", "ffnDim", "vocab"],
+      "additionalProperties": false,
+      "properties": {
+        "layers": { "type": "integer", "const": 32 },
+        "heads": { "type": "integer", "const": 32 },
+        "headDim": { "type": "integer", "const": 96 },
+        "hiddenDim": { "type": "integer", "const": 3072 },
+        "ffnDim": { "type": "integer", "const": 8192 },
+        "vocab": { "type": "integer", "const": 32064 }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["validateLayers", "tolerances", "prompts"],
+      "additionalProperties": false,
+      "properties": {
+        "validateLayers": {
+          "type": "array",
+          "description": "Layer indices checkpointed for HF cross-validation.",
+          "items": { "type": "integer", "minimum": 0, "maximum": 31 }
+        },
+        "tolerances": {
+          "type": "object",
+          "description": "Bounds the runner must stay under. See METHODS.md for derivations.",
+          "required": ["hiddenRelL2Max", "hiddenCosineMin", "attnReconRelL2Max", "top1Match", "meanJsdMax", "samplerJsdMax"],
+          "additionalProperties": false,
+          "properties": {
+            "hiddenRelL2Max": { "type": "number", "const": 0.02 },
+            "hiddenCosineMin": { "type": "number", "const": 0.999 },
+            "attnReconRelL2Max": { "type": "number", "const": 0.01 },
+            "top1Match": { "type": "number", "minimum": 0, "maximum": 1, "const": 1.0 },
+            "meanJsdMax": { "type": "number", "const": 0.005 },
+            "samplerJsdMax": { "type": "number", "const": 0.01 }
+          }
+        },
+        "prompts": {
+          "type": "array",
+          "description": "Validation prompt set. Each entry pins HF-side ground truth.",
+          "items": {
+            "type": "object",
+            "required": ["text", "hfInputIds", "expectedTopTokens"],
+            "additionalProperties": false,
+            "properties": {
+              "text": { "type": "string" },
+              "hfInputIds": { "type": "array", "items": { "type": "integer" } },
+              "expectedTopTokens": {
+                "type": "array",
+                "description": "First N greedy-decoded token ids from the HF reference run.",
+                "items": { "type": "integer" }
+              },
+              "perLayerBounds": {
+                "type": "object",
+                "description": "Optional tighter per-layer bounds for this prompt. If absent, the global tolerances apply.",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["maxRelL2", "minCosine"],
+                  "properties": {
+                    "maxRelL2": { "type": "number" },
+                    "minCosine": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "fingerprint": {
+      "type": "object",
+      "description": "Identity of the run that produced this report. CI uses this to scope comparisons (e.g., NVIDIA baseline vs Apple baseline).",
+      "required": ["buildSha", "gpuVendor", "gpuArchitecture", "browser", "platform", "ranAt"],
+      "additionalProperties": false,
+      "properties": {
+        "buildSha": { "type": "string" },
+        "gpuVendor": { "type": "string" },
+        "gpuArchitecture": { "type": "string" },
+        "browser": { "type": "string" },
+        "platform": { "type": "string" },
+        "ranAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "results": {
+      "type": "object",
+      "description": "OPTIONAL — populated when this file is a ran-report rather than a tolerance baseline. CI comparison only reads this from the actual run; the committed file leaves it absent.",
+      "properties": {
+        "perPromptResults": { "type": "array" },
+        "samplerJsd": { "type": "number" },
+        "passed": { "type": "boolean" }
+      }
+    }
+  }
+}

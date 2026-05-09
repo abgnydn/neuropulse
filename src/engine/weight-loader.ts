@@ -144,6 +144,130 @@ async function opfsWrite(dir: OPFSDir, dataPath: string, data: ArrayBuffer): Pro
 }
 
 // ============================================================
+// Storage inspection + cleanup — surfaced in the UI so users can see
+// what's cached and free disk space without dev-tools.
+// ============================================================
+
+/** A weight shard URL across any storage tier we know about. */
+function isWeightUrl(url: string): boolean {
+  return (
+    url.includes('Phi-3-mini-4k-instruct-q4f16_1-MLC') ||
+    url.includes('/local-weights/') ||
+    url.includes('/hf/mlc-ai/')
+  )
+}
+
+export interface StoredWeightStats {
+  /** Bytes stored in any Cache API bucket whose entries match a weight URL. */
+  cacheBytes: number
+  /** Bytes stored in our OPFS directory. */
+  opfsBytes: number
+  /** Sum of cache + OPFS. */
+  totalBytes: number
+  /** Number of shard responses found across all caches. */
+  shardCount: number
+  /** Number of OPFS files found. */
+  opfsFileCount: number
+}
+
+export async function getStoredWeightStats(): Promise<StoredWeightStats> {
+  let cacheBytes = 0
+  let shardCount = 0
+  let opfsBytes = 0
+  let opfsFileCount = 0
+
+  try {
+    if (typeof caches !== 'undefined') {
+      const names = await caches.keys()
+      for (const name of names) {
+        const store = await caches.open(name)
+        const requests = await store.keys()
+        for (const req of requests) {
+          if (!isWeightUrl(req.url)) continue
+          const resp = await store.match(req)
+          if (!resp) continue
+          const cl = resp.headers.get('content-length')
+          if (cl) {
+            cacheBytes += parseInt(cl, 10) || 0
+          } else {
+            const blob = await resp.blob()
+            cacheBytes += blob.size
+          }
+          shardCount++
+        }
+      }
+    }
+  } catch {
+    /* no cache api */
+  }
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.storage?.getDirectory) {
+      const root = await navigator.storage.getDirectory()
+      try {
+        const dir = await root.getDirectoryHandle(OPFS_DIR)
+        // entries() exists at runtime but is missing from current TS lib types.
+        const entries = (dir as unknown as {
+          entries(): AsyncIterable<[string, FileSystemHandle]>
+        }).entries()
+        for await (const [, handle] of entries) {
+          if (handle.kind === 'file') {
+            const file = await (handle as FileSystemFileHandle).getFile()
+            opfsBytes += file.size
+            opfsFileCount++
+          }
+        }
+      } catch {
+        /* directory doesn't exist yet */
+      }
+    }
+  } catch {
+    /* no OPFS */
+  }
+
+  return {
+    cacheBytes,
+    opfsBytes,
+    totalBytes: cacheBytes + opfsBytes,
+    shardCount,
+    opfsFileCount,
+  }
+}
+
+/** Wipe every cached weight blob from Cache API caches + OPFS. The next
+ *  visit will re-download from HuggingFace. */
+export async function clearStoredWeights(): Promise<void> {
+  try {
+    if (typeof caches !== 'undefined') {
+      const names = await caches.keys()
+      for (const name of names) {
+        const store = await caches.open(name)
+        const requests = await store.keys()
+        for (const req of requests) {
+          if (isWeightUrl(req.url)) await store.delete(req)
+        }
+      }
+    }
+  } catch {
+    /* no cache api */
+  }
+  try {
+    if (typeof navigator !== 'undefined' && navigator.storage?.getDirectory) {
+      const root = await navigator.storage.getDirectory()
+      try {
+        await (root as unknown as {
+          removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>
+        }).removeEntry(OPFS_DIR, { recursive: true })
+      } catch {
+        /* not present — nothing to clear */
+      }
+    }
+  } catch {
+    /* no OPFS */
+  }
+}
+
+// ============================================================
 // Tiered shard fetch
 // ============================================================
 

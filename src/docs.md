@@ -59,7 +59,7 @@ per output token; each one is visible as its tensor lights up.
 
 - **32 layer rings** — one transformer block each; brightness tracks the
   post-attention + post-FFN residual norm.
-- **1,024 cyan attention-head neurons** — each lights up proportional to
+- **1,024 cyan attention heads** (32 layers × 32 heads) — each lights up proportional to
   its head's live output magnitude.
 - **Amber FFN slab** per layer — the 8,192-neuron expansion; pulses as
   the MLP activates.
@@ -91,8 +91,10 @@ Glowing cyan **pips** orbit the model at anchor positions. Click a pip
 to expand it into a full glass card; click × to collapse. Drag to orbit
 the camera, wheel to zoom, right-drag to pan.
 
-**Journey** — scroll-driven cinematic flythrough of all 32 layers. Space
-to auto-play (~60s per full journey). Arrow keys to step. The camera
+**Journey** — keyboard-driven cinematic flythrough of all 32 layers.
+Space auto-plays (~60s per full journey); arrows step one layer at a
+time; Home / End jump to the ends; the ▶ play button on the HUD does
+the same. Wheel is reserved for camera zoom (OrbitControls). The camera
 dollies behind the "signal position" as it moves through the model.
 
 **Panels** (each has an `i` info button):
@@ -101,8 +103,10 @@ dollies behind the "signal position" as it moves through the model.
 - Residual Norm, Layer Δ, Residual Strip, Raw GPU State (left cluster)
 - Prompt input + token strip (floating below / above)
 
-**Keyboard**: `?` = glossary · `space` = play/pause journey · arrows = step
-layers · `P` or `Tab` = toggle all panels · `R` = reset camera · `Esc` =
+**Keyboard** (most are scoped to **Journey** mode where noted): `?` =
+glossary · `space` = play/pause journey *(Journey only)* · arrows = step
+layers *(Journey only)* · `P` or `Tab` = toggle all panels · `O` =
+expand/collapse all panels to orbs · `R` = reset camera · `Esc` =
 close overlays · drag = orbit · wheel = zoom.
 
 ## Performance and honesty

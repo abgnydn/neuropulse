@@ -311,7 +311,7 @@ export async function createInferenceEngine(
   report('Allocating KV cache...', { phase: 'uploading', percent: 98 })
   const kvPages = allocKVPages(device)
 
-  onProgress?.('Compiling shaders...')
+  report('Compiling shaders...', { phase: 'uploading', percent: 99 })
   const { pipelines: P } = compile(device)
 
   // Activation buffers

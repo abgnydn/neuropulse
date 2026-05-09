@@ -1,7 +1,38 @@
 import { defineConfig } from 'vite'
 import { existsSync, readdirSync, statSync, createReadStream } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
+
+/** Build-time identifiers surfaced in the in-app fingerprint footer. */
+function getBuildSha(): string {
+  try {
+    return execSync('git rev-parse --short=12 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim()
+  } catch {
+    return 'unknown'
+  }
+}
+function getBuildBranch(): string {
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim()
+  } catch {
+    return 'unknown'
+  }
+}
+function getBuildIsDirty(): boolean {
+  try {
+    const out = execSync('git status --porcelain', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim()
+    return out.length > 0
+  } catch {
+    return false
+  }
+}
 
 /**
  * Local MLC-weights mirror for e2e testing without re-downloading 2 GB.
@@ -79,6 +110,12 @@ export default defineConfig({
   root: '.',
   base: './',
   plugins: [localWeightsPlugin()],
+  define: {
+    __BUILD_SHA__: JSON.stringify(getBuildSha()),
+    __BUILD_BRANCH__: JSON.stringify(getBuildBranch()),
+    __BUILD_DIRTY__: JSON.stringify(getBuildIsDirty()),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   server: {
     port: 4000,
     fs: {

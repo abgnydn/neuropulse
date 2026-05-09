@@ -177,11 +177,11 @@ First visit downloads ~2 GB of model weights into the browser cache. Every visit
 
 ## Requirements
 
-| | Minimum |
-|:---|:---|
-| **Browser** | Chrome 113+, Edge 113+, or Safari Technology Preview |
-| **GPU** | 4 GB VRAM |
-| **Disk** | ~2 GB for weight cache |
+| | Minimum | Recommended |
+|:---|:---|:---|
+| **Browser** | Chrome 113+, Edge 113+, Safari Technology Preview | latest desktop Chrome |
+| **GPU memory** | ~2 GB free (the weight payload) | 4+ GB for headroom |
+| **Disk** | ~2 GB for weight cache (OPFS or Cache API) | — |
 
 <br>
 

@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Neuropulse — Watch a real transformer think</title>
-<meta name="description" content="A live 3D rendering of Phi-3-mini running on your GPU. Every neuron, every attention head, every activation — drawn one-to-one from real WebGPU tensors. The whole model runs in your tab; close it and the inference stops." />
+<meta name="description" content="A live 3D rendering of Phi-3-mini running on your GPU. Every attention head, every FFN cell, every activation — drawn one-to-one from real WebGPU tensors. The whole model runs in your tab; close it and the inference stops." />
 <link rel="canonical" href="https://neuropulse.live/" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -1073,7 +1073,7 @@
         </li>
         <li>
           <strong>32 attention heads per layer</strong>
-          <span>Cyan neurons on the outer ring. Each lights up proportional to its head's output magnitude. 1,024 heads in total, all live.</span>
+          <span>Cyan heads on the outer ring. Each lights up proportional to its output magnitude. 1,024 heads in total (32 layers × 32 heads), all live.</span>
         </li>
         <li>
           <strong>FFN slab</strong>

@@ -1039,6 +1039,89 @@ body.mode-journey .brain-wrap { opacity: 1 !important; }
 /* Hide all pips + expanded cards when toggled off */
 body.panels-hidden .side { display: none !important; }
 
+/* Expand-all / collapse-all toggle — sits next to #journey-exit */
+#panels-expand-all {
+  position: fixed;
+  top: 18px;
+  right: 134px;
+  z-index: 102;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: rgba(8, 6, 15, 0.55);
+  border: 1px solid rgba(244, 236, 223, 0.22);
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a8170;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+#panels-expand-all .jx-icon { opacity: 0.85; }
+#panels-expand-all:hover {
+  border-color: #5eead4;
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.08);
+}
+#panels-expand-all.on {
+  border-color: rgba(94, 234, 212, 0.55);
+  color: #5eead4;
+}
+#panels-expand-all:focus-visible {
+  outline: 2px solid rgba(0, 229, 255, 0.6);
+  outline-offset: 2px;
+}
+/* When the hide-everything toggle is on, hide this one too. */
+body.panels-hidden #panels-expand-all { display: none !important; }
+
+/* ── Runtime fingerprint — bottom-left pill ── */
+#fingerprint {
+  position: fixed;
+  bottom: 14px;
+  left: 14px;
+  z-index: 102;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  color: rgba(244, 236, 223, 0.5);
+  background: rgba(8, 6, 15, 0.55);
+  border: 1px solid rgba(244, 236, 223, 0.12);
+  border-radius: 8px;
+  padding: 6px 10px;
+  max-width: 360px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+#fingerprint:hover {
+  color: #cbc1ad;
+  border-color: rgba(94, 234, 212, 0.4);
+  background: rgba(8, 6, 15, 0.85);
+}
+#fingerprint .fp-summary { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+#fingerprint .fp-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5eead4;
+  box-shadow: 0 0 6px rgba(94, 234, 212, 0.8);
+  flex-shrink: 0;
+}
+#fingerprint.dirty .fp-dot { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.8); }
+#fingerprint .fp-detail { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(244, 236, 223, 0.12); display: flex; flex-direction: column; gap: 3px; min-width: 280px; }
+#fingerprint .fp-detail[hidden] { display: none; }
+#fingerprint .fp-row { display: flex; justify-content: space-between; gap: 12px; }
+#fingerprint .fp-key { color: rgba(244, 236, 223, 0.4); }
+#fingerprint .fp-row > span:last-child { color: #cbc1ad; text-align: right; max-width: 220px; overflow-wrap: anywhere; }
+#fingerprint .fp-hint { margin-top: 6px; font-size: 0.5rem; color: rgba(244, 236, 223, 0.4); line-height: 1.4; font-family: 'Inter', sans-serif; letter-spacing: 0; }
+body.panels-hidden #fingerprint { display: none !important; }
+
 @media (max-width: 720px) {
   #journey-hud { padding: 12px 16px 14px; }
   .journey-sub { font-size: 0.78rem; margin-bottom: 8px; }
@@ -1261,6 +1344,18 @@ body.mode-journey .raw-panel:not(.expanded) {
   border-color: rgba(244, 236, 223, 0.55);
   background: radial-gradient(circle, rgba(244, 236, 223, 0.45), rgba(244, 236, 223, 0.08) 70%);
   box-shadow: 0 0 16px rgba(244, 236, 223, 0.32), inset 0 0 6px rgba(244, 236, 223, 0.4);
+}
+body.mode-scene .attn-panel:not(.expanded),
+body.mode-journey .attn-panel:not(.expanded) {
+  border-color: rgba(6, 182, 212, 0.78);
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.7), rgba(6, 182, 212, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.55), inset 0 0 6px rgba(6, 182, 212, 0.6);
+}
+body.mode-scene .lens-panel:not(.expanded),
+body.mode-journey .lens-panel:not(.expanded) {
+  border-color: rgba(244, 200, 100, 0.78);
+  background: radial-gradient(circle, rgba(244, 200, 100, 0.7), rgba(244, 200, 100, 0.12) 70%);
+  box-shadow: 0 0 16px rgba(244, 200, 100, 0.55), inset 0 0 6px rgba(244, 200, 100, 0.6);
 }
 
 /* CSS-only hover tooltip for orbs — uses the data-title attribute. */
@@ -1534,6 +1629,100 @@ body.mode-journey .side > *.expanded .panel-info { display: flex; }
 .panel-info-body b { color: #5eead4; font-weight: 500; }
 
 /* ─── Welcome overlay (first visit, dismissed via localStorage) ─── */
+/* ── Storage modal — model cache size + delete ── */
+.storage-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 6, 15, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: welcomeFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.storage-modal[hidden] { display: none; }
+.storage-card {
+  max-width: 460px;
+  width: 100%;
+  background: rgba(8, 6, 15, 0.95);
+  border: 1px solid rgba(94, 234, 212, 0.32);
+  border-radius: 16px;
+  padding: 28px 28px 22px;
+  box-shadow: 0 20px 80px rgba(0, 229, 255, 0.15);
+  color: #f4ecdf;
+  font-family: 'Inter', sans-serif;
+}
+.storage-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #5eead4;
+  margin-bottom: 6px;
+}
+#storageTitle {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 400;
+  font-size: 1.35rem;
+  line-height: 1.15;
+  margin: 0 0 16px;
+  color: #f4ecdf;
+}
+.storage-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: rgba(244, 236, 223, 0.04);
+  border: 1px solid rgba(244, 236, 223, 0.1);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+}
+.storage-row { display: flex; justify-content: space-between; }
+.storage-row > span:first-child { color: #8a8170; }
+.storage-row > span:last-child { color: #f4ecdf; }
+.storage-tip {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #8a8170;
+  margin: 0 0 18px;
+}
+.storage-tip b { color: #cbc1ad; font-weight: 500; }
+.storage-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.storage-actions button {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+#storageCancel {
+  background: transparent;
+  border: 1px solid rgba(244, 236, 223, 0.22);
+  color: #cbc1ad;
+}
+#storageCancel:hover { border-color: #f4ecdf; color: #f4ecdf; }
+#storageDelete {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  color: #ef4444;
+}
+#storageDelete:hover { background: rgba(239, 68, 68, 0.22); color: #fca5a5; }
+#storageDelete:disabled { opacity: 0.55; cursor: progress; }
+#storageDelete.confirm {
+  background: #ef4444;
+  color: #08060f;
+  border-color: #ef4444;
+}
+
 #welcome-overlay {
   position: fixed;
   inset: 0;
@@ -2325,8 +2514,9 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
       <canvas id="resStripCanvas" class="resstrip-canvas" width="768" height="64"></canvas>
     </div>
 
-    <!-- Per-Head Attention (Layer 31) — kept hidden, the Attention mode hero replaces this -->
-    <div class="attn-panel scene-only" style="display:none" data-anchor="0,-1.1,2">
+    <!-- Per-Head Attention (Layer 31) — orb in scene/journey, full-bleed in Attention mode -->
+    <div class="attn-panel" data-anchor="0,-1.1,2" data-title="Attn L31"
+         data-info="<b>Layer 31 attention</b> — the last block's 32 heads × past tokens. Bright stripes = where each head looks. The full <b>32×32</b> grid is the Attention mode hero.">
       <div class="attn-title">
         <span>Attention Patterns — Layer 31 (32 heads × past tokens)</span>
         <span id="attnInfo">kv=0</span>
@@ -2334,8 +2524,9 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
       <canvas id="attnCanvas" class="attn-canvas" width="256" height="96"></canvas>
     </div>
 
-    <!-- Logit Lens — kept hidden, the Lens mode hero replaces this -->
-    <div class="lens-panel scene-only" style="display:none" data-anchor="0,1.1,2">
+    <!-- Logit Lens — orb in scene/journey, full-bleed in Lens mode -->
+    <div class="lens-panel" data-anchor="0,1.1,2" data-title="Logit Lens"
+         data-info="<b>Logit Lens</b> — if the model stopped at each layer and ran <code>lm_head</code>, what would it predict? Watch the answer crystallize from L0 → L31. Full stack lives in Logit Lens mode.">
       <div class="lens-title">
         <span>Logit Lens (what each layer would predict next)</span>
         <span id="lensInfo">—</span>
@@ -2399,6 +2590,7 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
     <button class="tool-btn" id="recordBtn" title="Record 10s of the current mode (webm)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></button>
     <button class="tool-btn" id="shareBtn" title="Share link"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
     <button class="tool-btn" id="accurateBtn" title="Run HF cross-validation suite (prints accuracy report to console)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></button>
+    <button class="tool-btn" id="storageBtn" title="Manage downloaded model (cache size + delete)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg></button>
     <button id="askBtn" type="button" class="ask-btn" title="Ask Phi-3 about this app — uses loaded docs as context">Ask</button>
     <button id="goBtn">Think</button>
   </div>
@@ -2434,6 +2626,8 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
         <span class="dot">·</span>
         <span>P panels</span>
         <span class="dot">·</span>
+        <span>O expand all</span>
+        <span class="dot">·</span>
         <span>A ablation</span>
         <span class="dot">·</span>
         <span>S soft</span>
@@ -2451,6 +2645,50 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
 <button id="journey-exit" type="button" aria-label="Toggle panels (P)" title="Toggle panels · P or Tab">
   <span class="jx-icon">⊞</span> <span class="jx-label">panels</span>
 </button>
+<button id="panels-expand-all" type="button" aria-label="Expand or collapse all panels (O)" title="Expand / collapse all panels · O">
+  <span class="jx-icon">◱</span> <span class="jx-label">expand all</span>
+</button>
+
+<!-- Runtime fingerprint — what code, what GPU, what browser. Click to expand. -->
+<div id="fingerprint" role="complementary" aria-label="Build + runtime fingerprint" title="Click to expand">
+  <span class="fp-line fp-summary">
+    <span class="fp-dot"></span>
+    <span id="fp-sha">—</span> · <span id="fp-gpu">gpu —</span>
+  </span>
+  <div class="fp-detail" id="fp-detail" hidden>
+    <div class="fp-row"><span class="fp-key">build</span><span id="fp-build">—</span></div>
+    <div class="fp-row"><span class="fp-key">branch</span><span id="fp-branch">—</span></div>
+    <div class="fp-row"><span class="fp-key">built at</span><span id="fp-time">—</span></div>
+    <div class="fp-row"><span class="fp-key">gpu vendor</span><span id="fp-gpu-vendor">—</span></div>
+    <div class="fp-row"><span class="fp-key">gpu arch</span><span id="fp-gpu-arch">—</span></div>
+    <div class="fp-row"><span class="fp-key">gpu device</span><span id="fp-gpu-device">—</span></div>
+    <div class="fp-row"><span class="fp-key">browser</span><span id="fp-browser">—</span></div>
+    <div class="fp-row"><span class="fp-key">platform</span><span id="fp-platform">—</span></div>
+    <div class="fp-row"><span class="fp-key">screen</span><span id="fp-screen">—</span></div>
+    <div class="fp-row"><span class="fp-key">max wg storage</span><span id="fp-wg">—</span></div>
+    <div class="fp-row"><span class="fp-key">f16</span><span id="fp-f16">—</span></div>
+    <div class="fp-hint">This fingerprint identifies the exact code + hardware running this forward pass. Quote it when reporting a numerical mismatch.</div>
+  </div>
+</div>
+
+<!-- Model storage modal — shows on-disk usage + delete option -->
+<div id="storageModal" class="storage-modal" hidden role="dialog" aria-labelledby="storageTitle">
+  <div class="storage-card">
+    <div class="storage-eyebrow">Downloaded model</div>
+    <h2 id="storageTitle">Phi-3-mini · cached in this browser</h2>
+    <div class="storage-stats">
+      <div class="storage-row"><span>Total on disk</span><span id="storageTotal">measuring…</span></div>
+      <div class="storage-row"><span>Cache API</span><span id="storageCache">—</span></div>
+      <div class="storage-row"><span>OPFS</span><span id="storageOpfs">—</span></div>
+      <div class="storage-row"><span>Files</span><span id="storageFiles">—</span></div>
+    </div>
+    <p class="storage-tip">Wipes Phi-3 weights from <b>Cache API</b> + <b>OPFS</b> on this origin. Next visit will re-download (~2 GB) from HuggingFace. The currently-loaded GPU copy keeps running until you reload.</p>
+    <div class="storage-actions">
+      <button id="storageCancel" type="button">Close</button>
+      <button id="storageDelete" type="button">Delete cached model</button>
+    </div>
+  </div>
+</div>
 
 <!-- First-visit welcome overlay (dismissed via localStorage) -->
 <div id="welcome-overlay" role="dialog" aria-labelledby="welcome-title">
@@ -2464,7 +2702,7 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
       </li>
       <li>
         <span class="wi-num">2</span>
-        <span><b>Scroll</b> or press <b>space</b> to journey through the 32 transformer layers. The camera follows the forward pass.</span>
+        <span>Press <b>space</b> or use <b>↑ ↓</b> arrow keys to journey through the 32 transformer layers — wheel zooms the camera. The camera follows the forward pass.</span>
       </li>
       <li>
         <span class="wi-num">3</span>
@@ -2472,7 +2710,7 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
       </li>
       <li>
         <span class="wi-num">4</span>
-        <span><b>Click any neuron</b> in the 3D scene to inspect its role, live activation, and what it connects to. Drag to orbit.</span>
+        <span><b>Click any head or FFN cell</b> in the 3D scene to inspect its role, live activation, and what it connects to. Drag to orbit.</span>
       </li>
     </ul>
     <button class="welcome-dismiss" id="welcome-dismiss" type="button">Enter the model →</button>
@@ -2502,7 +2740,7 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
       <div class="glossary-item" data-highlight="attention">
         <div class="glossary-term">Attention head <button class="glossary-show" type="button" data-highlight="attention" aria-label="Show attention heads in scene">show</button></div>
         <div class="glossary-def">A <b>96-dim projection</b> that decides which past tokens to look at. Phi-3 has <b>32 heads × 32 layers = 1,024</b> heads. Each specializes in a different kind of pattern.</div>
-        <div class="glossary-hint">→ Cyan neurons in the ring · Heatmap panel</div>
+        <div class="glossary-hint">→ Cyan heads in the ring · Heatmap panel</div>
       </div>
 
       <div class="glossary-item" data-highlight="ffn">
@@ -2531,8 +2769,8 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
 
       <div class="glossary-item">
         <div class="glossary-term">Dispatch</div>
-        <div class="glossary-def">One WebGPU kernel invocation. Phi-3 takes <b>292 dispatches per output token</b> — every one is visible in the 3D scene as its tensor lights up.</div>
-        <div class="glossary-hint">→ Stats: "Dispatch: N/292" (hidden in universe view; visible via Raw State)</div>
+        <div class="glossary-def">One WebGPU kernel invocation. Phi-3 takes <b>292 dispatches per output token</b> in the headless engine path; the visualizer adds <b>~56 more</b> for live attention-score readback and the 8-layer logit-lens probes. Every one is visible in the 3D scene as its tensor lights up.</div>
+        <div class="glossary-hint">→ Cinematic mode shows the running counter on the scrub bar (N / 292)</div>
       </div>
 
     </div>
@@ -2551,10 +2789,11 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
         <kbd>drag</kbd><span>Orbit around the model (free 3D camera)</span>
         <kbd>wheel</kbd><span>Zoom in / out</span>
         <kbd>right-drag</kbd><span>Pan the view</span>
-        <kbd>↑ ↓ ← →</kbd><span>Step through layers (auto-journey)</span>
-        <kbd>space</kbd><span>Play / pause auto-journey</span>
-        <kbd>Home / End</kbd><span>Jump to first / last layer</span>
+        <kbd>↑ ↓</kbd><span>Step layers — <i>Journey mode only</i></span>
+        <kbd>space</kbd><span>Play / pause auto-journey — <i>Journey mode only</i></span>
+        <kbd>Home / End</kbd><span>Jump to first / last layer — <i>Journey mode only</i></span>
         <kbd>P</kbd> / <kbd>Tab</kbd><span>Toggle all panels on / off</span>
+        <kbd>O</kbd><span>Expand / collapse all panels to orbs</span>
         <kbd>R</kbd><span>Reset camera to default view</span>
         <kbd>?</kbd><span>Open / close this glossary</span>
         <kbd>Esc</kbd><span>Close overlays</span>

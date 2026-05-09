@@ -2,15 +2,16 @@
  * JOURNEY MODE — dolly-follow through the live forward pass.
  *
  * The camera rides just behind the "signal position" on the layer axis and
- * looks forward in the direction of the forward pass. As the user scrolls
- * (or presses space to auto-play), the signal sweeps from the embedding
+ * looks forward in the direction of the forward pass. As the user presses
+ * arrow keys (or space to auto-play), the signal sweeps from the embedding
  * on the left (x ≈ -3) to the LM head on the right (x ≈ +3), and the
  * camera tracks it with a continuous smooth path. No waypoint snaps —
- * one spline-ish curve driven by math.
+ * one spline-ish curve driven by math. Mouse wheel is reserved for
+ * OrbitControls camera zoom (NOT journey progress).
  *
- * Controls:
- *   scroll / ↑↓ / ←→    : step progress (slow)
- *   space                : play/pause auto-advance (~55s full journey)
+ * Controls (all gated on journey-mode being active):
+ *   ↑↓ / ←→              : step progress one layer at a time
+ *   space                : play/pause auto-advance (~60s full journey)
  *   drag (while paused)  : orbit the camera around the current focus
  *   Home / End           : jump to start / end
  *   S / Escape           : exit to Scene mode (handled in main.ts)
