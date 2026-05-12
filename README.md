@@ -74,6 +74,16 @@ Two separate worlds existed — visualization tools that run toy models, and inf
 
 <div align="center">
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/comparison-dark.svg">
+  <img alt="Comparison grid: Brendan Bycroft's LLM Viz, Transformer Explainer, BertViz, WebLLM, and Neuropulse across six dimensions — real model, scale, browser, 3D, live tensors, validated" src="public/comparison-light.svg" width="100%">
+</picture>
+
+</div>
+
+<details>
+<summary><sub>Same data as a plain-text table</sub></summary>
+
 | | Real model | Scale | Browser | 3D | Live tensors | Validated |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
 | [Brendan Bycroft's LLM Viz](https://bbycroft.net/llm) | Toy (sorts ABC) | ~1K | Yes | Yes | Yes | No |
@@ -82,7 +92,7 @@ Two separate worlds existed — visualization tools that run toy models, and inf
 | [WebLLM](https://webllm.mlc.ai/) | Yes | Multi-B | Yes | — | — | — |
 | **Neuropulse** | **Phi-3-mini** | **3.8B** | **Yes** | **Yes** | **All** | **HF ref** |
 
-</div>
+</details>
 
 <br>
 
@@ -115,6 +125,23 @@ The layout isn't arbitrary. Residual-stream positions come from PCA of the model
 </div>
 
 Inference and visualization share the same GPU buffers. The renderer doesn't recompute anything — it reads the values the model already produced.
+
+<br>
+
+## Anatomy
+
+Thirty-two transformer layers. The residual stream flows top-to-bottom; each row below is one named tensor in Phi-3-mini's compute graph.
+
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/layers-dark.svg">
+  <img alt="Anatomy poster: 32 transformer layers visualized as horizontal activation strips, with checkpoint annotations on the right side at the layers where HuggingFace parity is validated" src="public/layers-light.svg" width="100%">
+</picture>
+
+</div>
+
+The nine annotated rows are the parity checkpoints — `VALIDATE_LAYERS = {0, 4, 8, 12, 16, 20, 24, 28, 31}` in `src/engine/inference.ts`. Each checkpoint compares the live 3,072-dim residual against a pinned HuggingFace fp16 dump.
 
 <br>
 
@@ -189,6 +216,25 @@ Vite (dev/build only)
 </td>
 </tr>
 </table>
+
+<br>
+
+### The 11 WGSL kernels
+
+Every kernel has a job, an accumulator precision, and a declared error budget. They all run on the GPU you already own.
+
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/kernels-dark.svg">
+  <img alt="Kernel rack — the 11 WGSL compute shaders with their role, accumulator precision, max relative error, dispatches per token, and resident bytes" src="public/kernels-light.svg" width="100%">
+</picture>
+
+</div>
+
+Numbers track [`METHODS.md`](METHODS.md) — the precision matrix and tolerances are the contract this project keeps.
+
+<br>
 
 <details>
 <summary><strong>Source tree</strong></summary>
