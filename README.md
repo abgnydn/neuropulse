@@ -229,7 +229,7 @@ Every panel is screen-anchored, draggable, dockable as an orb in the bottom rail
 
 </div>
 
-**Ablation** is the empirical-lab gate: zero out attention, FFN, or RoPE and watch the output collapse — proof that the circuit you turned off was actually doing something. **Butterfly** surfaces the WHY behind a prediction with a rubric-judged rationale window. **Kid mode** turns the model into its own narrator. All three are toggles, not separate tabs — switch on the fly during a single forward pass.
+**Ablation** is the empirical-lab gate: zero out attention, FFN, or RoPE and watch the output collapse — proof that the circuit you turned off was actually doing something. **Butterfly** is a transgenerational context-compaction demo — a tagger labels each message in a built-in transcript as `keep / summarize / melt`, a "chrysalis" pass rebuilds it at a smaller token budget, off-topic noise gets injected between generations, then a needle question runs against the butterfly memory vs. a recency-truncated baseline at the same budget; the residual-stream slabs glow brighter for keep-tagged content as it survives each metamorphosis. **Kid mode** turns the model into its own narrator. All three are toggles, not separate tabs — switch on the fly during a single forward pass.
 
 <br>
 

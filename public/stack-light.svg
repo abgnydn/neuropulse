@@ -1,9 +1,9 @@
-<svg viewBox="0 0 1600 680" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The stack — inference · rendering · weights · UI">
-  <rect width="1600" height="680" fill="#fafafa"/>
+<svg viewBox="0 0 1600 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The stack — inference · rendering · weights · UI">
+  <rect width="1600" height="760" fill="#fafafa"/>
   <text x="800" y="56" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#6e7781" text-anchor="middle" letter-spacing="4">THE STACK · FOUR PIECES · NO DEPENDENCY SOUP</text>
   <line x1="40" y1="82" x2="1560" y2="82" stroke="#1f2328" stroke-width="0.5" opacity="0.35"/>
   
-      <rect x="60" y="130" width="720" height="230" rx="6" fill="rgba(31,35,40,0.025)" stroke="#1f2328" stroke-width="0.5" opacity="0.95"/>
+      <rect x="60" y="130" width="720" height="270" rx="6" fill="rgba(31,35,40,0.025)" stroke="#1f2328" stroke-width="0.5" opacity="0.95"/>
 
       <!-- glyph in top-right of card -->
       <g><circle cx="690" cy="166" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="690" cy="178" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="690" cy="190" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="690" cy="202" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="690" cy="214" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="702" cy="166" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="702" cy="178" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="702" cy="190" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="702" cy="202" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="702" cy="214" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="714" cy="166" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="714" cy="178" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="714" cy="190" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="714" cy="202" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="714" cy="214" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="726" cy="166" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="726" cy="178" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="726" cy="190" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="726" cy="202" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="726" cy="214" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="738" cy="166" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="738" cy="178" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="738" cy="190" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="738" cy="202" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="738" cy="214" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="750" cy="166" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="750" cy="178" r="1.6" fill="#1f2328" opacity="0.18"/><circle cx="750" cy="190" r="1.6" fill="#1f2328" opacity="0.43"/><circle cx="750" cy="202" r="1.6" fill="#1f2328" opacity="0.68"/><circle cx="750" cy="214" r="1.6" fill="#1f2328" opacity="0.18"/></g>
@@ -25,7 +25,7 @@
         <text x="92" y="386" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">no framework on the hot path</text>
       
     
-      <rect x="820" y="130" width="720" height="230" rx="6" fill="rgba(31,35,40,0.025)" stroke="#1f2328" stroke-width="0.5" opacity="0.95"/>
+      <rect x="820" y="130" width="720" height="270" rx="6" fill="rgba(31,35,40,0.025)" stroke="#1f2328" stroke-width="0.5" opacity="0.95"/>
 
       <!-- glyph in top-right of card -->
       <g>
@@ -51,58 +51,58 @@
         <text x="852" y="386" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">draggable, dockable panels</text>
       
     
-      <rect x="60" y="390" width="720" height="230" rx="6" fill="rgba(31,35,40,0.025)" stroke="#1f2328" stroke-width="0.5" opacity="0.95"/>
+      <rect x="60" y="430" width="720" height="270" rx="6" fill="rgba(31,35,40,0.025)" stroke="#1f2328" stroke-width="0.5" opacity="0.95"/>
 
       <!-- glyph in top-right of card -->
-      <g><rect x="694" y="428" width="52" height="5" fill="#1f2328" opacity="0.85"/><rect x="694" y="439" width="48" height="5" fill="#1f2328" opacity="0.72"/><rect x="694" y="450" width="44" height="5" fill="#1f2328" opacity="0.59"/><rect x="694" y="461" width="40" height="5" fill="#1f2328" opacity="0.45999999999999996"/><rect x="694" y="472" width="36" height="5" fill="#1f2328" opacity="0.32999999999999996"/></g>
+      <g><rect x="694" y="468" width="52" height="5" fill="#1f2328" opacity="0.85"/><rect x="694" y="479" width="48" height="5" fill="#1f2328" opacity="0.72"/><rect x="694" y="490" width="44" height="5" fill="#1f2328" opacity="0.59"/><rect x="694" y="501" width="40" height="5" fill="#1f2328" opacity="0.45999999999999996"/><rect x="694" y="512" width="36" height="5" fill="#1f2328" opacity="0.32999999999999996"/></g>
 
-      <text x="92" y="434" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#6e7781" letter-spacing="3">WEIGHTS</text>
-      <text x="92" y="478" font-size="32" font-family="Georgia, serif" fill="#1f2328" font-weight="300">Phi-3-mini · MLC</text>
+      <text x="92" y="474" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#6e7781" letter-spacing="3">WEIGHTS</text>
+      <text x="92" y="518" font-size="32" font-family="Georgia, serif" fill="#1f2328" font-weight="300">Phi-3-mini · MLC</text>
 
-      <line x1="92" y1="498" x2="180" y2="498" stroke="#1f2328" stroke-width="0.6" opacity="0.6"/>
+      <line x1="92" y1="538" x2="180" y2="538" stroke="#1f2328" stroke-width="0.6" opacity="0.6"/>
 
       
-        <text x="92" y="534" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">~1.94 GB on disk</text>
+        <text x="92" y="574" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">~1.94 GB on disk</text>
       
-        <text x="92" y="562" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">Cache API + OPFS</text>
+        <text x="92" y="602" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">Cache API + OPFS</text>
       
-        <text x="92" y="590" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">streaming progressive load</text>
+        <text x="92" y="630" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">streaming progressive load</text>
       
-        <text x="92" y="618" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">instant reload on return</text>
+        <text x="92" y="658" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">instant reload on return</text>
       
-        <text x="92" y="646" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">verifiable HF source</text>
+        <text x="92" y="686" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">verifiable HF source</text>
       
     
-      <rect x="820" y="390" width="720" height="230" rx="6" fill="rgba(31,35,40,0.025)" stroke="#1f2328" stroke-width="0.5" opacity="0.95"/>
+      <rect x="820" y="430" width="720" height="270" rx="6" fill="rgba(31,35,40,0.025)" stroke="#1f2328" stroke-width="0.5" opacity="0.95"/>
 
       <!-- glyph in top-right of card -->
       <g>
-      <rect x="1450" y="430" width="60" height="40" rx="3" fill="none" stroke="#1f2328" stroke-width="1" opacity="0.7"/>
-      <line x1="1450" y1="440" x2="1510" y2="440" stroke="#1f2328" stroke-width="1" opacity="0.7"/>
-      <circle cx="1455" cy="435" r="1.8" fill="#1f2328" opacity="0.7"/>
-      <circle cx="1461" cy="435" r="1.8" fill="#1f2328" opacity="0.7"/>
-      <circle cx="1467" cy="435" r="1.8" fill="#1f2328" opacity="0.7"/>
+      <rect x="1450" y="470" width="60" height="40" rx="3" fill="none" stroke="#1f2328" stroke-width="1" opacity="0.7"/>
+      <line x1="1450" y1="480" x2="1510" y2="480" stroke="#1f2328" stroke-width="1" opacity="0.7"/>
+      <circle cx="1455" cy="475" r="1.8" fill="#1f2328" opacity="0.7"/>
+      <circle cx="1461" cy="475" r="1.8" fill="#1f2328" opacity="0.7"/>
+      <circle cx="1467" cy="475" r="1.8" fill="#1f2328" opacity="0.7"/>
     </g>
 
-      <text x="852" y="434" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#6e7781" letter-spacing="3">UI</text>
-      <text x="852" y="478" font-size="32" font-family="Georgia, serif" fill="#1f2328" font-weight="300">Vanilla TypeScript</text>
+      <text x="852" y="474" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#6e7781" letter-spacing="3">UI</text>
+      <text x="852" y="518" font-size="32" font-family="Georgia, serif" fill="#1f2328" font-weight="300">Vanilla TypeScript</text>
 
-      <line x1="852" y1="498" x2="940" y2="498" stroke="#1f2328" stroke-width="0.6" opacity="0.6"/>
+      <line x1="852" y1="538" x2="940" y2="538" stroke="#1f2328" stroke-width="0.6" opacity="0.6"/>
 
       
-        <text x="852" y="534" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">zero runtime frameworks</text>
+        <text x="852" y="574" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">zero runtime frameworks</text>
       
-        <text x="852" y="562" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">Vite (dev + build only)</text>
+        <text x="852" y="602" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">Vite (dev + build only)</text>
       
-        <text x="852" y="590" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">~3,400 LOC in src/</text>
+        <text x="852" y="630" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">~3,400 LOC in src/</text>
       
-        <text x="852" y="618" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">every claim CI-verified</text>
+        <text x="852" y="658" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">every claim CI-verified</text>
       
-        <text x="852" y="646" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">a single static export</text>
+        <text x="852" y="686" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#1f2328" opacity="0.92">a single static export</text>
       
     
 
   <!-- center divider lines connecting the 4 cards visually -->
-  <line x1="800" y1="160" x2="800" y2="590" stroke="#1f2328" stroke-width="0.3" opacity="0.18"/>
-  <line x1="90" y1="371" x2="1510" y2="371" stroke="#1f2328" stroke-width="0.3" opacity="0"/>
+  <line x1="800" y1="160" x2="800" y2="670" stroke="#1f2328" stroke-width="0.3" opacity="0.18"/>
+  <line x1="90" y1="411" x2="1510" y2="411" stroke="#1f2328" stroke-width="0.3" opacity="0"/>
 </svg>

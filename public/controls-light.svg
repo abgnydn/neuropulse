@@ -36,7 +36,7 @@
       <text x="88" y="486" font-size="22" font-family="Georgia, serif" fill="#1f2328" font-weight="300">BUTTERFLY</text>
       <text x="88" y="506" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#6e7781" letter-spacing="2">AUTO</text>
       <foreignObject x="280" y="470" width="480" height="56">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #1f2328; opacity: 0.85; font-style: italic;">Surfaces the WHY behind a prediction. Pause-able, accumulative, rubric self-judged — the rationale window for the next token.</div>
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #1f2328; opacity: 0.85; font-style: italic;">Transgenerational context-compaction demo. Tag-and-rebuild each message (keep / summarize / melt), inject noise between generations, then a needle question runs against the butterfly memory vs a recency-truncated baseline at the same token budget.</div>
       </foreignObject>
       <line x1="260" y1="464" x2="260" y2="522" stroke="#1f2328" stroke-width="0.4" opacity="0.3"/>
     
