@@ -270,9 +270,14 @@ src/
 
 ## Run locally
 
-<table>
-<tr>
-<td width="55%" valign="top">
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/runlocal-dark.svg">
+  <img alt="Run locally — terminal mockup with the four install commands on the left, requirements table and a first-visit timeline (clone → install → dev ready → 1.94 GB weight download → 11-kernel compile → first token) on the right" src="public/runlocal-light.svg" width="100%">
+</picture>
+
+</div>
 
 ```bash
 git clone https://github.com/abgnydn/neuropulse.git
@@ -281,24 +286,7 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173/app/** in Chrome, Edge, or Safari Technology Preview.
-
-First visit downloads ~2 GB of model weights into the browser cache. Every visit after that loads instantly.
-
-</td>
-<td width="45%" valign="top">
-
-**Requirements**
-
-|  | Minimum | Recommended |
-|:---|:---|:---|
-| Browser | Chrome 113+ | latest Chrome |
-| GPU memory | ~2 GB free | 4+ GB |
-| Disk | ~2 GB cache | — |
-
-</td>
-</tr>
-</table>
+Open **http://localhost:5173/app/** in Chrome, Edge, or Safari Technology Preview. First visit downloads ~2 GB into the browser cache; every visit after that is instant.
 
 > [!IMPORTANT]
 > WebGPU is required. Firefox does not ship WebGPU on stable yet; use Chrome, Edge, or Safari Technology Preview.
