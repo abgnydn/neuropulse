@@ -29,16 +29,14 @@ No server. No API key. No fakery.
 
 </div>
 
-<table align="center" border="0" cellspacing="0" cellpadding="14">
-  <tr align="center">
-    <td><h2><sub>3.8</sub>B</h2><sub>parameters</sub></td>
-    <td><h2>11</h2><sub>WGSL kernels</sub></td>
-    <td><h2>22</h2><sub>GPU buffers</sub></td>
-    <td><h2>292</h2><sub>dispatches / token</sub></td>
-    <td><h2>32</h2><sub>transformer layers</sub></td>
-    <td><h2>0</h2><sub>frameworks in inference</sub></td>
-  </tr>
-</table>
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/stats-dark.svg">
+  <img alt="3.8B parameters · 11 WGSL kernels · 22 GPU buffers · 292 dispatches per token · 32 transformer layers · 0 frameworks in inference" src="public/stats-light.svg" width="100%">
+</picture>
+
+</div>
 
 <br>
 
@@ -79,34 +77,16 @@ Two separate worlds existed — visualization tools that run toy models, and inf
 
 The 3D scene is not a metaphor. Each element maps to a named tensor in Phi-3-mini's compute graph.
 
-<table>
-<tr>
-<td width="50%" valign="top">
+<div align="center">
 
-**Residual stream**<br>
-3,072 points · PCA of `qkv_proj` weights<br>
-brightness = live activation value per dim
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/scene-dark.svg">
+  <img alt="The four elements of the Neuropulse scene: residual stream, attention heads, gated MLP, and token strip" src="public/scene-light.svg" width="100%">
+</picture>
 
-**Attention heads**<br>
-32 heads × 32 layers = 1,024 elements<br>
-intensity = output magnitude per head
+</div>
 
-</td>
-<td width="50%" valign="top">
-
-**FFN (gated MLP)**<br>
-intermediate activations from the actual buffer<br>
-gate values drive the visual pulse
-
-**Token strip**<br>
-input + generated tokens rendered as they flow<br>
-through the forward pass in real time
-
-</td>
-</tr>
-</table>
-
-The 3D layout isn't arbitrary. Residual-stream positions come from PCA of the model's own layer-0 `qkv_proj` weight matrix — dimensions that get read into attention together cluster together. The geometry is shaped by the model, not by a designer.
+The layout isn't arbitrary. Residual-stream positions come from PCA of the model's own layer-0 `qkv_proj` weight matrix — dimensions that get read into attention together cluster together. The geometry is shaped by the model, not by a designer.
 
 <br>
 
