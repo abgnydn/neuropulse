@@ -1,8 +1,12 @@
 <div align="center">
 
-<br>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/hero-dark.svg">
+  <img alt="Neuropulse — real-time 1:1 visualization of a full-scale LLM forward pass" src="public/hero-light.svg" width="100%">
+</picture>
 
-# n e u r o p u l s e
+<br>
+<br>
 
 ### The first accurate real-time visualization of a full-scale LLM forward pass.
 
@@ -11,19 +15,35 @@ No server. No API key. No fakery.
 
 <br>
 
-[**Launch Demo**](https://neuropulse.live/app/) &nbsp;&nbsp;|&nbsp;&nbsp; [**Read the Essay**](https://neuropulse.live/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1f2328?style=flat-square)](LICENSE)
+[![Model: Phi-3-mini](https://img.shields.io/badge/model-Phi--3--mini-1f2328?style=flat-square)](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)
+[![Runtime: WebGPU](https://img.shields.io/badge/runtime-WebGPU-1f2328?style=flat-square)](https://www.w3.org/TR/webgpu/)
+[![Validated: HF reference](https://img.shields.io/badge/validated-HF%20reference-1f2328?style=flat-square)](#validation)
+[![GitHub stars](https://img.shields.io/github/stars/abgnydn/neuropulse?style=flat-square&color=1f2328)](https://github.com/abgnydn/neuropulse/stargazers)
 
 <br>
 
-<!-- Drop a screenshot here: ![Neuropulse](docs/screenshot.png) -->
-
-<sub>Phi-3-mini running live in Chrome — every glow is a real activation value read back from WebGPU</sub>
+[**Launch Demo**](https://neuropulse.live/app/) &nbsp;·&nbsp; [**Read the Essay**](https://neuropulse.live/) &nbsp;·&nbsp; [**Methods**](METHODS.md) &nbsp;·&nbsp; [**Predictions**](PREDICTIONS.md)
 
 <br>
-
----
 
 </div>
+
+<table align="center" border="0" cellspacing="0" cellpadding="14">
+  <tr align="center">
+    <td><h2><sub>3.8</sub>B</h2><sub>parameters</sub></td>
+    <td><h2>11</h2><sub>WGSL kernels</sub></td>
+    <td><h2>22</h2><sub>GPU buffers</sub></td>
+    <td><h2>292</h2><sub>dispatches / token</sub></td>
+    <td><h2>32</h2><sub>transformer layers</sub></td>
+    <td><h2>0</h2><sub>frameworks in inference</sub></td>
+  </tr>
+</table>
+
+<br>
+
+> [!NOTE]
+> **Strict 1:1.** Every pixel on screen is a function of a real GPU tensor. The brightness of each point **is** the activation value. The lines between attention heads **are** the real attention weights. The token probabilities rolling across the screen **are** the actual logits from the final layer.
 
 <br>
 
@@ -33,17 +53,15 @@ Every "AI visualization" you've seen online is **decoration**.
 
 Animated dots pulsing to a fake rhythm. Particle systems that aren't connected to anything real. A beautiful metaphor with no model behind the curtain. You walk away thinking you saw how an LLM works. You didn't — you saw how a designer *imagines* it works.
 
-Neuropulse is the opposite.
-
-Type a prompt. Watch 3.8 billion parameters process it. The brightness of each point **is** the activation value. The lines between attention heads **are** the real attention weights. The token probabilities rolling across the screen **are** the actual logits from the final layer. Nothing is interpolated. Nothing is smoothed. Nothing is made up.
-
-> **Strict 1:1.** Every pixel on screen is a function of a real GPU tensor.
+Neuropulse is the opposite. Type a prompt. Watch 3.8 billion parameters process it. Nothing is interpolated. Nothing is smoothed. Nothing is made up.
 
 <br>
 
 ## How it compares
 
 Two separate worlds existed — visualization tools that run toy models, and inference engines with zero internal visibility. Nothing connected them.
+
+<div align="center">
 
 | | Real model | Scale | Browser | 3D | Live tensors | Validated |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -53,46 +71,82 @@ Two separate worlds existed — visualization tools that run toy models, and inf
 | [WebLLM](https://webllm.mlc.ai/) | Yes | Multi-B | Yes | — | — | — |
 | **Neuropulse** | **Phi-3-mini** | **3.8B** | **Yes** | **Yes** | **All** | **HF ref** |
 
+</div>
+
 <br>
 
 ## What you're actually watching
 
 The 3D scene is not a metaphor. Each element maps to a named tensor in Phi-3-mini's compute graph.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│   RESIDUAL STREAM                                               │
-│   3,072 points — PCA of qkv_proj weights                        │
-│   brightness = live activation value per dimension               │
-│                                                                 │
-│   ATTENTION HEADS                                               │
-│   32 heads x 32 layers = 1,024 elements                         │
-│   intensity = output magnitude of each head                      │
-│                                                                 │
-│   FFN (GATED MLP)                                               │
-│   intermediate activations from the actual buffer                │
-│   gate values drive the visual pulse                             │
-│                                                                 │
-│   TOKEN STRIP                                                   │
-│   input + generated tokens rendered as they flow                 │
-│   through the forward pass in real time                          │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Residual stream**<br>
+3,072 points · PCA of `qkv_proj` weights<br>
+brightness = live activation value per dim
+
+**Attention heads**<br>
+32 heads × 32 layers = 1,024 elements<br>
+intensity = output magnitude per head
+
+</td>
+<td width="50%" valign="top">
+
+**FFN (gated MLP)**<br>
+intermediate activations from the actual buffer<br>
+gate values drive the visual pulse
+
+**Token strip**<br>
+input + generated tokens rendered as they flow<br>
+through the forward pass in real time
+
+</td>
+</tr>
+</table>
+
+The 3D layout isn't arbitrary. Residual-stream positions come from PCA of the model's own layer-0 `qkv_proj` weight matrix — dimensions that get read into attention together cluster together. The geometry is shaped by the model, not by a designer.
+
+<br>
+
+## Architecture
+
+```mermaid
+flowchart LR
+    P[Prompt] --> T[BPE tokenizer]
+    T --> E[Embedding lookup]
+    E --> L[32× transformer block]
+    L --> H[Final RMSNorm + LM head]
+    H --> S[Sampler]
+    S --> O[Token]
+    O -.-> L
+
+    L -. activation readback .-> V[Visualizer]
+    V --> R[3D scene · Three.js]
+    V --> A[Audio sonification]
+
+    subgraph GPU[WebGPU · 11 WGSL kernels · 22 buffers]
+        E
+        L
+        H
+        S
+    end
 ```
 
-The 3D layout isn't arbitrary. Residual stream positions come from PCA of the model's own layer-0 `qkv_proj` weight matrix — dimensions that get read into attention together cluster together. The geometry is shaped by the model, not by a designer.
+Inference and visualization share the same buffers. The renderer doesn't recompute anything — it reads the values the model already produced.
 
 <br>
 
 ## Validation
 
-"Strict 1:1" is a strong claim, so it has to be falsifiable.
+"Strict 1:1" is a strong claim, so it has to be falsifiable. Neuropulse ships with a built-in test suite that diffs the WebGPU forward pass against a reference HuggingFace fp16 Phi-3-mini.
 
-Neuropulse ships with a built-in test suite that diffs the WebGPU forward pass against a reference HuggingFace fp16 Phi-3-mini. Click the wrench icon in the demo to run it — the numbers from **your** GPU print to **your** browser console.
+> [!TIP]
+> Click the wrench icon in the demo. The numbers from **your** GPU print to **your** browser console in under a minute. No setup, no install — your machine is the test rig.
 
 ```
-═══ Validation Suite ═══════════════════════════════════════════════
+═══ Validation Suite ══════════════════════════════════════════════
 
  [1]  Tokenizer        GPU input IDs match HF byte-for-byte
  [2]  Hidden states    3,072-dim residual diffed at 9 layer checkpoints
@@ -101,10 +155,12 @@ Neuropulse ships with a built-in test suite that diffs the WebGPU forward pass a
  [5]  Long context     290 tokens in, 10 decode steps, top-1 match
  [6]  Sampler          5,000-sample distribution vs softmax, JSD < 1e-2
 
-════════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════════
 ```
 
-Expected result: tiny deltas at hidden-state level (int4 quantization cost, not implementation drift) and identical top-1 tokens vs the fp16 reference. That last bit is the bar that matters — and you can verify it yourself, on your own machine, in under a minute.
+Expected result: tiny deltas at hidden-state level (int4 quantization cost, not implementation drift) and identical top-1 tokens vs the fp16 reference. That last bit is the bar that matters.
+
+A second layer of validation runs in CI: `npm run verify` cross-checks documented claims (layer count, kernel count, dispatch counts, keyboard shortcuts) against the actual source. If the README drifts from the code, the build fails.
 
 <br>
 
@@ -112,21 +168,51 @@ Expected result: tiny deltas at hidden-state level (int4 quantization cost, not 
 
 Four pieces. No frameworks in the inference path. No dependency soup.
 
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Inference**
+
+```text
+WebGPU compute shaders
+11 WGSL kernels
+22 GPU buffers
+292 dispatches / token
+q4f16_1 quantization
 ```
-INFERENCE                          RENDERING
-─────────────────────────          ─────────────────────────
-WebGPU compute shaders             Three.js (WebGLRenderer)
-11 WGSL kernels                    Strict 1:1 tensor mapping
-22 GPU buffers                     PCA-derived 3D layout
-292 dispatches / token             Audio sonification
-q4f16_1 quantization               
-                                   
-WEIGHTS                            UI
-─────────────────────────          ─────────────────────────
-Phi-3-mini (MLC, HuggingFace)     Vanilla TypeScript
-Browser Cache API (~2 GB)          Zero frameworks
-Instant reload on return           Vite (dev/build only)
+
+**Weights**
+
+```text
+Phi-3-mini (MLC, HuggingFace)
+Browser Cache API (~2 GB)
+Instant reload on return
 ```
+
+</td>
+<td width="50%" valign="top">
+
+**Rendering**
+
+```text
+Three.js (WebGLRenderer)
+Strict 1:1 tensor mapping
+PCA-derived 3D layout
+Audio sonification
+```
+
+**UI**
+
+```text
+Vanilla TypeScript
+Zero frameworks
+Vite (dev/build only)
+```
+
+</td>
+</tr>
+</table>
 
 <details>
 <summary><strong>Source tree</strong></summary>
@@ -162,6 +248,10 @@ src/
 
 ## Run locally
 
+<table>
+<tr>
+<td width="55%" valign="top">
+
 ```bash
 git clone https://github.com/abgnydn/neuropulse.git
 cd neuropulse
@@ -173,26 +263,57 @@ Open **http://localhost:5173/app/** in Chrome, Edge, or Safari Technology Previe
 
 First visit downloads ~2 GB of model weights into the browser cache. Every visit after that loads instantly.
 
+</td>
+<td width="45%" valign="top">
+
+**Requirements**
+
+|  | Minimum | Recommended |
+|:---|:---|:---|
+| Browser | Chrome 113+ | latest Chrome |
+| GPU memory | ~2 GB free | 4+ GB |
+| Disk | ~2 GB cache | — |
+
+</td>
+</tr>
+</table>
+
+> [!IMPORTANT]
+> WebGPU is required. Firefox does not ship WebGPU on stable yet; use Chrome, Edge, or Safari Technology Preview.
+
 <br>
 
-## Requirements
+## Acknowledgments
 
-| | Minimum | Recommended |
-|:---|:---|:---|
-| **Browser** | Chrome 113+, Edge 113+, Safari Technology Preview | latest desktop Chrome |
-| **GPU memory** | ~2 GB free (the weight payload) | 4+ GB for headroom |
-| **Disk** | ~2 GB for weight cache (OPFS or Cache API) | — |
+- **[Microsoft Phi-3-mini](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)** — the model under the glass.
+- **[MLC](https://mlc.ai/)** — q4f16_1 weight format and the WebGPU inference patterns this project builds on.
+- **[Three.js](https://threejs.org/)** — the renderer.
+- **[Brendan Bycroft's LLM Viz](https://bbycroft.net/llm)** — proved a transformer could be *seen*. This project asks: can it be seen at scale?
+
+<br>
+
+## Cite
+
+```bibtex
+@software{gunaydin_neuropulse_2026,
+  author  = {Günaydın, Ahmet Barış},
+  title   = {Neuropulse: Real-Time 1:1 Visualization of a Full-Scale LLM
+             Forward Pass in the Browser},
+  year    = {2026},
+  url     = {https://github.com/abgnydn/neuropulse}
+}
+```
 
 <br>
 
 ## License
 
-MIT
+[MIT](LICENSE) — do whatever you want, just keep the copyright notice.
 
 <br>
 
 ---
 
 <div align="center">
-<sub>Built by <a href="https://github.com/abgnydn">Ahmet Baris Gunaydin</a></sub>
+<sub>Built by <a href="https://github.com/abgnydn">Ahmet Barış Günaydın</a></sub>
 </div>
