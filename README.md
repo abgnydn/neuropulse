@@ -171,51 +171,14 @@ A second layer of validation runs in CI: `npm run verify` cross-checks documente
 
 Four pieces. No frameworks in the inference path. No dependency soup.
 
-<table>
-<tr>
-<td width="50%" valign="top">
+<div align="center">
 
-**Inference**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/stack-dark.svg">
+  <img alt="The stack — four quadrants: Inference (WebGPU · 11 WGSL kernels · 22 GPU buffers · 292 dispatches/token · q4f16_1), Rendering (Three.js · strict 1:1 · PCA layout · audio · soft Gaussian sprites · dockable panels), Weights (Phi-3-mini · MLC · Cache API + OPFS · streaming load · instant reload), UI (vanilla TypeScript · zero frameworks · Vite · ~3,400 LOC · CI-verified)" src="public/stack-light.svg" width="100%">
+</picture>
 
-```text
-WebGPU compute shaders
-11 WGSL kernels
-22 GPU buffers
-292 dispatches / token
-q4f16_1 quantization
-```
-
-**Weights**
-
-```text
-Phi-3-mini (MLC, HuggingFace)
-Browser Cache API (~2 GB)
-Instant reload on return
-```
-
-</td>
-<td width="50%" valign="top">
-
-**Rendering**
-
-```text
-Three.js (WebGLRenderer)
-Strict 1:1 tensor mapping
-PCA-derived 3D layout
-Audio sonification
-```
-
-**UI**
-
-```text
-Vanilla TypeScript
-Zero frameworks
-Vite (dev/build only)
-```
-
-</td>
-</tr>
-</table>
+</div>
 
 <br>
 
@@ -233,6 +196,40 @@ Every kernel has a job, an accumulator precision, and a declared error budget. T
 </div>
 
 Numbers track [`METHODS.md`](METHODS.md) — the precision matrix and tolerances are the contract this project keeps.
+
+<br>
+
+## Inside the demo
+
+Once the weights load, the demo is more than a single 3D view. Ten draggable panels, seven modes, and a keymap covering the whole interaction surface.
+
+### Ten panels — every one a live tensor
+
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/panels-dark.svg">
+  <img alt="Panel inventory: Output, Top-K, Confidence, KV Cache, Heatmap (32×32 heads), Residual Norm, Layer Δ, Residual Strip, Attn L31, Logit Lens — each card has a stylized glyph, name, one-line role, and an italic description of what tensor it surfaces" src="public/panels-light.svg" width="100%">
+</picture>
+
+</div>
+
+Every panel is screen-anchored, draggable, dockable as an orb in the bottom rail, and persists its position to `localStorage`. Press <kbd>P</kbd> or <kbd>Tab</kbd> to hide them all; <kbd>O</kbd> to collapse them into orbs.
+
+<br>
+
+### Controls and modes
+
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/controls-dark.svg">
+  <img alt="Controls and modes — left column lists the seven modes (Journey, Scene, Ablation, Butterfly, Kid, Cinema, Soft) with their bindings and one-line descriptions; right column is the keymap grouped into Camera, Journey, Panels, and Modes" src="public/controls-light.svg" width="100%">
+</picture>
+
+</div>
+
+**Ablation** is the empirical-lab gate: zero out attention, FFN, or RoPE and watch the output collapse — proof that the circuit you turned off was actually doing something. **Butterfly** surfaces the WHY behind a prediction with a rubric-judged rationale window. **Kid mode** turns the model into its own narrator. All three are toggles, not separate tabs — switch on the fly during a single forward pass.
 
 <br>
 

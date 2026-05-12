@@ -1,0 +1,166 @@
+<svg viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Panel inventory — the 10 spatial panels the demo exposes">
+  <rect width="1600" height="900" fill="#0a0a0a"/>
+  <text x="800" y="56" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="4">TEN SPATIAL PANELS · EVERY ONE A LIVE TENSOR</text>
+  <text x="800" y="86" font-size="13" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" text-anchor="middle" opacity="0.85">draggable · dockable · screen-anchored in Universe mode · hides behind orbs in HUD mode (press <tspan font-family="'SF Mono', monospace">P</tspan>)</text>
+  <line x1="40" y1="108" x2="1560" y2="108" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
+  
+      <rect x="60" y="140" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(198.4, 264.92)">
+        <rect x="-38" y="-7" width="13" height="14" rx="2" fill="#f5f5f5" opacity="0.35"/><rect x="-22" y="-7" width="13" height="14" rx="2" fill="#f5f5f5" opacity="0.44999999999999996"/><rect x="-6" y="-7" width="13" height="14" rx="2" fill="#f5f5f5" opacity="0.55"/><rect x="10" y="-7" width="13" height="14" rx="2" fill="#f5f5f5" opacity="0.65"/><rect x="26" y="-7" width="13" height="14" rx="2" fill="#ffffff" opacity="0.9"/>
+      </g>
+
+      <line x1="84" y1="330.85" x2="312.8" y2="330.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="198.4" y="369.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Output</text>
+      <text x="198.4" y="396.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">TOKENS STREAM OUT</text>
+
+      <foreignObject x="76" y="410.66" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">argmax over 32,064 logits · fresh tokens glow ~0.5s</div>
+      </foreignObject>
+    
+      <rect x="360.8" y="140" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(499.20000000000005, 264.92)">
+        <rect x="-30" y="-10" width="9" height="22" fill="#f5f5f5" opacity="0.85"/><rect x="-17" y="-4" width="9" height="16" fill="#f5f5f5" opacity="0.72"/><rect x="-4" y="2" width="9" height="10" fill="#f5f5f5" opacity="0.59"/><rect x="9" y="6" width="9" height="6" fill="#f5f5f5" opacity="0.45999999999999996"/><rect x="22" y="9" width="9" height="3" fill="#f5f5f5" opacity="0.32999999999999996"/>
+      </g>
+
+      <line x1="384.8" y1="330.85" x2="613.6" y2="330.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="499.20000000000005" y="369.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Top-K</text>
+      <text x="499.20000000000005" y="396.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">NEXT-TOKEN PROBS</text>
+
+      <foreignObject x="376.8" y="410.66" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">top-k softmax with bar chart · drives the "is it confident?" answer</div>
+      </foreignObject>
+    
+      <rect x="661.6" y="140" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(800, 264.92)">
+        
+      <path d="M -28 8 A 28 28 0 0 1 28 8" stroke="#f5f5f5" stroke-width="1.2" fill="none" opacity="0.5"/>
+      <path d="M -28 8 A 28 28 0 0 1 14 -18" stroke="#ffffff" stroke-width="2" fill="none"/>
+      <circle cx="0" cy="8" r="2" fill="#f5f5f5"/>
+    
+      </g>
+
+      <line x1="685.6" y1="330.85" x2="914.4000000000001" y2="330.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="800" y="369.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Confidence</text>
+      <text x="800" y="396.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">HOW PEAKY</text>
+
+      <foreignObject x="677.6" y="410.66" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">entropy of the softmax · how concentrated the next-token mass is</div>
+      </foreignObject>
+    
+      <rect x="962.4000000000001" y="140" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(1100.8000000000002, 264.92)">
+        <rect x="-26" y="-18" width="52" height="4" fill="#f5f5f5" opacity="0.85"/><rect x="-26" y="-11" width="49" height="4" fill="#f5f5f5" opacity="0.75"/><rect x="-26" y="-4" width="46" height="4" fill="#f5f5f5" opacity="0.6499999999999999"/><rect x="-26" y="3" width="43" height="4" fill="#f5f5f5" opacity="0.5499999999999999"/><rect x="-26" y="10" width="40" height="4" fill="#f5f5f5" opacity="0.44999999999999996"/><rect x="-26" y="17" width="37" height="4" fill="#f5f5f5" opacity="0.35"/>
+      </g>
+
+      <line x1="986.4000000000001" y1="330.85" x2="1215.2" y2="330.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="1100.8000000000002" y="369.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">KV Cache</text>
+      <text x="1100.8000000000002" y="396.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">MEMORY GROWS</text>
+
+      <foreignObject x="978.4000000000001" y="410.66" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">live size of the KV cache as the sequence extends</div>
+      </foreignObject>
+    
+      <rect x="1263.2" y="140" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(1401.6000000000001, 264.92)">
+        <rect x="-24" y="-22" width="5" height="4" fill="#f5f5f5" opacity="0.62"/><rect x="-17" y="-22" width="5" height="4" fill="#f5f5f5" opacity="0.82"/><rect x="-10" y="-22" width="5" height="4" fill="#f5f5f5" opacity="0.34"/><rect x="-3" y="-22" width="5" height="4" fill="#f5f5f5" opacity="0.18"/><rect x="4" y="-22" width="5" height="4" fill="#f5f5f5" opacity="0.28"/><rect x="11" y="-22" width="5" height="4" fill="#f5f5f5" opacity="0.71"/><rect x="18" y="-22" width="5" height="4" fill="#f5f5f5" opacity="0.26"/><rect x="-24" y="-16" width="5" height="4" fill="#f5f5f5" opacity="0.36"/><rect x="-17" y="-16" width="5" height="4" fill="#f5f5f5" opacity="0.74"/><rect x="-10" y="-16" width="5" height="4" fill="#f5f5f5" opacity="0.37"/><rect x="-3" y="-16" width="5" height="4" fill="#f5f5f5" opacity="0.60"/><rect x="4" y="-16" width="5" height="4" fill="#f5f5f5" opacity="0.77"/><rect x="11" y="-16" width="5" height="4" fill="#f5f5f5" opacity="0.86"/><rect x="18" y="-16" width="5" height="4" fill="#f5f5f5" opacity="0.52"/><rect x="-24" y="-10" width="5" height="4" fill="#f5f5f5" opacity="0.34"/><rect x="-17" y="-10" width="5" height="4" fill="#f5f5f5" opacity="0.46"/><rect x="-10" y="-10" width="5" height="4" fill="#f5f5f5" opacity="0.46"/><rect x="-3" y="-10" width="5" height="4" fill="#f5f5f5" opacity="0.57"/><rect x="4" y="-10" width="5" height="4" fill="#f5f5f5" opacity="0.31"/><rect x="11" y="-10" width="5" height="4" fill="#f5f5f5" opacity="0.75"/><rect x="18" y="-10" width="5" height="4" fill="#f5f5f5" opacity="0.19"/><rect x="-24" y="-4" width="5" height="4" fill="#f5f5f5" opacity="0.72"/><rect x="-17" y="-4" width="5" height="4" fill="#f5f5f5" opacity="0.13"/><rect x="-10" y="-4" width="5" height="4" fill="#f5f5f5" opacity="0.35"/><rect x="-3" y="-4" width="5" height="4" fill="#f5f5f5" opacity="0.45"/><rect x="4" y="-4" width="5" height="4" fill="#f5f5f5" opacity="0.53"/><rect x="11" y="-4" width="5" height="4" fill="#f5f5f5" opacity="0.58"/><rect x="18" y="-4" width="5" height="4" fill="#f5f5f5" opacity="0.62"/><rect x="-24" y="2" width="5" height="4" fill="#f5f5f5" opacity="0.69"/><rect x="-17" y="2" width="5" height="4" fill="#f5f5f5" opacity="0.40"/><rect x="-10" y="2" width="5" height="4" fill="#f5f5f5" opacity="0.77"/><rect x="-3" y="2" width="5" height="4" fill="#f5f5f5" opacity="0.13"/><rect x="4" y="2" width="5" height="4" fill="#f5f5f5" opacity="0.15"/><rect x="11" y="2" width="5" height="4" fill="#f5f5f5" opacity="0.43"/><rect x="18" y="2" width="5" height="4" fill="#f5f5f5" opacity="0.79"/><rect x="-24" y="8" width="5" height="4" fill="#f5f5f5" opacity="0.17"/><rect x="-17" y="8" width="5" height="4" fill="#f5f5f5" opacity="0.72"/><rect x="-10" y="8" width="5" height="4" fill="#f5f5f5" opacity="0.61"/><rect x="-3" y="8" width="5" height="4" fill="#f5f5f5" opacity="0.78"/><rect x="4" y="8" width="5" height="4" fill="#f5f5f5" opacity="0.40"/><rect x="11" y="8" width="5" height="4" fill="#f5f5f5" opacity="0.71"/><rect x="18" y="8" width="5" height="4" fill="#f5f5f5" opacity="0.73"/><rect x="-24" y="14" width="5" height="4" fill="#f5f5f5" opacity="0.58"/><rect x="-17" y="14" width="5" height="4" fill="#f5f5f5" opacity="0.64"/><rect x="-10" y="14" width="5" height="4" fill="#f5f5f5" opacity="0.34"/><rect x="-3" y="14" width="5" height="4" fill="#f5f5f5" opacity="0.81"/><rect x="4" y="14" width="5" height="4" fill="#f5f5f5" opacity="0.71"/><rect x="11" y="14" width="5" height="4" fill="#f5f5f5" opacity="0.75"/><rect x="18" y="14" width="5" height="4" fill="#f5f5f5" opacity="0.61"/>
+      </g>
+
+      <line x1="1287.2" y1="330.85" x2="1516" y2="330.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="1401.6000000000001" y="369.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Heatmap</text>
+      <text x="1401.6000000000001" y="396.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">32 × 32 HEAD ACTIVITY</text>
+
+      <foreignObject x="1279.2" y="410.66" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">one cell per (layer, head); intensity = output magnitude</div>
+      </foreignObject>
+    
+      <rect x="60" y="523" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(198.4, 647.92)">
+        <path d="M -28.0 14.0 L -21.0 12.6 L -14.0 10.4 L -7.0 7.4 L 0.0 3.6 L 7.0 -1.0 L 14.0 -6.4 L 21.0 -12.6 L 28.0 -19.6 " stroke="#ffffff" stroke-width="1.6" fill="none"/>
+            <line x1="-30" y1="16" x2="30" y2="16" stroke="#f5f5f5" stroke-width="0.5" opacity="0.35"/>
+      </g>
+
+      <line x1="84" y1="713.85" x2="312.8" y2="713.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="198.4" y="752.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Residual Norm</text>
+      <text x="198.4" y="779.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">L2 PER LAYER</text>
+
+      <foreignObject x="76" y="793.6600000000001" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">classic norm-grows-with-depth curve from interpretability papers</div>
+      </foreignObject>
+    
+      <rect x="360.8" y="523" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(499.20000000000005, 647.92)">
+        <rect x="-30" y="-11.56064814814815" width="3.5" height="23.6" fill="#f5f5f5" opacity="0.85994298696845"/><rect x="-25" y="6.443175582990397" width="3.5" height="5.6" fill="#f5f5f5" opacity="0.5971129115226338"/><rect x="-20" y="-11.925428669410152" width="3.5" height="23.9" fill="#f5f5f5" opacity="0.469570901920439"/><rect x="-15" y="-0.12325102880658534" width="3.5" height="12.1" fill="#f5f5f5" opacity="0.6501564643347051"/><rect x="-10" y="-5.681155692729767" width="3.5" height="17.7" fill="#f5f5f5" opacity="0.5154128086419754"/><rect x="-5" y="5.351474622770919" width="3.5" height="6.6" fill="#f5f5f5" opacity="0.8678090706447188"/><rect x="0" y="-0.7043724279835395" width="3.5" height="12.7" fill="#f5f5f5" opacity="0.49129586762688615"/><rect x="5" y="-2.9351165980795617" width="3.5" height="14.9" fill="#f5f5f5" opacity="0.5401941872427984"/><rect x="10" y="5.720970507544582" width="3.5" height="6.3" fill="#f5f5f5" opacity="0.761417609739369"/><rect x="15" y="1.3626543209876552" width="3.5" height="10.6" fill="#f5f5f5" opacity="0.5500278635116598"/><rect x="20" y="7.347959533607682" width="3.5" height="4.7" fill="#f5f5f5" opacity="0.8381237139917695"/><rect x="25" y="3.8497256515775042" width="3.5" height="8.2" fill="#f5f5f5" opacity="0.8170631858710562"/>
+      </g>
+
+      <line x1="384.8" y1="713.85" x2="613.6" y2="713.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="499.20000000000005" y="752.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Layer Δ</text>
+      <text x="499.20000000000005" y="779.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">PER-LAYER CONTRIBUTION</text>
+
+      <foreignObject x="376.8" y="793.6600000000001" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">change in residual added by each layer · spot the load-bearing ones</div>
+      </foreignObject>
+    
+      <rect x="661.6" y="523" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(800, 647.92)">
+        <circle cx="-32" cy="4" r="1.2" fill="#f5f5f5" opacity="0.22"/><circle cx="-30.2" cy="4" r="1.2" fill="#f5f5f5" opacity="0.85"/><circle cx="-28.4" cy="4" r="1.2" fill="#f5f5f5" opacity="0.78"/><circle cx="-26.6" cy="4" r="1.2" fill="#f5f5f5" opacity="0.65"/><circle cx="-24.8" cy="4" r="1.2" fill="#f5f5f5" opacity="0.57"/><circle cx="-23" cy="4" r="1.2" fill="#f5f5f5" opacity="0.52"/><circle cx="-21.2" cy="4" r="1.2" fill="#f5f5f5" opacity="0.54"/><circle cx="-19.4" cy="4" r="1.2" fill="#f5f5f5" opacity="0.65"/><circle cx="-17.6" cy="4" r="1.2" fill="#f5f5f5" opacity="0.46"/><circle cx="-15.8" cy="4" r="1.2" fill="#f5f5f5" opacity="0.22"/><circle cx="-14" cy="4" r="1.2" fill="#f5f5f5" opacity="0.61"/><circle cx="-12.2" cy="4" r="1.2" fill="#f5f5f5" opacity="0.14"/><circle cx="-10.399999999999999" cy="4" r="1.2" fill="#f5f5f5" opacity="0.77"/><circle cx="-8.599999999999998" cy="4" r="1.2" fill="#f5f5f5" opacity="0.78"/><circle cx="-6.800000000000001" cy="4" r="1.2" fill="#f5f5f5" opacity="0.66"/><circle cx="-5" cy="4" r="1.2" fill="#f5f5f5" opacity="0.20"/><circle cx="-3.1999999999999993" cy="4" r="1.2" fill="#f5f5f5" opacity="0.71"/><circle cx="-1.3999999999999986" cy="4" r="1.2" fill="#f5f5f5" opacity="0.79"/><circle cx="0.3999999999999986" cy="4" r="1.2" fill="#f5f5f5" opacity="0.39"/><circle cx="2.200000000000003" cy="4" r="1.2" fill="#f5f5f5" opacity="0.73"/><circle cx="4" cy="4" r="1.2" fill="#f5f5f5" opacity="0.85"/><circle cx="5.800000000000004" cy="4" r="1.2" fill="#f5f5f5" opacity="0.88"/><circle cx="7.600000000000001" cy="4" r="1.2" fill="#f5f5f5" opacity="0.38"/><circle cx="9.399999999999999" cy="4" r="1.2" fill="#f5f5f5" opacity="0.40"/><circle cx="11.200000000000003" cy="4" r="1.2" fill="#f5f5f5" opacity="0.43"/><circle cx="13" cy="4" r="1.2" fill="#f5f5f5" opacity="0.77"/><circle cx="14.800000000000004" cy="4" r="1.2" fill="#f5f5f5" opacity="0.52"/><circle cx="16.6" cy="4" r="1.2" fill="#f5f5f5" opacity="0.16"/><circle cx="18.4" cy="4" r="1.2" fill="#f5f5f5" opacity="0.65"/><circle cx="20.200000000000003" cy="4" r="1.2" fill="#f5f5f5" opacity="0.77"/><circle cx="22" cy="4" r="1.2" fill="#f5f5f5" opacity="0.38"/><circle cx="23.800000000000004" cy="4" r="1.2" fill="#f5f5f5" opacity="0.36"/><circle cx="25.6" cy="4" r="1.2" fill="#f5f5f5" opacity="0.70"/><circle cx="27.4" cy="4" r="1.2" fill="#f5f5f5" opacity="0.64"/><circle cx="29.200000000000003" cy="4" r="1.2" fill="#f5f5f5" opacity="0.22"/><circle cx="31" cy="4" r="1.2" fill="#f5f5f5" opacity="0.62"/>
+      </g>
+
+      <line x1="685.6" y1="713.85" x2="914.4000000000001" y2="713.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="800" y="752.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Residual Strip</text>
+      <text x="800" y="779.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">FLAT PROJECTION</text>
+
+      <foreignObject x="677.6" y="793.6600000000001" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">3,072-dim residual unrolled · activation magnitudes left-to-right</div>
+      </foreignObject>
+    
+      <rect x="962.4000000000001" y="523" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(1100.8000000000002, 647.92)">
+        <rect x="-21" y="-18" width="5" height="5" fill="#f5f5f5" opacity="0.81"/><rect x="-14" y="-18" width="5" height="5" fill="#f5f5f5" opacity="0.85"/><rect x="-7" y="-18" width="5" height="5" fill="#f5f5f5" opacity="0.49"/><rect x="0" y="-18" width="5" height="5" fill="#f5f5f5" opacity="0.40"/><rect x="7" y="-18" width="5" height="5" fill="#f5f5f5" opacity="0.10"/><rect x="14" y="-18" width="5" height="5" fill="#f5f5f5" opacity="0.27"/><rect x="-21" y="-11" width="5" height="5" fill="#f5f5f5" opacity="0.78"/><rect x="-14" y="-11" width="5" height="5" fill="#f5f5f5" opacity="0.95"/><rect x="-7" y="-11" width="5" height="5" fill="#f5f5f5" opacity="0.65"/><rect x="0" y="-11" width="5" height="5" fill="#f5f5f5" opacity="0.31"/><rect x="7" y="-11" width="5" height="5" fill="#f5f5f5" opacity="0.15"/><rect x="14" y="-11" width="5" height="5" fill="#f5f5f5" opacity="0.06"/><rect x="-21" y="-4" width="5" height="5" fill="#f5f5f5" opacity="0.39"/><rect x="-14" y="-4" width="5" height="5" fill="#f5f5f5" opacity="0.72"/><rect x="-7" y="-4" width="5" height="5" fill="#f5f5f5" opacity="0.97"/><rect x="0" y="-4" width="5" height="5" fill="#f5f5f5" opacity="0.85"/><rect x="7" y="-4" width="5" height="5" fill="#f5f5f5" opacity="0.43"/><rect x="14" y="-4" width="5" height="5" fill="#f5f5f5" opacity="0.11"/><rect x="-21" y="3" width="5" height="5" fill="#f5f5f5" opacity="0.23"/><rect x="-14" y="3" width="5" height="5" fill="#f5f5f5" opacity="0.39"/><rect x="-7" y="3" width="5" height="5" fill="#f5f5f5" opacity="0.83"/><rect x="0" y="3" width="5" height="5" fill="#f5f5f5" opacity="0.72"/><rect x="7" y="3" width="5" height="5" fill="#f5f5f5" opacity="0.72"/><rect x="14" y="3" width="5" height="5" fill="#f5f5f5" opacity="0.57"/><rect x="-21" y="10" width="5" height="5" fill="#f5f5f5" opacity="0.14"/><rect x="-14" y="10" width="5" height="5" fill="#f5f5f5" opacity="0.25"/><rect x="-7" y="10" width="5" height="5" fill="#f5f5f5" opacity="0.45"/><rect x="0" y="10" width="5" height="5" fill="#f5f5f5" opacity="0.79"/><rect x="7" y="10" width="5" height="5" fill="#f5f5f5" opacity="0.90"/><rect x="14" y="10" width="5" height="5" fill="#f5f5f5" opacity="0.59"/><rect x="-21" y="17" width="5" height="5" fill="#f5f5f5" opacity="0.18"/><rect x="-14" y="17" width="5" height="5" fill="#f5f5f5" opacity="0.16"/><rect x="-7" y="17" width="5" height="5" fill="#f5f5f5" opacity="0.13"/><rect x="0" y="17" width="5" height="5" fill="#f5f5f5" opacity="0.40"/><rect x="7" y="17" width="5" height="5" fill="#f5f5f5" opacity="0.65"/><rect x="14" y="17" width="5" height="5" fill="#f5f5f5" opacity="0.98"/>
+      </g>
+
+      <line x1="986.4000000000001" y1="713.85" x2="1215.2" y2="713.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="1100.8000000000002" y="752.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Attn L31</text>
+      <text x="1100.8000000000002" y="779.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">LAST-LAYER ATTENTION</text>
+
+      <foreignObject x="978.4000000000001" y="793.6600000000001" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">per-head attention matrix at the layer feeding the LM head</div>
+      </foreignObject>
+    
+      <rect x="1263.2" y="523" width="276.8" height="347" rx="4" fill="rgba(255,255,255,0.03)" stroke="#ffffff" stroke-width="0.45" opacity="0.95"/>
+
+      <g transform="translate(1401.6000000000001, 647.92)">
+        
+      <line x1="-30" y1="12" x2="-30" y2="-16" stroke="#f5f5f5" stroke-width="0.8" opacity="0.5"/>
+      <line x1="-30" y1="12" x2="30" y2="12" stroke="#f5f5f5" stroke-width="0.8" opacity="0.5"/>
+      <rect x="-24" y="-4" width="9" height="14" fill="#f5f5f5" opacity="0.85"/><rect x="-10" y="0" width="9" height="10" fill="#f5f5f5" opacity="0.6699999999999999"/><rect x="4" y="3" width="9" height="7" fill="#f5f5f5" opacity="0.49"/><rect x="18" y="6" width="9" height="4" fill="#f5f5f5" opacity="0.30999999999999994"/>
+    
+      </g>
+
+      <line x1="1287.2" y1="713.85" x2="1516" y2="713.85" stroke="#ffffff" stroke-width="0.4" opacity="0.4"/>
+
+      <text x="1401.6000000000001" y="752.02" font-size="21" font-family="Georgia, serif" fill="#f5f5f5" text-anchor="middle">Logit Lens</text>
+      <text x="1401.6000000000001" y="779.78" font-size="10" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="2">MID-LAYER PREDICTIONS</text>
+
+      <foreignObject x="1279.2" y="793.6600000000001" width="244.8" height="62.46">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 11.5px; line-height: 1.35; color: #f5f5f5; opacity: 0.78; text-align: center; font-style: italic;">what each layer would predict if it were the last · top-5 per layer</div>
+      </foreignObject>
+    
+</svg>
