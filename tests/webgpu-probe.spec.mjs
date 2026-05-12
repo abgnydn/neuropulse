@@ -5,6 +5,9 @@ import { test } from '@playwright/test'
 // how long we wait.
 test('webgpu adapter probe', async ({ page }, _testInfo) => {
   test.setTimeout(30_000)
+  // WebGPU is gated on a secure context — navigator.gpu is NOT exposed
+  // on about:blank. Probe against http://localhost (a secure context).
+  await page.goto('/app/', { waitUntil: 'domcontentloaded' })
   const info = await page.evaluate(async () => {
     const out = { hasNavGpu: !!navigator.gpu, ua: navigator.userAgent }
     if (!navigator.gpu) return out

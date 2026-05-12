@@ -2,13 +2,14 @@
 // Usage:
 //   /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
 //     --user-data-dir=/tmp/cdp-chrome --remote-debugging-port=9222 \
-//     --no-first-run --enable-unsafe-webgpu about:blank &
+//     --no-first-run --enable-unsafe-webgpu http://localhost:4000 &
 //   node tools/cdp-probe.mjs
 //
-// Empirical finding (2026-05-12): hasNavGpu is false in every config
-// attempted — headless=new, fully headed, ignoreDefaultArgs:true. The
-// same Chrome under the user's regular session does expose WebGPU.
-// See E37 in the research vault for the full env note.
+// NOTE: WebGPU is gated on a SECURE CONTEXT. `navigator.gpu` is
+// undefined on `about:blank` and `data:` URLs, even when the GPU
+// adapter is fully available. Always probe against `http://localhost`
+// or `https://`. The original draft of this file probed about:blank
+// and got false-negative `hasNavGpu: false` results — corrected.
 import { chromium } from '@playwright/test'
 const browser = await chromium.connectOverCDP('http://127.0.0.1:9222')
 const ctx = browser.contexts()[0] || await browser.newContext()

@@ -23,7 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const RESULTS_DIR = join(__dirname, '..', 'test-results', 'butterfly-sweep')
 const RUNS_PER = parseInt(process.env.RUNS_PER || '20', 10)
 const TRANSCRIPT_IDS = (process.env.TRANSCRIPTS || 'jwt-clock-race,auth-owner-pto,rate-limit-decision,cache-race-fileline').split(',')
-const PER_RUN_TIMEOUT_MS = 120_000
+const PER_RUN_TIMEOUT_MS = 240_000          // headed Playwright runs are slower than user's daily Chrome
 const ENGINE_READY_TIMEOUT_MS = 180_000
 
 test.describe.configure({ mode: 'serial' })
@@ -31,17 +31,64 @@ test.describe.configure({ mode: 'serial' })
 test('butterfly sweep — 4 transcripts × N runs', async ({ page, browser }, testInfo) => {
   test.setTimeout(TRANSCRIPT_IDS.length * RUNS_PER * PER_RUN_TIMEOUT_MS + ENGINE_READY_TIMEOUT_MS)
 
-  // Capture pageerrors + browser console for postmortem
+  // Capture pageerrors + browser console for postmortem. During the
+  // engine-init phase we log EVERYTHING (including info/log) so the
+  // sweep operator can see weight-loader progress + shader compile.
   const pageErrors = []
+  let verboseConsole = true
   page.on('pageerror', (e) => { pageErrors.push(e.message); console.error('[pageerror]', e.message) })
   page.on('console', (msg) => {
     const t = msg.type()
-    if (t === 'error' || t === 'warning') console.log(`[browser ${t}]`, msg.text())
+    if (verboseConsole || t === 'error' || t === 'warning') {
+      const txt = msg.text()
+      // skip noisy stuff
+      if (txt.includes('DevTools')) return
+      console.log(`[browser ${t}] ${txt.slice(0, 240)}`)
+    }
   })
+
+  // Status-snapshot helper — dumps page state every 15s during engine init
+  // so we don't fly blind through a 3-minute boot.
+  const snapshot = setInterval(async () => {
+    try {
+      const s = await page.evaluate(() => ({
+        title: document.title,
+        loadingVisible: !!document.querySelector('#loadingOverlay:not([hidden])'),
+        loadingText: document.querySelector('#loadingOverlay')?.innerText?.slice(0, 200) || null,
+        bflyPickerExists: !!document.getElementById('bflyTranscriptPicker'),
+        toggleFnExists: typeof window.__toggleButterflyPanel === 'function',
+        navGpu: !!navigator.gpu,
+      }))
+      console.log(`[snapshot] ${JSON.stringify(s)}`)
+    } catch (_e) { /* page may not be ready yet */ }
+  }, 15_000)
 
   // ── Engine warm-up ──────────────────────────────────────────────
   console.log(`\n[sweep] opening /app/ and waiting for engine init…`)
   await page.goto('/app/', { waitUntil: 'domcontentloaded' })
+
+  // Suppress the first-visit welcome modal up-front by setting the
+  // dismissed flag in localStorage BEFORE the app boots. Without this,
+  // the welcome overlay intercepts pointer events and the Run button
+  // click bounces. Also handles the boot gate (#bootGoBtn).
+  await page.addInitScript(() => {
+    try { localStorage.setItem('np:welcome-dismissed', '1') } catch {}
+  })
+  // Re-navigate so the init script runs before any app code.
+  await page.goto('/app/', { waitUntil: 'domcontentloaded' })
+
+  try {
+    await page.locator('#bootGoBtn').click({ timeout: 5_000 })
+    console.log('[sweep] clicked first-visit gate — engine init beginning')
+  } catch {
+    console.log('[sweep] no first-visit gate (cache hit) — engine init beginning')
+  }
+  // Defensive: if the welcome overlay still rendered (e.g. flag set too
+  // late), click its dismiss button.
+  try {
+    await page.locator('#welcome-dismiss').click({ timeout: 3_000 })
+    console.log('[sweep] dismissed welcome overlay')
+  } catch { /* not present or already hidden — fine */ }
 
   // Wait for butterfly init + the dropdown to exist
   await page.waitForFunction(
@@ -66,6 +113,11 @@ test('butterfly sweep — 4 transcripts × N runs', async ({ page, browser }, te
     },
     { timeout: ENGINE_READY_TIMEOUT_MS },
   )
+
+  // Engine + panel are ready — quiet down the console firehose.
+  clearInterval(snapshot)
+  verboseConsole = false
+  console.log(`[sweep] engine + panel ready — switching to per-run mode\n`)
 
   // Reset any prior tally so this sweep is a clean baseline.
   await page.evaluate(() => localStorage.removeItem('butterfly-mode-stats-v1'))
@@ -101,10 +153,25 @@ test('butterfly sweep — 4 transcripts × N runs', async ({ page, browser }, te
       await page.locator('#bflyRunBtn').click()
       // Brief wait so the button has a chance to enter disabled state.
       await page.waitForFunction(() => document.querySelector('#bflyRunBtn[disabled]'), { timeout: 5_000 }).catch(() => {})
-      await page.waitForFunction(
-        () => document.querySelector('#bflyRunBtn:not([disabled])'),
-        { timeout: PER_RUN_TIMEOUT_MS },
-      )
+
+      // Per-run status snapshots every 20s — tells us what stage the run
+      // is in (tagging gen N, chrysalis, judging, etc). Silent runs that
+      // hang past PER_RUN_TIMEOUT_MS are diagnosable from these breadcrumbs.
+      const runSnapshot = setInterval(async () => {
+        try {
+          const s = await page.evaluate(() => document.getElementById('bflyStatus')?.textContent || '')
+          console.log(`[sweep]     status: ${s.slice(0, 120)}`)
+        } catch {}
+      }, 20_000)
+
+      try {
+        await page.waitForFunction(
+          () => document.querySelector('#bflyRunBtn:not([disabled])'),
+          { timeout: PER_RUN_TIMEOUT_MS },
+        )
+      } finally {
+        clearInterval(runSnapshot)
+      }
 
       // Pull verdicts + status off the DOM.
       const observed = await page.evaluate(() => {

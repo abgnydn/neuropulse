@@ -3,27 +3,37 @@ import { defineConfig } from '@playwright/test'
 // Dedicated config for the Butterfly v2.5 scaling sweep
 // (PREDICTIONS.md P-20260512-05).
 //
-// ── Critical environment note ─────────────────────────────────────
-// Chrome 148 on macOS — when launched programmatically (Playwright,
-// raw CDP, or otherwise) with a synthetic --user-data-dir — does NOT
-// expose `navigator.gpu`, regardless of flag combinations:
-//   --enable-unsafe-webgpu        (no effect)
-//   --headless=new                (no effect)
-//   --enable-features=WebGPU      (no effect)
-//   --ignore-gpu-blocklist        (no effect)
-//   --use-angle=metal             (no effect)
-//   ignoreDefaultArgs:true        (no effect)
+// ── Environment notes ──────────────────────────────────────────────
+// WebGPU is gated on a SECURE CONTEXT — `navigator.gpu` is undefined
+// on `about:blank`, `data:` URLs, and other non-secure origins. It IS
+// exposed on `http://localhost` and `https://`. So the probe and the
+// sweep both navigate to /app/ (served by vite on 127.0.0.1:4000)
+// before touching navigator.gpu. See tests/webgpu-probe.spec.mjs.
 //
-// The same Chrome run from a regular user session (Cmd-Tab open) DOES
-// expose WebGPU and Phi-3 inference works fine — confirmed by the
-// neuropulse demo URL itself.
+// Playwright's default chrome-headless-shell uses SwiftShader (software
+// GL) and does not expose WebGPU even on a secure context. So this
+// config uses the `chrome` channel (your system Chrome install),
+// headed mode, plus --enable-unsafe-webgpu. A small Chrome window
+// appears during the sweep.
 //
-// So this config is intended for: run from a TTY, expects a real
-// display, expects the user to have closed any chrome://settings
-// privacy-blocking-WebGPU policies. The Chrome window will appear
-// briefly during the sweep.
+// ── Known limitation (2026-05-12, Chrome 148 + macOS 25.4) ─────────
+// Even with everything below — secure context, system Chrome, headed
+// mode, --enable-unsafe-webgpu, --disable-background-timer-throttling,
+// --disable-renderer-backgrounding — Phi-3 inference HANGS at the
+// first tagger call. The page boots correctly (pipelines compile,
+// buffers allocate, panel opens, transcript loads), but engine.generate()
+// never returns. Verified across 4 increasingly-aggressive configs.
 //
-// ── How to run ───────────────────────────────────────────────────
+// The same neuropulse build runs fine in the user's daily Chrome
+// session at neuropulse.live. Cause unknown — possibly a Metal-context
+// difference between a fresh tempdir profile and a real user profile.
+//
+// Until that's resolved, the sweep runs via `tools/console-sweep.js`
+// inside a normal Chrome tab. The Playwright config is kept here so
+// the failure mode is regression-testable and the harness is ready
+// the moment Chrome/Playwright behavior changes.
+//
+// ── How to run ─────────────────────────────────────────────────────
 //
 //   # one-shot full sweep (4 transcripts × 20 runs ≈ 60 min)
 //   npm run sweep:butterfly
@@ -52,6 +62,14 @@ export default defineConfig({
         '--enable-unsafe-webgpu',
         '--no-first-run',
         '--no-default-browser-check',
+        // Defeat Chrome's background-tab throttling — without these,
+        // an unfocused window stalls Phi-3 inference indefinitely
+        // (verified: tagging hangs at "Gen 1/3 tagging 8 messages"
+        // for 7+ minutes when the window is offscreen).
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=CalculateNativeWinOcclusion',
       ],
     },
   },

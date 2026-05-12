@@ -488,7 +488,13 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
   document.head.appendChild(style)
 
   const panel = document.createElement("div")
-  panel.className = "bfly-panel open"
+  // Panel starts closed; opened by the mode-bar button, the legacy
+  // ?mode=butterfly URL flag (handled in main.ts), or the keyboard
+  // chord. Pre-v2.5 this was "bfly-panel open" because the panel was
+  // only ever instantiated under the URL flag — that init guard is
+  // gone now, so an always-open default would pop the panel for
+  // every visitor.
+  panel.className = "bfly-panel"
   panel.innerHTML = `
     <div class="bfly-header">
       <span class="bfly-title">🦋 BUTTERFLY MODE</span>
