@@ -1,73 +1,85 @@
-<svg viewBox="0 0 1600 920" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Controls and modes — the seven modes and the full keymap">
-  <rect width="1600" height="920" fill="#0a0a0a"/>
-
-  <text x="800" y="56" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="4">CONTROLS &amp; MODES · SEVEN WAYS TO LOOK AT IT</text>
+<svg viewBox="0 0 1600 1140" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Controls and modes — 5 view modes, 4 overlays, plus the keymap">
+  <rect width="1600" height="1140" fill="#0a0a0a"/>
+  <text x="800" y="56" font-size="14" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" text-anchor="middle" letter-spacing="4">CONTROLS &amp; MODES · FIVE VIEWS · FOUR OVERLAYS · ONE FORWARD PASS</text>
   <line x1="40" y1="82" x2="1560" y2="82" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
 
-  <text x="60" y="116" font-size="13" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">Modes</text>
-  <text x="840" y="116" font-size="13" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">Keymap</text>
+  <text x="60" y="120" font-size="13" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">Modes</text>
+  <text x="840" y="120" font-size="13" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">Keymap</text>
 
+  <text x="60" y="150" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">VIEW MODES · ONE AT A TIME</text><line x1="60" y1="162" x2="780" y2="162" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
+    <rect x="60" y="176" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="210" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">JOURNEY</text>
+    <text x="88" y="230" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">↑ ↓  ·  SPACE  ·  HOME / END</text>
+    <line x1="290" y1="190" x2="290" y2="246" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="196" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Auto layer-by-layer cinematic tour. The default first-visit experience. Step manually or let it play.</div>
+    </foreignObject>
   
-      <rect x="60" y="150" width="720" height="86" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
-      <text x="88" y="186" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">JOURNEY</text>
-      <text x="88" y="206" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">↑ ↓  ·  SPACE  ·  HOME / END</text>
-      <foreignObject x="280" y="170" width="480" height="56">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Layer-by-layer guided tour. Auto-plays through the 32 transformer blocks; pause and step. The default first-visit experience.</div>
-      </foreignObject>
-      <line x1="260" y1="164" x2="260" y2="222" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
-    
-      <rect x="60" y="250" width="720" height="86" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
-      <text x="88" y="286" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">SCENE</text>
-      <text x="88" y="306" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">DRAG · WHEEL · RIGHT-DRAG</text>
-      <foreignObject x="280" y="270" width="480" height="56">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Free 3D camera. Orbit, zoom, and pan around the whole model. Panels float as world-anchored cards.</div>
-      </foreignObject>
-      <line x1="260" y1="264" x2="260" y2="322" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
-    
-      <rect x="60" y="350" width="720" height="86" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
-      <text x="88" y="386" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">ABLATION</text>
-      <text x="88" y="406" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">A</text>
-      <foreignObject x="280" y="370" width="480" height="56">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Zero out attention, FFN, or RoPE and watch the output collapse. Shows what each circuit contributes.</div>
-      </foreignObject>
-      <line x1="260" y1="364" x2="260" y2="422" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
-    
-      <rect x="60" y="450" width="720" height="86" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
-      <text x="88" y="486" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">BUTTERFLY</text>
-      <text x="88" y="506" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">AUTO</text>
-      <foreignObject x="280" y="470" width="480" height="56">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Transgenerational context-compaction demo. Across 3 generations: tag each message (keep / summarize / melt with a brief reason), chrysalis-rebuild at ~400 tokens, inject off-topic noise. Then a needle question runs against butterfly memory vs. a recency-truncated baseline at the same budget; an LLM-as-judge grades each hit / partial / miss.</div>
-      </foreignObject>
-      <line x1="260" y1="464" x2="260" y2="522" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
-    
-      <rect x="60" y="550" width="720" height="86" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
-      <text x="88" y="586" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">KID</text>
-      <text x="88" y="606" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">K</text>
-      <foreignObject x="280" y="570" width="480" height="56">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Storyteller overlay. Phi-3 explains itself in plain English while it thinks. For ELI5 walkthroughs.</div>
-      </foreignObject>
-      <line x1="260" y1="564" x2="260" y2="622" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
-    
-      <rect x="60" y="650" width="720" height="86" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
-      <text x="88" y="686" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">CINEMA</text>
-      <text x="88" y="706" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">SPEED SLIDER</text>
-      <foreignObject x="280" y="670" width="480" height="56">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Slows generation so you can scrub through the forward pass tick by tick. Great for capture.</div>
-      </foreignObject>
-      <line x1="260" y1="664" x2="260" y2="722" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
-    
-      <rect x="60" y="750" width="720" height="86" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
-      <text x="88" y="786" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">SOFT</text>
-      <text x="88" y="806" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">S</text>
-      <foreignObject x="280" y="770" width="480" height="56">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 14px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Renders activations as soft Gaussian sprites instead of hard points. Lower-contrast, more cinematic.</div>
-      </foreignObject>
-      <line x1="260" y1="764" x2="260" y2="822" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
-    
+    <rect x="60" y="274" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="308" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">SCENE</text>
+    <text x="88" y="328" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">CLICK "SCENE" · DRAG · WHEEL</text>
+    <line x1="290" y1="288" x2="290" y2="344" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="294" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Free 3D camera. Orbit, zoom, pan around the whole model. All ten panels float as world-anchored cards.</div>
+    </foreignObject>
   
-      <text x="840" y="150" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">CAMERA</text>
-      <line x1="840" y1="162" x2="1540" y2="162" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
-    
+    <rect x="60" y="372" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="406" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">ATTENTION</text>
+    <text x="88" y="426" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">CLICK "ATTENTION"</text>
+    <line x1="290" y1="386" x2="290" y2="442" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="392" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Dims the 3D brain and raises the last-layer attention grid as the hero. Per-head matrix, full canvas.</div>
+    </foreignObject>
+  
+    <rect x="60" y="470" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="504" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">LOGIT LENS</text>
+    <text x="88" y="524" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">CLICK "LOGIT LENS"</text>
+    <line x1="290" y1="484" x2="290" y2="540" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="490" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Dims the brain and raises the logit lens as hero — what each layer would predict if it were the last.</div>
+    </foreignObject>
+  
+    <rect x="60" y="568" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="602" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">CINEMATIC</text>
+    <text x="88" y="622" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">CLICK "CINEMATIC"</text>
+    <line x1="290" y1="582" x2="290" y2="638" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="588" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Full-bleed brain with scrub bar + play / pause / step buttons. Slow down and walk through the forward pass.</div>
+    </foreignObject>
+  <text x="60" y="682" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">OVERLAYS · STACK ON ANY VIEW</text><line x1="60" y1="694" x2="780" y2="694" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
+    <rect x="60" y="708" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="742" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">ABLATION</text>
+    <text x="88" y="762" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">A</text>
+    <line x1="290" y1="722" x2="290" y2="778" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="728" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Floating panel. Zero out attention, FFN, or RoPE per layer or globally and watch the output collapse.</div>
+    </foreignObject>
+  
+    <rect x="60" y="806" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="840" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">BUTTERFLY</text>
+    <text x="88" y="860" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">?MODE=BUTTERFLY</text>
+    <line x1="290" y1="820" x2="290" y2="876" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="826" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">URL-flag-gated demo. Transgenerational context compaction — tag → chrysalis → noise across 3 generations, then a needle question vs. lastN baseline.</div>
+    </foreignObject>
+  
+    <rect x="60" y="904" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="938" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">KID</text>
+    <text x="88" y="958" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">K</text>
+    <line x1="290" y1="918" x2="290" y2="974" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="924" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Phi the Storyteller. The model narrates what it is doing in plain English while it thinks. ELI5 walkthrough.</div>
+    </foreignObject>
+  
+    <rect x="60" y="1002" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
+    <text x="88" y="1036" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">SOFT</text>
+    <text x="88" y="1056" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">S</text>
+    <line x1="290" y1="1016" x2="290" y2="1072" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
+    <foreignObject x="310" y="1022" width="450" height="48">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">Renders activations as soft Gaussian sprites instead of hard points. Lower-contrast, more cinematic.</div>
+    </foreignObject>
+  
+  <text x="840" y="150" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">CAMERA</text><line x1="840" y1="162" x2="1540" y2="162" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
     <rect x="840" y="170" width="48" height="22" rx="4" fill="none" stroke="#f5f5f5" stroke-width="0.8" opacity="0.85"/>
     <text x="864" y="185" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#f5f5f5" text-anchor="middle">drag</text>
   <text x="1010" y="186" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">orbit the model</text>
@@ -79,10 +91,7 @@
   <text x="1010" y="258" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">pan the view</text>
     <rect x="840" y="278" width="28" height="22" rx="4" fill="none" stroke="#f5f5f5" stroke-width="0.8" opacity="0.85"/>
     <text x="854" y="293" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#f5f5f5" text-anchor="middle">R</text>
-  <text x="1010" y="294" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">reset camera</text>
-      <text x="840" y="344" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">JOURNEY</text>
-      <line x1="840" y1="356" x2="1540" y2="356" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
-    
+  <text x="1010" y="294" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">reset camera</text><text x="840" y="344" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">JOURNEY</text><line x1="840" y1="356" x2="1540" y2="356" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
     <rect x="840" y="364" width="48" height="22" rx="4" fill="none" stroke="#f5f5f5" stroke-width="0.8" opacity="0.85"/>
     <text x="864" y="379" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#f5f5f5" text-anchor="middle">↑  ↓</text>
   <text x="1010" y="380" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">step one layer</text>
@@ -91,10 +100,7 @@
   <text x="1010" y="416" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">play / pause</text>
     <rect x="840" y="436" width="112" height="22" rx="4" fill="none" stroke="#f5f5f5" stroke-width="0.8" opacity="0.85"/>
     <text x="896" y="451" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#f5f5f5" text-anchor="middle">Home  ·  End</text>
-  <text x="1010" y="452" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">first / last layer</text>
-      <text x="840" y="502" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">PANELS</text>
-      <line x1="840" y1="514" x2="1540" y2="514" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
-    
+  <text x="1010" y="452" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">first / last layer</text><text x="840" y="502" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">PANELS</text><line x1="840" y1="514" x2="1540" y2="514" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
     <rect x="840" y="522" width="88" height="22" rx="4" fill="none" stroke="#f5f5f5" stroke-width="0.8" opacity="0.85"/>
     <text x="884" y="537" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#f5f5f5" text-anchor="middle">P  ·  Tab</text>
   <text x="1010" y="538" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">toggle all panels</text>
@@ -103,10 +109,7 @@
   <text x="1010" y="574" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">expand / collapse to orbs</text>
     <rect x="840" y="594" width="28" height="22" rx="4" fill="none" stroke="#f5f5f5" stroke-width="0.8" opacity="0.85"/>
     <text x="854" y="609" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#f5f5f5" text-anchor="middle">H</text>
-  <text x="1010" y="610" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">hide HUD</text>
-      <text x="840" y="660" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">MODES</text>
-      <line x1="840" y1="672" x2="1540" y2="672" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
-    
+  <text x="1010" y="610" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">hide HUD</text><text x="840" y="660" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2.5">SYSTEM</text><line x1="840" y1="672" x2="1540" y2="672" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
     <rect x="840" y="680" width="28" height="22" rx="4" fill="none" stroke="#f5f5f5" stroke-width="0.8" opacity="0.85"/>
     <text x="854" y="695" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#f5f5f5" text-anchor="middle">A</text>
   <text x="1010" y="696" font-size="14" font-family="Georgia, serif" font-style="italic" fill="#f5f5f5" opacity="0.9">ablation panel</text>

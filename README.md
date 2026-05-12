@@ -201,7 +201,7 @@ Numbers track [`METHODS.md`](METHODS.md) — the precision matrix and tolerances
 
 ## Inside the demo
 
-Once the weights load, the demo is more than a single 3D view. Ten draggable panels, seven modes, and a keymap covering the whole interaction surface.
+Once the weights load, the demo is more than a single 3D view. Ten draggable panels, five view modes (one at a time), four overlays that stack on top of any view, and a keymap covering the whole interaction surface.
 
 ### Ten panels — every one a live tensor
 
@@ -224,7 +224,7 @@ Every panel is screen-anchored, draggable, dockable as an orb in the bottom rail
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="public/controls-dark.svg">
-  <img alt="Controls and modes — left column lists the seven modes (Journey, Scene, Ablation, Butterfly, Kid, Cinema, Soft) with their bindings and one-line descriptions; right column is the keymap grouped into Camera, Journey, Panels, and Modes" src="public/controls-light.svg" width="100%">
+  <img alt="Controls and modes — left column lists the five view modes (Journey, Scene, Attention, Logit Lens, Cinematic) and the four overlays (Ablation, Butterfly, Kid, Soft) with bindings and descriptions; right column is the keymap grouped into Camera, Journey, Panels, and System" src="public/controls-light.svg" width="100%">
 </picture>
 
 </div>
