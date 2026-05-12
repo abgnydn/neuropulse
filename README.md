@@ -45,6 +45,19 @@ No server. No API key. No fakery.
 
 <br>
 
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/preview-dark.svg">
+  <img alt="Neuropulse running in the browser — residual stream cluster, attention rays, side panels for ablation and per-head attention, logit lens, and prompt input" src="public/preview-light.svg" width="100%">
+</picture>
+
+<sub>A stylized snapshot of the live in-browser visualizer. Open <a href="https://neuropulse.live/app/">neuropulse.live/app/</a> to drive your own.</sub>
+
+</div>
+
+<br>
+
 ## The problem
 
 Every "AI visualization" you've seen online is **decoration**.
@@ -92,29 +105,16 @@ The layout isn't arbitrary. Residual-stream positions come from PCA of the model
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    P[Prompt] --> T[BPE tokenizer]
-    T --> E[Embedding lookup]
-    E --> L[32× transformer block]
-    L --> H[Final RMSNorm + LM head]
-    H --> S[Sampler]
-    S --> O[Token]
-    O -.-> L
+<div align="center">
 
-    L -. activation readback .-> V[Visualizer]
-    V --> R[3D scene · Three.js]
-    V --> A[Audio sonification]
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/architecture-dark.svg">
+  <img alt="Neuropulse architecture: prompt → tokenizer → embedding → 32× transformer block → LM head → sampler → token (auto-regressive loop), with a parallel render path reading activations from the same GPU buffers" src="public/architecture-light.svg" width="100%">
+</picture>
 
-    subgraph GPU[WebGPU · 11 WGSL kernels · 22 buffers]
-        E
-        L
-        H
-        S
-    end
-```
+</div>
 
-Inference and visualization share the same buffers. The renderer doesn't recompute anything — it reads the values the model already produced.
+Inference and visualization share the same GPU buffers. The renderer doesn't recompute anything — it reads the values the model already produced.
 
 <br>
 
@@ -125,18 +125,14 @@ Inference and visualization share the same buffers. The renderer doesn't recompu
 > [!TIP]
 > Click the wrench icon in the demo. The numbers from **your** GPU print to **your** browser console in under a minute. No setup, no install — your machine is the test rig.
 
-```
-═══ Validation Suite ══════════════════════════════════════════════
+<div align="center">
 
- [1]  Tokenizer        GPU input IDs match HF byte-for-byte
- [2]  Hidden states    3,072-dim residual diffed at 9 layer checkpoints
- [3]  Attention        Online softmax vs explicit-softmax reference
- [4]  Logits           Top-k probs + JS divergence, 15-prompt sweep
- [5]  Long context     290 tokens in, 10 decode steps, top-1 match
- [6]  Sampler          5,000-sample distribution vs softmax, JSD < 1e-2
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/validation-dark.svg">
+  <img alt="Validation suite — 6 tests against a HuggingFace fp16 reference, each with its bound and observed value" src="public/validation-light.svg" width="100%">
+</picture>
 
-═══════════════════════════════════════════════════════════════════
-```
+</div>
 
 Expected result: tiny deltas at hidden-state level (int4 quantization cost, not implementation drift) and identical top-1 tokens vs the fp16 reference. That last bit is the bar that matters.
 
@@ -292,8 +288,13 @@ First visit downloads ~2 GB of model weights into the browser cache. Every visit
 
 <br>
 
----
-
 <div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/monogram-dark.svg">
+  <img alt="neuropulse — see what your LLM is doing" src="public/monogram-light.svg" width="100%">
+</picture>
+
 <sub>Built by <a href="https://github.com/abgnydn">Ahmet Barış Günaydın</a></sub>
+
 </div>

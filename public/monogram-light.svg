@@ -1,0 +1,19 @@
+<svg viewBox="0 0 1600 110" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="neuropulse">
+  <rect width="1600" height="110" fill="#fafafa"/>
+
+  <line x1="420" y1="55" x2="600" y2="55" stroke="#1f2328" stroke-width="0.5" opacity="0.35"/>
+  <line x1="1000" y1="55" x2="1180" y2="55" stroke="#1f2328" stroke-width="0.5" opacity="0.35"/>
+
+  <text x="800" y="59" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="22"
+        font-weight="300"
+        fill="#1f2328"
+        letter-spacing="14">neuropulse</text>
+
+  <text x="800" y="87" text-anchor="middle"
+        font-family="'SF Mono', Menlo, Consolas, monospace"
+        font-size="9"
+        fill="#6e7781"
+        letter-spacing="5">SEE WHAT YOUR LLM IS DOING</text>
+</svg>

@@ -1,0 +1,92 @@
+<svg viewBox="0 0 1600 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Validation suite — 6 tests against a HuggingFace fp16 reference">
+  <rect width="1600" height="540" fill="#0a0a0a"/>
+
+  <text x="800" y="56" font-size="14" font-family="'SF Mono', Menlo, monospace"
+        fill="#9aa0a6" text-anchor="middle" letter-spacing="4">VALIDATION SUITE · ALL TESTS RUN IN YOUR BROWSER</text>
+
+  <line x1="40" y1="80" x2="1560" y2="80" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
+
+  <!-- header row -->
+  <g font-family="'SF Mono', Menlo, monospace" font-size="11" fill="#9aa0a6" letter-spacing="2.5">
+    <text x="70" y="112">#</text>
+    <text x="160" y="112">TEST</text>
+    <text x="410" y="112">WHAT IT DIFFS</text>
+    <text x="1000" y="112">BOUND</text>
+    <text x="1280" y="112">OBSERVED</text>
+  </g>
+  <line x1="40" y1="122" x2="1560" y2="122" stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
+
+  <rect x="40" y="140" width="1520" height="58" fill="rgba(255,255,255,0.025)" opacity="0.5"/>
+    <text x="70" y="176" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6" letter-spacing="2">01</text>
+    <text x="160" y="176" font-size="22" font-family="Georgia, serif"
+          fill="#f5f5f5">Tokenizer</text>
+    <text x="410" y="176" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6">GPU input IDs vs HuggingFace</text>
+    <text x="1000" y="176" font-size="13" font-family="'SF Mono', Menlo, monospace"
+          fill="#f5f5f5" letter-spacing="2">BYTE-FOR-BYTE</text>
+    <text x="1280" y="176" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#ffffff" letter-spacing="1.5">0</text>
+    <line x1="40" y1="200" x2="1560" y2="200" stroke="#ffffff" stroke-width="0.3" opacity="0.25"/>
+    <text x="70" y="236" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6" letter-spacing="2">02</text>
+    <text x="160" y="236" font-size="22" font-family="Georgia, serif"
+          fill="#f5f5f5">Hidden states</text>
+    <text x="410" y="236" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6">3,072-dim residual · 9 checkpoints</text>
+    <text x="1000" y="236" font-size="13" font-family="'SF Mono', Menlo, monospace"
+          fill="#f5f5f5" letter-spacing="2">L2/HF < 2e-2</text>
+    <text x="1280" y="236" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#ffffff" letter-spacing="1.5">< 0.02</text>
+    <line x1="40" y1="260" x2="1560" y2="260" stroke="#ffffff" stroke-width="0.3" opacity="0.25"/><rect x="40" y="260" width="1520" height="58" fill="rgba(255,255,255,0.025)" opacity="0.5"/>
+    <text x="70" y="296" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6" letter-spacing="2">03</text>
+    <text x="160" y="296" font-size="22" font-family="Georgia, serif"
+          fill="#f5f5f5">Attention</text>
+    <text x="410" y="296" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6">Online softmax vs explicit reference</text>
+    <text x="1000" y="296" font-size="13" font-family="'SF Mono', Menlo, monospace"
+          fill="#f5f5f5" letter-spacing="2">L2 < 1e-2</text>
+    <text x="1280" y="296" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#ffffff" letter-spacing="1.5">< 0.01</text>
+    <line x1="40" y1="320" x2="1560" y2="320" stroke="#ffffff" stroke-width="0.3" opacity="0.25"/>
+    <text x="70" y="356" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6" letter-spacing="2">04</text>
+    <text x="160" y="356" font-size="22" font-family="Georgia, serif"
+          fill="#f5f5f5">Logits</text>
+    <text x="410" y="356" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6">Top-k probs · 15-prompt sweep</text>
+    <text x="1000" y="356" font-size="13" font-family="'SF Mono', Menlo, monospace"
+          fill="#f5f5f5" letter-spacing="2">JSD < 5e-3</text>
+    <text x="1280" y="356" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#ffffff" letter-spacing="1.5">< 0.005</text>
+    <line x1="40" y1="380" x2="1560" y2="380" stroke="#ffffff" stroke-width="0.3" opacity="0.25"/><rect x="40" y="380" width="1520" height="58" fill="rgba(255,255,255,0.025)" opacity="0.5"/>
+    <text x="70" y="416" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6" letter-spacing="2">05</text>
+    <text x="160" y="416" font-size="22" font-family="Georgia, serif"
+          fill="#f5f5f5">Long context</text>
+    <text x="410" y="416" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6">290 tokens in · 10 decode steps</text>
+    <text x="1000" y="416" font-size="13" font-family="'SF Mono', Menlo, monospace"
+          fill="#f5f5f5" letter-spacing="2">TOP-1 100%</text>
+    <text x="1280" y="416" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#ffffff" letter-spacing="1.5">EXACT</text>
+    <line x1="40" y1="440" x2="1560" y2="440" stroke="#ffffff" stroke-width="0.3" opacity="0.25"/>
+    <text x="70" y="476" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6" letter-spacing="2">06</text>
+    <text x="160" y="476" font-size="22" font-family="Georgia, serif"
+          fill="#f5f5f5">Sampler</text>
+    <text x="410" y="476" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#9aa0a6">5,000-sample histogram vs softmax</text>
+    <text x="1000" y="476" font-size="13" font-family="'SF Mono', Menlo, monospace"
+          fill="#f5f5f5" letter-spacing="2">JSD < 1e-2</text>
+    <text x="1280" y="476" font-size="14" font-family="'SF Mono', Menlo, monospace"
+          fill="#ffffff" letter-spacing="1.5">< 0.01</text>
+    <line x1="40" y1="500" x2="1560" y2="500" stroke="#ffffff" stroke-width="0.3" opacity="0.25"/>
+
+  <!-- footer -->
+  <line x1="40" y1="514" x2="1560" y2="514"
+        stroke="#ffffff" stroke-width="0.5" opacity="0.35"/>
+  <text x="160" y="544" font-size="13" font-family="Georgia, serif"
+        fill="#f5f5f5" font-style="italic">If any row fails on your GPU — open an issue. The artifact is wrong, not your hardware.</text>
+</svg>
