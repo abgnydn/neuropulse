@@ -248,6 +248,9 @@ body { background: #08060f; color: #f4ecdf; font-family: 'Inter', -apple-system,
 /* Mode bar — sits between header and hero */
 .mode-bar { grid-column: 1 / -1; display: flex; gap: 4px; padding: 6px 16px; border-bottom: 1px solid rgba(244,236,223,0.08); background: rgba(8,6,15,0.7); backdrop-filter: blur(10px); align-items: center; }
 .mode-btn { background: transparent; border: 1px solid rgba(244,236,223,0.18); border-radius: 4px; padding: 6px 14px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #8a8170; letter-spacing: 0.04em; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); display: inline-flex; align-items: center; gap: 6px; }
+.mode-bar-divider { color: rgba(244,236,223,0.18); margin: 0 2px; font-size: 0.85rem; }
+.mode-btn-overlay { border-color: rgba(183, 148, 246, 0.45); color: #cbb4f4; }
+.mode-btn-overlay:hover { border-color: #b794f6; color: #f4ecdf; background: rgba(183, 148, 246, 0.10); }
 .mode-btn:hover { border-color: #f4ecdf; background: rgba(244,236,223,0.06); color: #f4ecdf; }
 .mode-btn .mode-icon { font-size: 0.85rem; opacity: 0.85; }
 .mode-btn.active { background: #f4ecdf; border-color: #f4ecdf; color: #08060f; box-shadow: 0 8px 24px rgba(244,236,223,0.18); }
@@ -2400,8 +2403,10 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
     <button class="mode-btn" data-mode="attention"><span class="mode-icon">▦</span> Attention</button>
     <button class="mode-btn" data-mode="lens"><span class="mode-icon">≡</span> Logit Lens</button>
     <button class="mode-btn" data-mode="cinema"><span class="mode-icon">▶</span> Cinematic</button>
+    <span class="mode-bar-divider" aria-hidden="true">│</span>
+    <button class="mode-btn mode-btn-overlay" data-bfly-toggle type="button" title="Open the Butterfly experiment panel (overlay, not a view mode)"><span class="mode-icon">🦋</span> Butterfly</button>
     <span class="mode-bar-spacer"></span>
-    <span class="mode-hint">Each mode picks <b>one</b> view to be the hero. Same forward pass, different lens.</span>
+    <span class="mode-hint">Each mode picks <b>one</b> view to be the hero. Same forward pass, different lens. Butterfly is an experiment overlay — stacks on any view.</span>
   </div>
 
   <div class="hero">

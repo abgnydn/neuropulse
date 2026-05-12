@@ -50,24 +50,113 @@ const INTER_GEN_DECAY = 0.4
 
 // ─── Built-in demo content ───────────────────────────────────────
 
-// Synthetic debugging session. Needle (root cause) at message index 4.
-// Kept short so the whole demo runs in <30 s on a mid-range GPU.
-const TRANSCRIPT: { role: "user" | "assistant"; content: string }[] = [
-  { role: "user", content: "Our auth/session.test.ts is flaky in CI but passes locally. Help?" },
-  { role: "assistant", content: "Sure — share the test and the failure output." },
-  { role: "user", content: "It asserts decoded.exp equals Math.floor(Date.now()/1000) + 3600. CI says expected 1735689600 received 1735689599." },
-  { role: "assistant", content: "Off-by-one second. Smells like a timing race rather than a logic bug." },
-  { role: "assistant", content: "Confirmed in lib/jwt.ts: issueToken reads Date.now() once for `exp`, the test reads Date.now() again in the assertion. On slow CI those two reads can land on different seconds. Root cause: clock race, not a code bug." },
-  { role: "user", content: "ok so the fix?" },
-  { role: "assistant", content: "Two options. Cheap: capture Date.now() once before calling issueToken. Proper: have issueToken accept an optional `now` parameter so tests inject a fixed clock." },
-  { role: "user", content: "let's do the proper one. lgtm, pushing." },
+// A built-in transcript pins one specific needle type per study. The
+// picker in the panel lets the user choose which one to run; the
+// localStorage tally separates results per transcript so hit rates
+// aren't averaged across non-comparable needle types.
+//
+// Design principles for adding a new transcript:
+//   - 7-10 messages, total < 1.5 KB so all 3 generations finish in <30s
+//   - the planted "needle" carries information that pretraining alone
+//     CANNOT produce — specific filenames, owners, line numbers, decisions
+//   - place the needle in the middle (msg 3-5) so lastN truncation has
+//     a real chance of losing it after noise injection
+//   - the question must be answerable ONLY with the needle. If a generic
+//     prior could fake it, sharpen the question (v2.1 commit history
+//     has the canonical case study of this trap)
+//   - the fact is one paragraph in declarative form — the LLM judge
+//     reads it as the rubric
+interface BuiltInTranscript {
+  id: string
+  name: string
+  needleType: 'root-cause' | 'owner-info' | 'decision' | 'file-line'
+  needleIdx: number
+  transcript: { role: "user" | "assistant"; content: string }[]
+  question: string
+  fact: string
+}
+
+const BUILT_IN_TRANSCRIPTS: BuiltInTranscript[] = [
+  {
+    id: 'jwt-clock-race',
+    name: 'JWT clock race · root cause',
+    needleType: 'root-cause',
+    needleIdx: 4,
+    transcript: [
+      { role: "user", content: "Our auth/session.test.ts is flaky in CI but passes locally. Help?" },
+      { role: "assistant", content: "Sure — share the test and the failure output." },
+      { role: "user", content: "It asserts decoded.exp equals Math.floor(Date.now()/1000) + 3600. CI says expected 1735689600 received 1735689599." },
+      { role: "assistant", content: "Off-by-one second. Smells like a timing race rather than a logic bug." },
+      { role: "assistant", content: "Confirmed in lib/jwt.ts: issueToken reads Date.now() once for `exp`, the test reads Date.now() again in the assertion. On slow CI those two reads can land on different seconds. Root cause: clock race, not a code bug." },
+      { role: "user", content: "ok so the fix?" },
+      { role: "assistant", content: "Two options. Cheap: capture Date.now() once before calling issueToken. Proper: have issueToken accept an optional `now` parameter so tests inject a fixed clock." },
+      { role: "user", content: "let's do the proper one. lgtm, pushing." },
+    ],
+    question: "Looking at lib/jwt.ts specifically — what is the exact code mistake that causes the off-by-one second in CI? Name the function and what it does wrong.",
+    fact: "issueToken in lib/jwt.ts reads Date.now() once to compute the `exp` field. The test assertion ALSO reads Date.now() (a second time). On slow CI those two reads can land on different seconds, causing the off-by-one. The mistake is the second Date.now() read in the test — there should be one captured `now` shared between the call and the assertion.",
+  },
+  {
+    id: 'auth-owner-pto',
+    name: 'Auth-service owner · ownership info',
+    needleType: 'owner-info',
+    needleIdx: 3,
+    transcript: [
+      { role: "user", content: "We're shipping the new checkout API Friday. Need someone on auth-service to bless the JWT format change." },
+      { role: "assistant", content: "auth-service team — let me pull their owner." },
+      { role: "user", content: "Slack channel works too if you have it." },
+      { role: "assistant", content: "Sarah Chen owns @company/auth-service — Slack is #auth-platform. She's PTO through Tuesday, backup reviewer is Marcus Lee." },
+      { role: "user", content: "noted, thx. while you're at it, who do we ping for billing-service?" },
+      { role: "assistant", content: "Don is the maintainer; channel I know of is #billing-eng." },
+      { role: "user", content: "ok will tag #billing-eng then. one more — does payment-svc need a review for this change?" },
+      { role: "assistant", content: "No, payment-svc only proxies through. No review needed there." },
+    ],
+    question: "We need to coordinate the auth-service JWT format change before Friday but we can't ping Sarah. Who is the backup reviewer for auth-service, and what is the right Slack channel to reach them on?",
+    fact: "Marcus Lee is the backup reviewer for @company/auth-service while Sarah Chen is on PTO through Tuesday. The Slack channel is #auth-platform.",
+  },
+  {
+    id: 'rate-limit-decision',
+    name: 'Rate-limit algorithm · decision',
+    needleType: 'decision',
+    needleIdx: 4,
+    transcript: [
+      { role: "user", content: "We need rate limiting on /api/v1. What should we use?" },
+      { role: "assistant", content: "Token bucket or fixed window are the usual options." },
+      { role: "user", content: "which one for us? we have spiky traffic patterns." },
+      { role: "assistant", content: "Token bucket handles bursts better. Suggest token bucket at 100 req/min per IP, refill every 600ms." },
+      { role: "assistant", content: "Decision: token-bucket at 100 req/min per IP via Redis; if Redis is unreachable for >5s, fail-open with a local in-memory fixed-window of 50 req/min. We accept brief over-limit during Redis outages over hard-failing user requests. Tracked under TICKET-4421." },
+      { role: "user", content: "lgtm. you'll draft the RFC?" },
+      { role: "assistant", content: "Yes, will have an RFC by Wednesday." },
+      { role: "user", content: "sweet, while you're here — should we move to grpc later this year?" },
+      { role: "assistant", content: "Probably not before Q4 — too many internal clients on REST." },
+    ],
+    question: "For the /api/v1 rate-limit decision in TICKET-4421: what is the primary algorithm and its parameters, and what specifically happens when Redis is unreachable?",
+    fact: "Token bucket at 100 req/min per IP via Redis (refill every 600ms). When Redis is unreachable for more than 5 seconds, the system fails open to a local in-memory fixed-window limiter at 50 req/min, accepting brief over-limit rather than hard-failing user requests.",
+  },
+  {
+    id: 'cache-race-fileline',
+    name: 'Cache race · file:line location',
+    needleType: 'file-line',
+    needleIdx: 3,
+    transcript: [
+      { role: "user", content: "Cache occasionally returns stale data right after a write. Where is it?" },
+      { role: "assistant", content: "How are reads structured? do they go through the same lock as writes?" },
+      { role: "user", content: "no, reads bypass the lock. only writes hold it." },
+      { role: "assistant", content: "Found it: lib/cache.ts lines 142-148. cache.set updates the value, but the version-counter increment happens 2 statements later. A concurrent cache.get landing between those two statements sees the new value but the old version, and the downstream consumer treats that as 'still cached, use it' because version didn't change." },
+      { role: "user", content: "ouch. so version increment needs to be atomic with set?" },
+      { role: "assistant", content: "Yes. Move the version++ inside the same critical section, or use a CAS on the version field." },
+      { role: "user", content: "btw unrelated, the OPS dashboard times out a lot lately." },
+      { role: "assistant", content: "Saw that too — Grafana proxy timeout was lowered to 5s last week, should bump back to 15s." },
+      { role: "user", content: "will file a ticket. thx for the cache catch." },
+    ],
+    question: "Where exactly in the codebase is the read-after-write race, and what is the precise sequence of operations that causes it?",
+    fact: "The race is in lib/cache.ts at lines 142-148. cache.set updates the value, then the version-counter increment happens two statements later. A concurrent cache.get landing between those two statements sees the new value but the old version number, so the downstream consumer treats it as still-cached. The fix is to move the version increment into the same critical section, or use a CAS on the version field.",
+  },
 ]
 
-// Question whose correct answer requires the planted needle (msg 4).
-// Phrased to require the SPECIFIC code-level mistake — pretraining alone
-// shouldn't be enough to answer correctly without the actual context.
-const NEEDLE_QUESTION = "Looking at lib/jwt.ts specifically — what is the exact code mistake that causes the off-by-one second in CI? Name the function and what it does wrong."
-const NEEDLE_FACT = "issueToken in lib/jwt.ts reads Date.now() once to compute the `exp` field. The test assertion ALSO reads Date.now() (a second time). On slow CI those two reads can land on different seconds, causing the off-by-one. The mistake is the second Date.now() read in the test — there should be one captured `now` shared between the call and the assertion."
+// Backwards-compat aliases — the first transcript is the default.
+const TRANSCRIPT = BUILT_IN_TRANSCRIPTS[0].transcript
+const NEEDLE_QUESTION = BUILT_IN_TRANSCRIPTS[0].question
+const NEEDLE_FACT = BUILT_IN_TRANSCRIPTS[0].fact
 
 // Off-topic noise injected between metamorphoses. All clearly melt-able.
 const NOISE_BATCH: { role: "user" | "assistant"; content: string }[] = [
@@ -258,6 +347,31 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     .bfly-throwaway-row .gen { color: #b794f6; font-weight: 600; }
     .bfly-throwaway-row .dropped { color: #ff6b6b; }
 
+    /* Picker row + scope banner — visible above the editable toggle. */
+    .bfly-picker-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 6px; flex-wrap: wrap;
+    }
+    .bfly-picker-label {
+      color: #b794f6; font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.08em; flex: 0 0 auto;
+    }
+    .bfly-picker {
+      flex: 1 1 200px; background: rgba(0,0,0,0.4); color: #f4ecdf;
+      border: 1px solid rgba(183, 148, 246, 0.4); border-radius: 4px;
+      padding: 5px 8px; font-family: inherit; font-size: 12px;
+      cursor: pointer;
+    }
+    .bfly-picker:focus { outline: 1px solid #b794f6; }
+    .bfly-scope {
+      background: rgba(183, 148, 246, 0.06);
+      border-left: 2px solid rgba(183, 148, 246, 0.55);
+      color: #cbc1ad; font-size: 11px; line-height: 1.45;
+      padding: 6px 10px; border-radius: 0 4px 4px 0;
+      margin-bottom: 10px; font-style: italic;
+    }
+    .bfly-scope strong { color: #b794f6; font-style: normal; font-weight: 600; letter-spacing: 0.05em; }
+
     /* Tier B: custom mode (editable transcript/question/needle) and
        step-by-step pause between metamorphoses. */
     .bfly-custom-toggle {
@@ -396,6 +510,16 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       <button id="bflyContinueBtn" type="button">Continue →</button>
     </div>
 
+    <div class="bfly-picker-row">
+      <label class="bfly-picker-label" for="bflyTranscriptPicker">Transcript</label>
+      <select id="bflyTranscriptPicker" class="bfly-picker">
+        ${BUILT_IN_TRANSCRIPTS.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="bfly-scope">
+      <strong>Scope:</strong> single-transcript demo, results vary run to run. The localStorage tally below is your sample — run each transcript several times before comparing arms.
+    </div>
+
     <div class="bfly-custom-toggle">
       <label><input type="checkbox" id="bflyCustomToggle"> Edit transcript / question</label>
       <label><input type="checkbox" id="bflyStepToggle"> Step-by-step</label>
@@ -498,6 +622,10 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
   const customTranscript = $<HTMLTextAreaElement>("bflyCustomTranscript")
   const customQuestion  = $<HTMLInputElement>("bflyCustomQuestion")
   const customNeedle    = $<HTMLTextAreaElement>("bflyCustomNeedle")
+  // v2.5 — research state: transcript picker
+  const picker          = $<HTMLSelectElement>("bflyTranscriptPicker")
+  const selectedTranscript = (): BuiltInTranscript =>
+    BUILT_IN_TRANSCRIPTS.find(t => t.id === picker.value) ?? BUILT_IN_TRANSCRIPTS[0]
   const pauseBanner     = $<HTMLDivElement>("bflyPauseBanner")
   const pauseLabel      = $<HTMLSpanElement>("bflyPauseLabel")
   const continueBtn     = $<HTMLButtonElement>("bflyContinueBtn")
@@ -533,12 +661,24 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
   }
 
   // ─── Tier B helpers ───────────────────────────────────────────────
-  // (a) Pre-fill custom textareas with the built-in defaults so users
-  //     can see the format and tweak from there.
-  const defaultTranscriptText = TRANSCRIPT.map(m => `${m.role}: ${m.content}`).join("\n")
-  customTranscript.value = defaultTranscriptText
-  customQuestion.value   = NEEDLE_QUESTION
-  customNeedle.value     = NEEDLE_FACT
+  // (a) Pre-fill custom textareas with the picker's current selection
+  //     so users can see the format and tweak from there. Re-pre-fills
+  //     when the picker changes (but only if the user hasn't started
+  //     editing — we don't clobber their typed text without warning).
+  const prefillFromPicker = () => {
+    const sel = selectedTranscript()
+    customTranscript.value = sel.transcript.map(m => `${m.role}: ${m.content}`).join("\n")
+    customQuestion.value   = sel.question
+    customNeedle.value     = sel.fact
+  }
+  prefillFromPicker()
+  picker.addEventListener("change", () => {
+    if (!customToggle.checked) prefillFromPicker()
+    // Show the planted-needle position in the status line so users have
+    // a hint of where the load-bearing message sits before they run.
+    const sel = selectedTranscript()
+    setStatus(`Loaded "${sel.name}" · needle planted at message ${sel.needleIdx} · press Run when ready.`)
+  })
 
   customToggle.addEventListener("change", () => {
     customEdit.style.display = customToggle.checked ? "" : "none"
@@ -590,8 +730,9 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
 
   // (d) localStorage stats — running tally across all runs in this browser.
   // abls: string-encoded ablation set (e.g. "L0:h3 · L15:h7"), empty for control runs.
-  // Schema-version bumped when abls field added; legacy entries silently lack it.
-  interface StatsEntry { bfly: 0|1|2; lastN: 0|1|2; ts: number; abls?: string }
+  // transcript: built-in id (e.g. "jwt-clock-race") or "custom". Pre-v2.5 entries
+  // silently lack this and are folded into an "unscoped" bucket in the tally.
+  interface StatsEntry { bfly: 0|1|2; lastN: 0|1|2; ts: number; abls?: string; transcript?: string }
   const STATS_KEY = "butterfly-mode-stats-v1"
   const loadStats = (): StatsEntry[] => {
     try { const raw = localStorage.getItem(STATS_KEY); return raw ? JSON.parse(raw) : [] }
@@ -600,16 +741,28 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
   const saveStats = (entries: StatsEntry[]) => {
     try { localStorage.setItem(STATS_KEY, JSON.stringify(entries)) } catch { /* ignore */ }
   }
+  // Render the tally scoped to whatever transcript is currently selected in
+  // the picker (or to "custom" when the editable toggle is on, or "all" when
+  // there are no scoped runs yet). Comparing arms only makes sense within
+  // a single transcript — averaging hit rates across non-comparable needle
+  // types would launder the result.
   const renderStats = () => {
-    const entries = loadStats()
-    if (entries.length === 0) { statsEl.style.display = "none"; return }
+    const all = loadStats()
+    if (all.length === 0) { statsEl.style.display = "none"; return }
+    const scopeId = customToggle.checked ? 'custom' : selectedTranscript().id
+    const scoped = all.filter(e => e.transcript === scopeId)
+    const entries = scoped.length > 0 ? scoped : all
     const bflyHits  = entries.filter(e => e.bfly  > 0).length
     const lastnHits = entries.filter(e => e.lastN > 0).length
     statsEl.style.display = ""
     statsRunsEl.textContent = String(entries.length)
+    const scopeLabel = scoped.length > 0 ? scopeId : 'all (mixed transcripts)'
     statsEl.querySelector(".stat-bfly")!.textContent  = `butterfly: ${bflyHits}/${entries.length}`
     statsEl.querySelector(".stat-lastn")!.textContent = `lastN: ${lastnHits}/${entries.length}`
+    statsEl.setAttribute('title', `Scoped to "${scopeLabel}". Switch transcripts in the picker to see per-transcript tallies.`)
   }
+  picker.addEventListener("change", renderStats)
+  customToggle.addEventListener("change", renderStats)
   statsClearEl.addEventListener("click", () => {
     if (!confirm("Clear all run stats from this browser?")) return
     saveStats([])
@@ -659,11 +812,15 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
     resetUI()
 
     const t0 = performance.now()
-    // Tier B: pull editable inputs (or fall back to defaults if untouched).
+    // Pull selected built-in (or editable inputs if the toggle is on).
+    // useCustom == true means the textareas are authoritative. useCustom
+    // == false means the picker dropdown is authoritative.
     const useCustom = customToggle.checked
-    const transcriptForRun = useCustom ? parseTranscriptText(customTranscript.value) : TRANSCRIPT.slice()
-    const questionForRun   = (useCustom && customQuestion.value.trim()) ? customQuestion.value.trim() : NEEDLE_QUESTION
-    const needleForRun     = (useCustom && customNeedle.value.trim())   ? customNeedle.value.trim()   : NEEDLE_FACT
+    const sel = selectedTranscript()
+    const transcriptForRun = useCustom ? parseTranscriptText(customTranscript.value) : sel.transcript.slice()
+    const questionForRun   = (useCustom && customQuestion.value.trim()) ? customQuestion.value.trim() : sel.question
+    const needleForRun     = (useCustom && customNeedle.value.trim())   ? customNeedle.value.trim()   : sel.fact
+    const transcriptIdForRun = useCustom ? 'custom' : sel.id
     let messages = transcriptForRun.slice()
     let lastnMessages = transcriptForRun.slice()
     let lastChrysalis = ""
@@ -861,7 +1018,10 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
         v === "hit" ? 2 : v === "partial" ? 1 : 0
       const entries = loadStats()
       const ablStr = ablations.length > 0 ? fmtAblations(ablations) : ""
-      entries.push({ bfly: scoreNum(vBfly), lastN: scoreNum(vLast), ts: Date.now(), abls: ablStr })
+      entries.push({
+        bfly: scoreNum(vBfly), lastN: scoreNum(vLast), ts: Date.now(),
+        abls: ablStr, transcript: transcriptIdForRun,
+      })
       saveStats(entries)
       renderStats()
     } catch (err) {

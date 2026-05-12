@@ -57,7 +57,7 @@
   
     <rect x="60" y="806" width="720" height="84" rx="4" fill="rgba(255,255,255,0.025)" stroke="#ffffff" stroke-width="0.4" opacity="0.95"/>
     <text x="88" y="840" font-size="22" font-family="Georgia, serif" fill="#f5f5f5" font-weight="300">BUTTERFLY</text>
-    <text x="88" y="860" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">?MODE=BUTTERFLY</text>
+    <text x="88" y="860" font-size="11" font-family="'SF Mono', Menlo, monospace" fill="#9aa0a6" letter-spacing="2">CLICK "🦋 BUTTERFLY"  ·  ?MODE=BUTTERFLY</text>
     <line x1="290" y1="820" x2="290" y2="876" stroke="#ffffff" stroke-width="0.4" opacity="0.3"/>
     <foreignObject x="310" y="826" width="450" height="48">
       <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Georgia, serif; font-size: 13.5px; line-height: 1.45; color: #f5f5f5; opacity: 0.85; font-style: italic;">URL-flag-gated demo. Transgenerational context compaction — tag → chrysalis → noise across 3 generations, then a needle question vs. lastN baseline.</div>

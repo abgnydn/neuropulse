@@ -2876,22 +2876,33 @@ async function initEngine() {
 
     hideLoading()
 
-    // Butterfly mode (?mode=butterfly): floating panel runs an in-browser
-    // transgenerational compaction demo using the same Phi-3 instance.
-    // See src/butterfly-mode.ts.
+    // Butterfly experiment: floating panel runs an in-browser transgenerational
+    // compaction demo using the same Phi-3 instance. See src/butterfly-mode.ts.
+    //
+    // Initialized unconditionally as of v2.5 — discoverable via the
+    // "Butterfly" button in the mode bar OR the legacy ?mode=butterfly URL
+    // flag (the flag now just auto-opens the panel on first paint).
+    initButterflyPanel({
+      getEngine: () => engine,
+      isBusy:    () => isRunning || isValidating,
+      setBusy:   (b) => { isRunning = b },
+      // v2: pass the visualizer so butterfly-mode paints tag importance
+      // into the residual-stream slab during a run.
+      viz:       viz as unknown as { updateResidualLayer(layer: number, vec: Float32Array): void },
+      // v2.4: snapshot the ablation panel's selection at run-start. Heads
+      // shift-clicked in the 3D scene are zeroed inside butterfly's tagger,
+      // chrysalis, and answer arms (judge stays unablated as the meter).
+      getAblations: () => viz.getAblations() as Ablation[],
+    })
+    const __toggleBfly = (window as unknown as { __toggleButterflyPanel?: () => void }).__toggleButterflyPanel
+    // Wire the new mode-bar button. Behaves like a panel toggle, NOT a
+    // setMode() target — Butterfly is an overlay, not a view mode.
+    document.querySelectorAll<HTMLButtonElement>('button[data-bfly-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => __toggleBfly?.())
+    })
+    // Legacy ?mode=butterfly URL flag: auto-open the panel.
     if (new URLSearchParams(window.location.search).get('mode') === 'butterfly') {
-      initButterflyPanel({
-        getEngine: () => engine,
-        isBusy:    () => isRunning || isValidating,
-        setBusy:   (b) => { isRunning = b },
-        // v2: pass the visualizer so butterfly-mode paints tag importance
-        // into the residual-stream slab during a run.
-        viz:       viz as unknown as { updateResidualLayer(layer: number, vec: Float32Array): void },
-        // v2.4: snapshot the ablation panel's selection at run-start. Heads
-        // shift-clicked in the 3D scene are zeroed inside butterfly's tagger,
-        // chrysalis, and answer arms (judge stays unablated as the meter).
-        getAblations: () => viz.getAblations() as Ablation[],
-      })
+      __toggleBfly?.()
     }
 
     // Devtools smoke test: window.__ablate('prompt', [{layer: 15}])

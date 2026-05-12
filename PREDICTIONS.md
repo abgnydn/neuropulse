@@ -104,6 +104,51 @@ Each prediction has six fields:
 - **status**: open
 - **outcome**: —
 
+### P-20260512-05 · Butterfly compaction beats lastN at the same token budget
+
+- **filed**: 2026-05-12
+- **author**: ahmet
+- **claim**: Across the four built-in Butterfly transcripts (`jwt-clock-race`,
+  `auth-owner-pto`, `rate-limit-decision`, `cache-race-fileline`), the
+  butterfly arm produces a strictly higher LLM-judge hit rate than the
+  lastN baseline at the same `TARGET_TOKENS = 400` budget after
+  `N_GENERATIONS = 3` metamorphoses with the standard `NOISE_BATCH`
+  injection between generations. Concretely: on `jwt-clock-race`, where
+  the needle is the load-bearing message and noise displaces it from
+  the tail in later generations, the butterfly arm should hit at least
+  twice as often as lastN.
+- **target**: `src/butterfly-mode.ts` at build SHA recorded in the
+  fingerprint footer when the run is executed. Phi-3-mini-4k q4f16_1
+  via WebGPU. All four arms (tagger, chrysalis, butterfly answer, lastN
+  answer) run unablated. Judge stays unablated. No editable-mode runs
+  counted.
+- **measure**: per-transcript LLM-judge verdict counts collected in the
+  `butterfly-mode-stats-v1` localStorage tally, partitioned by the
+  `transcript` field (added in v2.5). For each transcript: `bfly_hits`
+  (verdict ≥ 1, i.e. partial or full), `lastn_hits`, over a minimum of
+  20 runs per transcript on the same browser/GPU.
+- **threshold**:
+  - **Confirm** if for all 4 transcripts, `bfly_hits / N ≥ lastn_hits / N + 0.15`
+    AND on `jwt-clock-race` specifically `bfly_hits ≥ 2 × lastn_hits`.
+  - **Refute** if on any 2 of the 4 transcripts, `lastn_hits ≥ bfly_hits`.
+  - **Inconclusive** otherwise — typically when one transcript flips the
+    inequality but the rest hold; collect more samples or sharpen the
+    needle question (the v2.1 commit history has the canonical case
+    study of needle questions that pretraining can fake).
+- **status**: open
+- **outcome**: —
+- **threats to validity** (declared up-front, not after the fact):
+  - Same-model self-judge — the rubric meter is Phi-3-mini too. An
+    external judge (Claude / GPT-4) behind a `?judge=` flag is a
+    follow-up, not blocking.
+  - Tagger/chrysalis are Phi-3-mini; a smaller model is doing
+    interesting work in both. If the butterfly arm wins on the JWT
+    transcript but loses on the cache-race one, that's evidence about
+    tagger quality, not about the compaction mechanism.
+  - `tokens(s) = s.length / 4` is a soft proxy. Both arms use the same
+    proxy so the comparison is internally consistent, but "400 tokens"
+    is approximate.
+
 ## Methodology notes
 
 - Every prediction is run against the build SHA recorded in the
