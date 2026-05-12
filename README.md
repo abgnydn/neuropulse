@@ -229,7 +229,21 @@ Every panel is screen-anchored, draggable, dockable as an orb in the bottom rail
 
 </div>
 
-**Ablation** is the empirical-lab gate: zero out attention, FFN, or RoPE and watch the output collapse — proof that the circuit you turned off was actually doing something. **Butterfly** is a transgenerational context-compaction demo — a tagger labels each message in a built-in transcript as `keep / summarize / melt`, a "chrysalis" pass rebuilds it at a smaller token budget, off-topic noise gets injected between generations, then a needle question runs against the butterfly memory vs. a recency-truncated baseline at the same budget; the residual-stream slabs glow brighter for keep-tagged content as it survives each metamorphosis. **Kid mode** turns the model into its own narrator. All three are toggles, not separate tabs — switch on the fly during a single forward pass.
+**Ablation** is the empirical-lab gate: zero out attention, FFN, or RoPE and watch the output collapse — proof that the circuit you turned off was actually doing something.
+
+**Butterfly** is a transgenerational context-compaction demo. The built-in run walks a 5-message debugging transcript through `N_GENERATIONS = 3` "metamorphoses". Each generation:
+
+1. A **tagger** call asks Phi-3 to label every message `keep / summarize / melt` with a 4–7-word reason.
+2. A **chrysalis** call rebuilds the tagged transcript into a single coherent context at `TARGET_TOKENS = 400`.
+3. Four hardcoded **noise messages** are injected for the next round.
+
+After three metamorphoses, the same **needle question** (planted root-cause fact in message 4) is asked against two arms at the same token budget: (a) the butterfly's final rebuild, and (b) a recency-truncated `lastN` baseline. A separate **LLM-as-judge** Phi-3 call grades each answer **hit / partial / miss** against the expected fact.
+
+Meanwhile the residual-stream slabs in the 3D scene get modulated by tag importance — `keep = 1.0`, `summarize = 0.55`, `melt = 0.12` brightness, with 30% intra-generation decay and 60% inter-generation decay — so you literally watch keep-tagged content stay bright across metamorphoses while melted content fades.
+
+The transcript, question, and expected fact are all **editable** (the built-in JWT off-by-one story is just the default). Step-mode pauses between generations for inspection. If the ablation panel is active, the snapshot is **frozen at run-start** and passed to every tagger / chrysalis / answer call — the judge stays unablated so the rubric meter is stable across conditions.
+
+**Kid mode** turns the model into its own narrator. All three are toggles, not separate tabs — switch on the fly during a single forward pass.
 
 <br>
 
