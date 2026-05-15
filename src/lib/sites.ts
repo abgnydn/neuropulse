@@ -195,7 +195,7 @@ export type SiteKey = keyof typeof SITES;
 
 export const AUTHOR = {
   name: "Ahmet Baris Gunaydin",
-  email: "abgunaydin94@gmail.com",
+  email: "hi@barisgunaydin.com",
   github: "https://github.com/abgnydn",
   linkedin: "https://www.linkedin.com/in/abgnydn/",
 } as const;
