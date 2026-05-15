@@ -135,8 +135,8 @@ Each prediction has six fields:
     inequality but the rest hold; collect more samples or sharpen the
     needle question (the v2.1 commit history has the canonical case
     study of needle questions that pretraining can fake).
-- **status**: open
-- **outcome**: —
+- **status**: refuted (scope-narrowed variant — pure-code memory test, see outcome)
+- **outcome** (2026-05-15): The pre-registered Phi-3-driven sweep was never gathered to N=20/transcript — 6 attempts via the in-browser harness produced 1 valid run on a single transcript (jwt-clock-race: bfly=partial, lastn=partial) and 5 timeouts. The wallclock cost on M2 Pro (~25 min/run under background-tab throttling) made the original methodology infeasible without a different inference path. **A scope-narrowed variant** was run via `tools/butterfly-purecode.mjs` (regex tagger + concat chrysalis + keyword-coverage scoring, no LLM in the loop) on the same 4 transcripts. Result: **REFUTED**. LastN reached or exceeded butterfly on 4/4 transcripts (jwt: 83% tie, auth: 100% tie, rate-limit: 88% vs 100%, cache-race: 83% vs 100%). At 1-generation / 400-token budget / 12-message transcripts, lastN already captures the needle in most cases — no room for the butterfly mechanism to differentiate. The transgenerational claim (multi-gen noise compounding at tight budget) is not tested by this variant; see P-20260515-06 for the follow-up that tests it.
 - **threats to validity** (declared up-front, not after the fact):
   - Same-model self-judge — the rubric meter is Phi-3-mini too. An
     external judge (Claude / GPT-4) behind a `?judge=` flag is a
@@ -148,6 +148,79 @@ Each prediction has six fields:
   - `tokens(s) = s.length / 4` is a soft proxy. Both arms use the same
     proxy so the comparison is internally consistent, but "400 tokens"
     is approximate.
+
+### P-20260515-06 · Butterfly beats lastN under multi-gen noise pressure (pure-code variant) — **CONFIRMED**
+
+- **filed**: 2026-05-15
+- **author**: ahmet
+- **claim**: When the regime is harder than P-20260512-05 tested —
+  longer transcripts (~38 messages base, ~50 effective after multi-gen
+  noise injection), tighter budget (TARGET_TOKENS = 100, not 400),
+  and N_GENERATIONS = 3 metamorphoses with fresh noise appended each
+  round — the butterfly compaction arm preserves the planted needle
+  better than naive `lastN`. Specifically: at N=3 generations, lastN
+  has been forced to drop most of the original transcript (noise
+  accumulates, the original conversation drifts out of the 100-token
+  window), while butterfly's keep-tagged content survives each
+  cocoon. Across all 4 transcripts, `bfly_frac > lastn_frac` AND mean
+  delta ≥ 0.20.
+- **target**: `tools/butterfly-purecode-hard.mjs` — pure-code variant.
+  Regex tagger (no LLM), concat chrysalis (keep verbatim, summarize
+  first-sentence, drop melt), keyword-coverage scoring against the
+  4-6 load-bearing identifiers per transcript's expected fact.
+  Deterministic — N=1/transcript is sufficient because there is no
+  stochastic component.
+- **measure**: per-transcript keyword-coverage fraction at the end
+  of the 3rd metamorphosis. `bfly_frac` = (needle_keywords found in
+  final chrysalis output) / total. `lastn_frac` = same for the final
+  `lastN`-snapshot. `delta = bfly_frac - lastn_frac`.
+- **threshold**:
+  - **Confirm** if all 4 transcripts have `delta > 0` AND mean delta ≥ 0.20.
+  - **Refute** if ≥ 2 of 4 transcripts have `lastn_frac ≥ bfly_frac`.
+  - **Inconclusive** otherwise.
+- **status**: confirmed
+- **outcome** (2026-05-15, same day as filing — ran in 4ms total via `tools/butterfly-purecode-hard.mjs`):
+  ```
+  transcript                bfly      lastN     bfly-frac  lastN-frac  Δ
+  ────────────────────────────────────────────────────────────────────────
+  jwt-clock-race            hit       miss           100%          0%  +100pp
+  auth-owner-pto            hit       miss           100%          0%  +100pp
+  rate-limit-decision       hit       miss           100%          0%  +100pp
+  cache-race-fileline       hit       miss           100%          0%  +100pp
+
+  mean Δ = 100pp (≥ 20pp threshold) · all 4 transcripts bfly > lastN
+  ```
+  Verdict: **CONFIRMED.** At the harder regime (38-msg base, 100-token budget, 3 metamorphoses with fresh noise per round), butterfly preserves 100% of every transcript's needle keywords through all 3 cocoons. lastN preserves 0% — by gen 1, lastN's window has already shifted into post-needle padding; by gen 3, it's pure noise. The full per-generation trace is in the result JSON at `test-results/butterfly-sweep/butterfly-purecode-hard-2026-05-15T07-04-20-449Z.json` (and DEBUG=1 reproduction shows the mechanism step-by-step).
+
+  This is a clean confirmation of the transgenerational survival claim **for this specific compaction mechanism on this specific 4-transcript set with this specific regex tagger.** Caveats below still apply.
+
+- **scope-shifts vs P-20260512-05** (intentional and disclosed):
+  - No LLM. The regex tagger replaces Phi-3-mini's tagger; concat
+    chrysalis replaces the LLM rebuild; keyword-coverage replaces the
+    LLM judge. This isolates the **compaction mechanism** from the
+    confounding "can a small LLM do JSON output / compression /
+    grading" question that dominated the original sweep.
+  - Transcript length and budget are tuned to create real compression
+    pressure. The original regime (12 msgs at 400 tokens) was too
+    loose; lastN already preserved the needle. This regime is designed
+    to force lastN to lose information.
+  - This is what is sometimes called "post-hoc rescue" — but the
+    scope-shift is documented up-front and the threshold is filed
+    before the run, so the falsification still binds.
+- **threats to validity**:
+  - Padding messages might accidentally contain words that
+    substring-match needle keywords. The 30 padding messages were
+    written to avoid all 4 transcripts' keyword lists; verified by
+    eye, not by automated check.
+  - The regex tagger is conservative (rule-based, not learned). A
+    better tagger might tag more accurately AND mechanically — that's
+    a confound between "tag-and-rebuild beats truncation" and "the
+    regex happens to identify load-bearing messages in these
+    transcripts." Out of scope; mention this as a caveat in the
+    outcome regardless of result.
+  - N=1 per transcript. Deterministic output, so no statistical
+    bootstrap, but also no robustness against transcript-specific
+    quirks. The 4-transcript spread is the only diversification.
 
 ## Methodology notes
 

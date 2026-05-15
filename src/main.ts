@@ -2904,6 +2904,27 @@ async function initEngine() {
     if (new URLSearchParams(window.location.search).get('mode') === 'butterfly') {
       __toggleBfly?.()
     }
+    // ?sweep=N URL flag: auto-run the pre-registered scaling sweep over
+    // all 4 built-in transcripts with N runs each. Result JSON downloads
+    // when the loop completes. Used by tools/auto-sweep.sh to drive the
+    // sweep from outside the browser without a paste-in-console step.
+    const sweepArg = new URLSearchParams(window.location.search).get('sweep')
+    if (sweepArg) {
+      const runsPer = Math.max(1, Math.min(50, parseInt(sweepArg, 10) || 20))
+      __toggleBfly?.()
+      // Defer so the panel + picker DOM is ready and the user's first
+      // engine.generate() warm-up has settled.
+      setTimeout(() => {
+        const fn = (window as unknown as { butterflySweep?: (o: { runsPer: number }) => Promise<unknown> }).butterflySweep
+        if (typeof fn === 'function') {
+          console.log(`[neuropulse] auto-sweep starting with runsPer=${runsPer}`)
+          fn({ runsPer }).then(() => console.log('[neuropulse] auto-sweep complete'))
+            .catch((e) => console.error('[neuropulse] auto-sweep failed:', e))
+        } else {
+          console.error('[neuropulse] auto-sweep requested but butterflySweep() is not exposed')
+        }
+      }, 2000)
+    }
 
     // Devtools smoke test: window.__ablate('prompt', [{layer: 15}])
     // Runs two short generations — baseline and ablated — and logs both.
@@ -2940,8 +2961,11 @@ async function initEngine() {
     }
 
     // Auto-run an opening prompt so the visualization lights up on arrival.
-    // Skipped when ?noauto is in the URL — useful for __ablate smoke tests.
-    const skipAuto = new URLSearchParams(location.search).has('noauto')
+    // Skipped when ?noauto is in the URL — useful for __ablate smoke tests
+    // and the ?sweep=N auto-sweep mode (which needs an idle engine to
+    // start clicking the butterfly Run button).
+    const _qs = new URLSearchParams(location.search)
+    const skipAuto = _qs.has('noauto') || _qs.has('sweep')
     if (!skipAuto) {
       setTimeout(() => {
         if (!isRunning && !isValidating) {

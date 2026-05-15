@@ -1038,4 +1038,90 @@ export function initButterflyPanel(opts: ButterflyPanelOpts): void {
       runBtn.textContent = "Run butterfly demo"
     }
   })
+
+  // ─── v2.5 — automated sweep mode ──────────────────────────────────
+  // Exposes window.butterflySweep({ runsPer, transcripts, resetTally })
+  // that drives the run loop programmatically. Same shape as the
+  // paste-in-console payload at tools/console-sweep.js, but lives
+  // inside the panel scope so the picker + run button + verdict reads
+  // are already wired. Tools/automation point an URL flag at this so
+  // a fresh Chrome tab opened to ?sweep=1 runs the pre-registered
+  // protocol from PREDICTIONS.md P-20260512-05 without any clicks.
+  const _waitFor = (predicate: () => boolean | string, timeout = 600_000, interval = 200) => new Promise<void>((resolve, reject) => {
+    const t0 = Date.now()
+    const tick = () => {
+      try { if (predicate()) return resolve() } catch { /* ignore */ }
+      if (Date.now() - t0 > timeout) return reject(new Error(`waitFor timeout after ${timeout}ms`))
+      setTimeout(tick, interval)
+    }
+    tick()
+  })
+  const DEFAULT_IDS = BUILT_IN_TRANSCRIPTS.map(t => t.id)
+  interface SweepRunRow { transcript: string; run: number; bfly: string; lastn: string; seconds: number; status: string }
+  interface SweepResult {
+    started_at: string; runs_per_transcript: number; transcripts: string[];
+    fingerprint: { ua: string; sha: string | null; gpu: string | null };
+    runs: SweepRunRow[]; local_tally?: StatsEntry[]; finished_at?: string;
+  }
+  async function butterflySweep(o: { runsPer?: number; transcripts?: string[]; resetTally?: boolean } = {}): Promise<SweepResult> {
+    const runsPer = o.runsPer ?? 20
+    const transcripts = o.transcripts ?? DEFAULT_IDS
+    if (transcripts.some(id => !DEFAULT_IDS.includes(id))) throw new Error(`unknown transcript; valid: ${DEFAULT_IDS.join(', ')}`)
+    if (!panel.classList.contains("open")) panel.classList.add("open")
+    if (o.resetTally !== false) localStorage.removeItem(STATS_KEY)
+
+    const results: SweepResult = {
+      started_at: new Date().toISOString(), runs_per_transcript: runsPer, transcripts,
+      fingerprint: {
+        ua: navigator.userAgent,
+        sha: document.getElementById('fp-sha')?.textContent || null,
+        gpu: document.getElementById('fp-gpu')?.textContent || null,
+      },
+      runs: [],
+    }
+    const total = transcripts.length * runsPer
+    let done = 0
+    console.log(`[bfly-sweep] starting ${total} runs (${transcripts.length} × ${runsPer})`)
+    for (const tid of transcripts) {
+      console.log(`[bfly-sweep] ── ${tid} ──`)
+      picker.value = tid
+      picker.dispatchEvent(new Event("change", { bubbles: true }))
+      await new Promise(r => setTimeout(r, 200))
+      for (let i = 1; i <= runsPer; i++) {
+        const t0 = performance.now()
+        try {
+          // Wait for the global engine to be idle (no other prompt /
+          // ablation / validation run in flight) before clicking. The
+          // Run handler returns immediately with the "Inference already
+          // in flight" status if isBusy() is true, which would record
+          // a fake miss/miss verdict.
+          await _waitFor(() => !opts.isBusy() && !runBtn.disabled, 600_000)
+          runBtn.click()
+          await _waitFor(() => runBtn.disabled || opts.isBusy(), 5_000).catch(() => {})
+          await _waitFor(() => !runBtn.disabled && !opts.isBusy(), 600_000)
+          const vb = (verdictBfly.className.match(/\b(hit|partial|miss)\b/) || [, ""])[1]
+          const vl = (verdictLast.className.match(/\b(hit|partial|miss)\b/) || [, ""])[1]
+          const dt = (performance.now() - t0) / 1000
+          results.runs.push({ transcript: tid, run: i, bfly: vb || "miss", lastn: vl || "miss", seconds: +dt.toFixed(1), status: (statusEl.textContent || "").slice(0, 200) })
+          done++
+          console.log(`[bfly-sweep] ${tid} ${i}/${runsPer}  bfly=${vb || "∅"}  lastN=${vl || "∅"}  ${dt.toFixed(1)}s  (${done}/${total})`)
+        } catch (e) {
+          console.error(`[bfly-sweep] ${tid} ${i}/${runsPer} ERROR:`, e)
+          results.runs.push({ transcript: tid, run: i, bfly: "miss", lastn: "miss", seconds: -1, status: String(e).slice(0, 200) })
+        }
+      }
+    }
+    try { results.local_tally = JSON.parse(localStorage.getItem(STATS_KEY) || "[]") } catch { results.local_tally = [] }
+    results.finished_at = new Date().toISOString()
+    const blob = new Blob([JSON.stringify(results, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `butterfly-sweep-${new Date().toISOString().replace(/[:.]/g, "-")}.json`
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+    console.log(`[bfly-sweep] DONE — ${results.runs.length} runs captured. JSON downloaded.`)
+    return results
+  }
+  ;(window as unknown as { butterflySweep: typeof butterflySweep }).butterflySweep = butterflySweep
 }

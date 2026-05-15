@@ -67,15 +67,51 @@ test('butterfly sweep — 4 transcripts × N runs', async ({ page, browser }, te
   console.log(`\n[sweep] opening /app/ and waiting for engine init…`)
   await page.goto('/app/', { waitUntil: 'domcontentloaded' })
 
-  // Suppress the first-visit welcome modal up-front by setting the
-  // dismissed flag in localStorage BEFORE the app boots. Without this,
-  // the welcome overlay intercepts pointer events and the Run button
-  // click bounces. Also handles the boot gate (#bootGoBtn).
+  // Pre-boot init script:
+  //   (a) dismiss the welcome overlay before it can intercept clicks
+  //   (b) spoof document.visibilityState = "visible" + hidden = false
+  //       so Chrome doesn't throttle rAF / Web Workers when the
+  //       Playwright window loses focus. Without this, the MLC engine's
+  //       work pump stalls and tagger calls never complete (verified
+  //       across 4 prior smoke attempts with anti-throttle Chrome flags
+  //       that also failed).
   await page.addInitScript(() => {
     try { localStorage.setItem('np:welcome-dismissed', '1') } catch {}
+    try {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true, get: () => 'visible',
+      })
+      Object.defineProperty(document, 'hidden', {
+        configurable: true, get: () => false,
+      })
+      Object.defineProperty(document, 'webkitVisibilityState', {
+        configurable: true, get: () => 'visible',
+      })
+      const origAdd = EventTarget.prototype.addEventListener
+      EventTarget.prototype.addEventListener = function (type, fn, opts) {
+        if (type === 'visibilitychange') return
+        return origAdd.call(this, type, fn, opts)
+      }
+
+      // Force a continuous requestAnimationFrame pump. WebGPU on Chrome
+      // ties GPUQueue progress to rAF callbacks — without a steady tick,
+      // device.queue.submit() commands sit in queue and mapAsync never
+      // resolves. This is what kills the tagger in headed Playwright:
+      // the unfocused window doesn't get rAF callbacks even with
+      // visibilityState spoofed. The pump force-issues them.
+      let __pump_running = false
+      const pump = () => {
+        __pump_running = true
+        requestAnimationFrame(() => { __pump_running = false; pump() })
+      }
+      pump()
+      window.__rafPumpAlive = () => __pump_running
+    } catch (_e) { /* ignore */ }
   })
   // Re-navigate so the init script runs before any app code.
   await page.goto('/app/', { waitUntil: 'domcontentloaded' })
+  // Force the window forward so it's truly foregrounded.
+  await page.bringToFront()
 
   try {
     await page.locator('#bootGoBtn').click({ timeout: 5_000 })
