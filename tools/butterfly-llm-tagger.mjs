@@ -38,6 +38,13 @@ const RESULTS_DIR = join(ROOT, 'test-results', 'butterfly-sweep')
 const LMS_BASE = process.env.LMS_BASE || 'http://localhost:1234/v1'
 const MODEL    = process.env.MODEL    || 'qwen3-14b-mlx'
 const DEBUG    = process.env.DEBUG === '1'
+// STRATEGY:
+//   'json'       (default) — original batched-JSON prompt. Tested 2026-05-18.
+//   'onechar'    — one-char-per-message output (`k`/`s`/`m`). Hard cap on
+//                  keeps. Identifier-first prompt. Designed to fix the
+//                  over-tagging + parse-failure modes the JSON strategy hit.
+const STRATEGY = process.env.STRATEGY || 'json'
+const MAX_KEEPS = parseInt(process.env.MAX_KEEPS || '5', 10)
 const tokens   = (s) => Math.ceil(s.length / 4)
 
 // ─── transcripts (4 cores + their needle keywords) ──────────────
@@ -207,7 +214,7 @@ async function lmsChat(system, user, max_tokens, temperature = 0.0) {
   return text
 }
 
-async function llmTagAll(messages) {
+async function llmTagJSON(messages) {
   const list = messages.map((m, i) => `[#${i} ${m.role}] ${m.content}`).join('\n')
   const sys = `You classify each message in a developer chat for context compaction.
 
@@ -231,22 +238,14 @@ No preamble, no markdown fence, no reasoning. Just the JSON array. The LAST CHAR
     return { tags: messages.map(regexTag), source: 'regex-fallback', raw: '' }
   }
 
-  // Strip code fences, find first [...] block
   raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
   const start = raw.indexOf('[')
   const end = raw.lastIndexOf(']')
-  if (start === -1 || end === -1) {
-    return { tags: messages.map(regexTag), source: 'regex-fallback', raw }
-  }
+  if (start === -1 || end === -1) return { tags: messages.map(regexTag), source: 'regex-fallback', raw }
 
   let parsed
-  try {
-    parsed = JSON.parse(raw.slice(start, end + 1))
-  } catch {
-    return { tags: messages.map(regexTag), source: 'regex-fallback', raw }
-  }
+  try { parsed = JSON.parse(raw.slice(start, end + 1)) } catch { return { tags: messages.map(regexTag), source: 'regex-fallback', raw } }
 
-  // Map idx → label. Fill any missing with regex.
   const labels = new Array(messages.length)
   for (const entry of parsed) {
     if (typeof entry?.idx === 'number' && entry.idx >= 0 && entry.idx < messages.length) {
@@ -256,6 +255,88 @@ No preamble, no markdown fence, no reasoning. Just the JSON array. The LAST CHAR
   }
   const tags = labels.map((l, i) => l || regexTag(messages[i]))
   return { tags, source: 'llm', raw }
+}
+
+// ─── one-char strategy: stricter selectivity + minimal output ────
+// Goals (informed by what JSON strategy broke on):
+//   - Hard cap on keep count via prompt.
+//   - Identifier-first definition: only "keep" if the message contains
+//     a UNIQUE concrete identifier (file path, line range, ticket ID,
+//     person+channel, code call, decision marker).
+//   - One character per message ('k', 's', 'm'). Eliminates JSON parse
+//     failures; eliminates per-entry metadata overhead.
+//   - Position-encoded output ordering — N input messages → exactly
+//     N output characters, in order. Length check rejects malformed.
+async function llmTagOneChar(messages) {
+  const list = messages.map((m, i) => `[${i.toString().padStart(2, '0')} ${m.role}] ${m.content}`).join('\n')
+  const sys = `You label conversation messages for context compaction at a tight token budget.
+
+For each message, output ONE character:
+  k = keep      — contains a UNIQUE identifier an engineer must act on:
+                    a file path (lib/x.ts), line range (lines 142-148),
+                    ticket ID (TICKET-4421), code call (Date.now()),
+                    decision marker ("Decision:", "Root cause:", "Confirmed:"),
+                    specific named owner + channel (#auth-platform).
+                  No identifier → not keep. Generic context is not keep.
+  s = summarize — multi-point reasoning or substantive non-identifier
+                  content worth a one-line gist.
+  m = melt      — everything else: greetings, acks, "ok/lgtm/sure",
+                  clarifying questions without specifics, off-topic.
+
+HARD CAP: at most ${MAX_KEEPS} 'k' tags total. The rest must be 's' or 'm'.
+When in doubt: lean MELT. Most messages are melt in real conversations.
+
+OUTPUT FORMAT: ${messages.length} characters total, no spaces, no newlines.
+One character per input message, in the same order.
+Example for 5 messages: mkmsm
+
+Output ONLY the label string. No preamble. No commentary. No newlines before or after.`
+
+  let raw = ''
+  try {
+    raw = await lmsChat(sys, list, 200, 0.0)
+  } catch (e) {
+    console.error(`[llm-tag] LMS error, falling back to regex: ${e.message}`)
+    return { tags: messages.map(regexTag), source: 'regex-fallback', raw: '' }
+  }
+
+  // Extract just the k/s/m characters. The model may emit whitespace.
+  const cleaned = raw.replace(/[^ksm]/gi, '').toLowerCase()
+  let tags
+  let source
+  if (cleaned.length < messages.length) {
+    // Mix LLM tags for the first positions with regex-fallback after.
+    tags = messages.map((m, i) => {
+      const c = cleaned[i]
+      if (c === 'k') return 'keep'
+      if (c === 's') return 'summarize'
+      if (c === 'm') return 'melt'
+      return regexTag(m)
+    })
+    source = cleaned.length === 0 ? 'regex-fallback' : 'llm-partial'
+  } else {
+    const head = cleaned.slice(0, messages.length)
+    tags = head.split('').map(c => c === 'k' ? 'keep' : c === 's' ? 'summarize' : 'melt')
+    source = 'llm'
+  }
+
+  // Enforce hard cap on keeps regardless of path. If we exceeded, demote
+  // the LATEST keeps to summarize until cap is met (keeps the earlier
+  // "more confident" messages; drops later "filler" ones).
+  let keepCount = tags.filter(t => t === 'keep').length
+  if (keepCount > MAX_KEEPS) {
+    let excess = keepCount - MAX_KEEPS
+    for (let i = tags.length - 1; i >= 0 && excess > 0; i--) {
+      if (tags[i] === 'keep') { tags[i] = 'summarize'; excess-- }
+    }
+  }
+
+  return { tags, source, raw, label_string: cleaned.slice(0, messages.length) }
+}
+
+async function llmTagAll(messages) {
+  if (STRATEGY === 'onechar') return llmTagOneChar(messages)
+  return llmTagJSON(messages)
 }
 
 // ─── chrysalis / lastN / scoring (identical to v3.1) ─────────────
@@ -308,7 +389,7 @@ async function runConfig(core, totalMsgs, budget, gens) {
     lastNFinal = truncated.map(m => `[${m.role}] ${m.content}`).join('\n')
 
     const dist = tagResult.tags.reduce((acc, x) => ({ ...acc, [x]: (acc[x] || 0) + 1 }), {})
-    traces.push({ gen: g, n_msgs: bflyMessages.length, source: tagResult.source, dist, llm_ms: Date.now() - t0, rebuilt_tokens: tokens(bflyFinal), lastn_tokens: tokens(lastNFinal) })
+    traces.push({ gen: g, n_msgs: bflyMessages.length, source: tagResult.source, dist, label_string: tagResult.label_string || null, llm_ms: Date.now() - t0, rebuilt_tokens: tokens(bflyFinal), lastn_tokens: tokens(lastNFinal) })
 
     if (g < gens) {
       const noise = NOISE_PER_GEN[(g - 1) % NOISE_PER_GEN.length]
@@ -341,7 +422,7 @@ const CONFIGS = {
 }
 
 async function main() {
-  console.log(`[bfly-llm] model=${MODEL}  endpoint=${LMS_BASE}`)
+  console.log(`[bfly-llm] model=${MODEL}  endpoint=${LMS_BASE}  strategy=${STRATEGY}  max_keeps=${MAX_KEEPS}`)
 
   const selected = process.env.CONFIGS
     ? process.env.CONFIGS.split(',').map(k => CONFIGS[k]).filter(Boolean)

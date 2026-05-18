@@ -335,27 +335,35 @@ Three observations:
 
 Reproduce: `node tools/butterfly-sweep-phasediagram.mjs`. Custom grid: `GENS=3 BUDGETS=50,100,200,400 LENGTHS=20,50,100 node tools/...`.
 
-### Replication with a learned tagger — partial refutation
+### Replication with a learned tagger — partial refutation, hardened
 
-The natural objection to the regex tagger: *"butterfly only wins because the regex happens to fit your 4 transcripts' shapes."* To check, we swapped the regex for a batched LLM tagger (qwen3-14b-mlx on LM Studio, with `/no_think` to suppress reasoning-content emission) and re-ran the two pre-registered points.
+The natural objection to the regex tagger: *"butterfly only wins because the regex happens to fit your 4 transcripts' shapes."* To check, we swapped the regex for an LLM tagger and re-ran the two pre-registered points across multiple models and prompt strategies.
 
 ```
-config                             regex    LLM tagger (qwen3-14b-mlx)
-─────────────────────────────────────────────────────────────────────
-len=12  budget=400  gens=1         tie      tie         (both arms 100%)
-len=38  budget=100  gens=3         100pp    0pp         (both arms 0%)
+tagger configuration                                regime      result
+─────────────────────────────────────────────────────────────────────────────
+regex (rule-based, ~8% keep rate)                   hard        100% / 0%  Δ=100pp  ✓
+qwen3-14b-mlx · JSON batch, no cap                  hard          0% / 0%  Δ=0pp
+gemma-4-e4b · one-char output, cap=5                hard         25pp avg (1/4 win via regex fallback)
+qwen3-14b-mlx · one-char output, cap=5              hard          0% / 0%  Δ=0pp
+qwen3-14b-mlx · one-char output, cap=3 (strictest)  hard          0% / 0%  Δ=0pp
+(any tagger)                                        easy        100% / 100%  Δ=0pp  (regime doesn't differentiate)
 ```
 
-**The hard regime no longer wins.** Two tagger failure modes do the damage:
+**Three LLM configurations all fail to replicate the regex win at the hard regime.**
 
-1. **Over-tagging in gen 1.** The LLM marked 52-63% of messages as `keep`. At a 100-token budget, chrysalis fills with too much non-needle content and the actual needle gets truncated out. The regex tagger was much stricter (~8% keep) — that selectivity was what made the needle fit.
-2. **JSON parse failures at gen 2** in 3 of 4 transcripts. The rebuilt-from-gen-1 string doesn't trigger the regex fallback's file-path/channel signals, so the fallback tags it mostly as melt → 5-token rebuild → needle gone.
+What we tried in the one-char strategy:
+- One character per message (`k` / `s` / `m`) — no JSON, no parse failures
+- Hard cap on `keep` count enforced in code (excess keeps get demoted to summarize, dropping later-position keeps first)
+- Identifier-first prompt — "only `keep` if the message contains a unique identifier an engineer must act on: file path, line range, ticket ID, code call, decision marker, named owner + channel"
 
-**The sharpened finding.** Tag-and-rebuild beats `lastN` *if and only if the tagger's selectivity matches the needle distribution.* Not "the mechanism is universal." The regex's strong bias toward `file:line` / `#channel` / `Decision:` / `@org/pkg` shapes is what wins — because those are exactly the shapes our 4 transcripts' needles take. Strip that bias (or use a tagger without it) and the mechanism's advantage disappears at tight budgets.
+The cap is respected in the trace (gen 1: 26 melt / 9 summarize / 3 keep when `MAX_KEEPS=3`), but the 3 keeps the LLM picks are **not the needle-carrying messages**. Qwen3 prioritizes decision-language and emphatic statements ("Decision:", "Confirmed:", "Let's do X") — but the regex prioritizes literal shapes (`lib/jwt.ts`, `#auth-platform`, `Date.now()`). On our 4 transcripts the needle keywords ARE literal shapes, not just emphatic decisions. The LLM's prior misses by a different axis than its selectivity.
 
-That's a more honest claim than the original confirmation. The compaction mechanism is real, but it's not magic — it inherits whatever the tagger prioritizes. Designing a domain-fit tagger is the actual engineering problem.
+**The hardened finding.** Tag-and-rebuild beats `lastN` *only when the tagger's prior matches the needle's shape distribution.* This is a stronger claim than "selectivity matters" — selectivity alone wasn't enough (we tested it). The tagger has to be biased toward the *specific kind* of content the needle takes (literal identifiers vs decision language vs entity mentions). The regex's bias is hard-coded to match `file:line` / `#channel` / `Decision:` / `@org/pkg` shapes, which happen to be exactly what our 4 transcripts plant as needles. A frontier-instruction-tuned model with generic "find what's important" semantics misses the needle even with a strict selectivity cap.
 
-Reproduce (~15 min on LM Studio): `node tools/butterfly-llm-tagger.mjs`. Full result in `test-results/butterfly-sweep/butterfly-llmtagger-2026-05-18T16-20-17-406Z.json`.
+What this means in practice: butterfly's mechanism is **domain-dependent**. The "right tagger" for software-engineering chat transcripts is one that fires on identifier-shaped content. The "right tagger" for legal/medical/financial transcripts would be different. **There is no universal butterfly.** Building a working butterfly for a domain means designing or training a domain-specific tagger first.
+
+Reproduce: `MODEL=qwen3-14b-mlx STRATEGY=onechar MAX_KEEPS=3 CONFIGS=len38-bud100-gens3 node tools/butterfly-llm-tagger.mjs`. Results in `test-results/butterfly-sweep/butterfly-llmtagger-*.json`.
 
 ### Reproduce in 4 ms
 
