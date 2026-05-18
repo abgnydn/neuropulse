@@ -194,6 +194,14 @@ Each prediction has six fields:
 
   This is a clean confirmation of the transgenerational survival claim **for this specific compaction mechanism on this specific 4-transcript set with this specific regex tagger.** Caveats below still apply.
 
+  **2026-05-18 follow-up — LLM-tagger replication failure.** Swapped the regex tagger for a batched JSON LLM call (qwen3-14b-mlx via LM Studio, `/no_think` mode). Same protocol, same configs:
+  - Easy regime (len=12, budget=400, gens=1): both arms 100%, Δ=0pp — same as regex.
+  - Hard regime (len=38, budget=100, gens=3): **both arms 0%, Δ=0pp** — *different* from regex's 100pp.
+
+  Two LLM-tagger failure modes drive the difference: (a) gen-1 over-tagging — LLM marked 52-63% of messages as `keep` vs the regex's ~8%, bloating the 100-tok chrysalis with non-needle content that truncates the needle out; (b) JSON parse failures at gen 2 in 3 of 4 transcripts → regex fallback on a rebuilt-message that lacks file-path/channel/decision signals → mostly melt → 5-tok rebuild. Full traces in `test-results/butterfly-sweep/butterfly-llmtagger-2026-05-18T16-20-17-406Z.json`.
+
+  **Sharpened claim**: tag-and-rebuild beats lastN if and only if the tagger's selectivity matches the needle distribution. The original confirmation was the regex tagger's bias toward needle-shaped patterns (`file:line`, `#channel`, `Decision:`, `@org/pkg`) doing the work. Strip that bias and the mechanism's advantage disappears at tight budgets. The compaction mechanism is real but it inherits whatever the tagger prioritizes — not universal.
+
 - **scope-shifts vs P-20260512-05** (intentional and disclosed):
   - No LLM. The regex tagger replaces Phi-3-mini's tagger; concat
     chrysalis replaces the LLM rebuild; keyword-coverage replaces the

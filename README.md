@@ -335,6 +335,28 @@ Three observations:
 
 Reproduce: `node tools/butterfly-sweep-phasediagram.mjs`. Custom grid: `GENS=3 BUDGETS=50,100,200,400 LENGTHS=20,50,100 node tools/...`.
 
+### Replication with a learned tagger — partial refutation
+
+The natural objection to the regex tagger: *"butterfly only wins because the regex happens to fit your 4 transcripts' shapes."* To check, we swapped the regex for a batched LLM tagger (qwen3-14b-mlx on LM Studio, with `/no_think` to suppress reasoning-content emission) and re-ran the two pre-registered points.
+
+```
+config                             regex    LLM tagger (qwen3-14b-mlx)
+─────────────────────────────────────────────────────────────────────
+len=12  budget=400  gens=1         tie      tie         (both arms 100%)
+len=38  budget=100  gens=3         100pp    0pp         (both arms 0%)
+```
+
+**The hard regime no longer wins.** Two tagger failure modes do the damage:
+
+1. **Over-tagging in gen 1.** The LLM marked 52-63% of messages as `keep`. At a 100-token budget, chrysalis fills with too much non-needle content and the actual needle gets truncated out. The regex tagger was much stricter (~8% keep) — that selectivity was what made the needle fit.
+2. **JSON parse failures at gen 2** in 3 of 4 transcripts. The rebuilt-from-gen-1 string doesn't trigger the regex fallback's file-path/channel signals, so the fallback tags it mostly as melt → 5-token rebuild → needle gone.
+
+**The sharpened finding.** Tag-and-rebuild beats `lastN` *if and only if the tagger's selectivity matches the needle distribution.* Not "the mechanism is universal." The regex's strong bias toward `file:line` / `#channel` / `Decision:` / `@org/pkg` shapes is what wins — because those are exactly the shapes our 4 transcripts' needles take. Strip that bias (or use a tagger without it) and the mechanism's advantage disappears at tight budgets.
+
+That's a more honest claim than the original confirmation. The compaction mechanism is real, but it's not magic — it inherits whatever the tagger prioritizes. Designing a domain-fit tagger is the actual engineering problem.
+
+Reproduce (~15 min on LM Studio): `node tools/butterfly-llm-tagger.mjs`. Full result in `test-results/butterfly-sweep/butterfly-llmtagger-2026-05-18T16-20-17-406Z.json`.
+
 ### Reproduce in 4 ms
 
 The harder-regime experiment runs in **pure code, no LLM, no GPU**:
@@ -355,8 +377,8 @@ This isolates the **compaction mechanism** from every confounding question: is t
 
 What this does **not** claim:
 
-- **Not a learned tagger.** A real production butterfly would use an LLM tagger; this experiment uses regex. The result is about the mechanism, not about whether Phi-3-mini can identify load-bearing messages reliably.
-- **Not a generalization.** Four transcripts written by one person. This is a mechanism-existence proof, not a benchmark.
+- **Not a tagger-agnostic claim.** As the LLM-tagger replication above shows, the regex tagger's bias toward needle-shaped patterns is load-bearing. A learned tagger with a different prior (Qwen3-14B in our test) does not replicate the win. The mechanism is real but it inherits whatever the tagger prioritizes.
+- **Not a generalization across transcripts.** Four transcripts written by one person. This is a mechanism-existence proof on a small, internally consistent set — not a benchmark.
 - **Not a substitute for `/compact`.** Frontier-model summarization is cheaper and better when you have access to a frontier model. The "butterfly + small local model" lane is for the local-first niche.
 
 The full methodology — pre-registered thresholds, threats to validity, the original failure mode, the scope-shift to pure code — is in [`PREDICTIONS.md`](PREDICTIONS.md). The implementation is [`tools/butterfly-purecode-hard.mjs`](tools/butterfly-purecode-hard.mjs) — ~340 lines, no dependencies.
