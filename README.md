@@ -279,6 +279,49 @@ src/
 
 <br>
 
+## The Butterfly experiment
+
+Butterfly is more than one of the four overlays — it's a real, **pre-registered** test of a context-compaction mechanism. We filed it wrong the first time, refuted our own claim, then re-filed against a harder regime and confirmed it. Both pre-registrations and outcomes live in [`PREDICTIONS.md`](PREDICTIONS.md).
+
+The question: at a fixed token budget, does **tag-and-rebuild** preserve load-bearing information better than naive `lastN` truncation?
+
+### Two regimes, two outcomes
+
+| pre-registration | regime | result |
+|---|---|---|
+| [P-20260512-05](PREDICTIONS.md#p-20260512-05--butterfly-compaction-beats-lastn-at-the-same-token-budget) | 1 generation · 400-token budget · ~12-message transcripts | **REFUTED.** LastN tied on 2 of 4 transcripts, beat butterfly on the other 2. At a generous budget on short transcripts, lastN already preserves the needle — butterfly has nothing to do. |
+| [P-20260515-06](PREDICTIONS.md#p-20260515-06--butterfly-beats-lastn-under-multi-gen-noise-pressure-pure-code-variant--confirmed) | **3 generations · 100-token budget · ~38-message transcripts** with fresh noise injected each round | **CONFIRMED.** All 4 transcripts: butterfly preserves 100% of needle keywords, lastN preserves 0%. Mean delta = 100 percentage points. |
+
+The transgenerational survival claim — keep-tagged content carries through each cocoon while noise pushes the original out of lastN's window — is observable end-to-end in the per-generation trace.
+
+### Reproduce in 4 ms
+
+The harder-regime experiment runs in **pure code, no LLM, no GPU**:
+
+```bash
+node tools/butterfly-purecode-hard.mjs           # all 4 transcripts
+DEBUG=1 node tools/butterfly-purecode-hard.mjs   # full per-generation trace
+TRANSCRIPTS=jwt-clock-race node tools/butterfly-purecode-hard.mjs
+```
+
+Output is deterministic. Same input → same answer. The regex tagger is rule-based (file paths, ticket IDs, Slack channels, package mentions, line ranges, decision markers → keep; bare acks + short tangents → melt). The chrysalis is mechanical concatenation truncated to budget. The scoring is keyword-coverage against the load-bearing identifiers in each transcript's expected fact.
+
+### What this proves — and what it doesn't
+
+This isolates the **compaction mechanism** from every confounding question: is the tagger smart enough, can the rebuilder compress, will the judge be consistent, does the model finish in time. We answer one question, cleanly:
+
+> *At sufficient compression pressure with noise compounding, tag-and-rebuild preserves load-bearing content where naive truncation does not.*
+
+What this does **not** claim:
+
+- **Not a learned tagger.** A real production butterfly would use an LLM tagger; this experiment uses regex. The result is about the mechanism, not about whether Phi-3-mini can identify load-bearing messages reliably.
+- **Not a generalization.** Four transcripts written by one person. This is a mechanism-existence proof, not a benchmark.
+- **Not a substitute for `/compact`.** Frontier-model summarization is cheaper and better when you have access to a frontier model. The "butterfly + small local model" lane is for the local-first niche.
+
+The full methodology — pre-registered thresholds, threats to validity, the original failure mode, the scope-shift to pure code — is in [`PREDICTIONS.md`](PREDICTIONS.md). The implementation is [`tools/butterfly-purecode-hard.mjs`](tools/butterfly-purecode-hard.mjs) — ~340 lines, no dependencies.
+
+<br>
+
 ## Run locally
 
 <div align="center">
