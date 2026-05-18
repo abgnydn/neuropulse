@@ -294,6 +294,47 @@ The question: at a fixed token budget, does **tag-and-rebuild** preserve load-be
 
 The transgenerational survival claim — keep-tagged content carries through each cocoon while noise pushes the original out of lastN's window — is observable end-to-end in the per-generation trace.
 
+### Where the mechanism actually matters — phase diagram
+
+Two binary outcomes don't tell you *where* butterfly stops mattering. So we swept the cube: 8 budgets × 6 transcript lengths × 5 generation counts × 4 transcripts = 960 configurations. Total runtime: 82 ms. The mean delta (butterfly_frac − lastn_frac) across the 4 transcripts, per `(length × budget)` cell, at three generation depths:
+
+```
+─── gens = 1 ─────────────────────────────────────────────────
+len ↓ \ budget →   50   75  100  150  200  300  400  600
+  12               ██   ██   ▸▸    ·    ·    ·    ·    ·
+  20               ██   ██   ██    ·    ·    ·    ·    ·
+  30               ██   ██   ██   ▸▸    ·    ·    ·    ·
+  50               ██   ██   ██   ██   ██    ·    ·    ·
+  80               ██   ██   ██   ██   ██   ██   ▸▸    ·
+ 120               ▸▸   ██   ██   ██   ██   ██   ██   ██
+
+─── gens = 3 ─────────────────────────────────────────────────
+  12               ▸▸   ██   ██   ██   ▸▸    ·    ·    ·
+  20               ▸▸   ██   ██   ██   ██    ·    ·    ·
+  30               ▸▸   ██   ██   ██   ██    ·    ·    ·
+  50               ▸▸   ██   ██   ██   ██   ██    ·    ·
+  80               ▸▸   ██   ██   ██   ██   ██   ██    ·
+ 120               ▸▸   ██   ██   ██   ██   ██   ██   ██
+
+─── gens = 5 ─────────────────────────────────────────────────
+  12               ▸▸   ██   ██   ██   ██   ▸▸    ·    ·
+  20               ▸▸   ██   ██   ██   ██   ██    ·    ·
+  30               ▸▸   ██   ██   ██   ██   ██    ·    ·
+  50               ▸▸   ██   ██   ██   ██   ██   ██    ·
+  80                ▸   ██   ██   ██   ██   ██   ██   ▸▸
+ 120                ·   ▸▸   ██   ██   ██   ██   ██   ██
+
+  ██ Δ≥0.60   ▸▸ 0.30..0.60   ▸ 0.10..0.30   · -0.10..0.10   ◀ -0.30..-0.10   ◀◀ ≤-0.30
+```
+
+Three observations:
+
+1. **The boundary is roughly diagonal.** Butterfly stops mattering once budget grows past ~30-40% of the original transcript size — `lastN` already captures the needle.
+2. **More generations expand the win region.** Each metamorphosis pushes more original content out of `lastN`'s window via noise injection. By gens=5 even a 12-message transcript wins at budget=300.
+3. **The two pre-registered points land where the heatmap says they should.** P-20260512-05 (len=12, budget=400, gens=1) sits in the `·` tie zone — REFUTED. P-20260515-06 (len≈30, budget=100, gens=3) sits deep in the `██` zone — CONFIRMED.
+
+Reproduce: `node tools/butterfly-sweep-phasediagram.mjs`. Custom grid: `GENS=3 BUDGETS=50,100,200,400 LENGTHS=20,50,100 node tools/...`.
+
 ### Reproduce in 4 ms
 
 The harder-regime experiment runs in **pure code, no LLM, no GPU**:
