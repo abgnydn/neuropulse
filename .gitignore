@@ -9,3 +9,4 @@ tools/reference.json
 .vercel
 test-results/
 playwright-report/
+tools/butterfly-embed-cache.json

@@ -29,7 +29,7 @@
 //   DEBUG=1 node tools/butterfly-llm-tagger.mjs                        # dump LLM tags + memories
 //   CONFIGS=len38-bud100-gens3 node tools/butterfly-llm-tagger.mjs     # one config only
 
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -334,7 +334,102 @@ Output ONLY the label string. No preamble. No commentary. No newlines before or 
   return { tags, source, raw, label_string: cleaned.slice(0, messages.length) }
 }
 
+// ─── trained-classifier strategy: zero LLM calls ─────────────────
+// Loads tools/butterfly-classifier-weights.json (the trained 14-feature
+// softmax classifier) and predicts per-message. Deterministic, instant,
+// no network. Use this to A/B against the regex tagger.
+let __trainedWeights = null
+function loadTrainedWeights() {
+  if (__trainedWeights) return __trainedWeights
+  const wpath = join(ROOT, 'tools', 'butterfly-classifier-weights.json')
+  if (!existsSync(wpath)) throw new Error(`Trained weights not found at ${wpath}. Run: node tools/butterfly-train-classifier.mjs`)
+  __trainedWeights = JSON.parse(readFileSync(wpath, 'utf8'))
+  return __trainedWeights
+}
+const TRAINED_FEATURES = [
+  t => /\b\w+\/[\w\-./]+\.(ts|js|py|md|sql|yaml|toml|json|tsx|jsx|go|rs|html|css)\b/.test(t) ? 1 : 0,
+  t => /TICKET-\d+/i.test(t) ? 1 : 0,
+  t => /#[\w-]+/.test(t) ? 1 : 0,
+  t => /@[\w-]+\/[\w-]+/.test(t) ? 1 : 0,
+  t => /\blines?\s+\d+(\s*[-–]\s*\d+)?\b/i.test(t) ? 1 : 0,
+  t => /\b(Decision|Root cause|Confirmed|Found it):/i.test(t) ? 1 : 0,
+  t => /\b\w+\.\w+\(\)/.test(t) ? 1 : 0,
+  t => /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/.test(t) ? 1 : 0,
+  t => /\b\d+\s*(req\/min|ms|s|min|gb|mb|kb|tokens?|seconds?|minutes?)\b/i.test(t) ? 1 : 0,
+  t => /`[^`\n]{2,}`/.test(t) ? 1 : 0,
+  t => /^\s*(ok|lgtm|sure|thx|noted|got it|will do|cool|sweet|alright|yep|yes|no|nope)[\s,.!]*$/i.test(t) ? 1 : 0,
+  t => /(while you're (here|at it)|btw unrelated|side q|while we're here|unrelated|aside|off-topic)/i.test(t) ? 1 : 0,
+  t => (t.endsWith('?') && t.length < 50 && !/\w+\/[\w.]+/.test(t)) ? 1 : 0,
+  t => Math.min(1.0, Math.log(t.length + 1) / 6.5),
+]
+function trainedTagAll(messages) {
+  const w = loadTrainedWeights()
+  const tags = messages.map(m => {
+    const x = TRAINED_FEATURES.map(f => f(m.content))
+    const z = w.W.map((wk, k) => wk.reduce((s, wv, j) => s + wv * x[j], w.b[k]))
+    const maxZ = Math.max(...z)
+    const exps = z.map(v => Math.exp(v - maxZ))
+    const sum = exps.reduce((s, e) => s + e, 0)
+    const p = exps.map(e => e / sum)
+    let argmax = 0
+    for (let k = 1; k < p.length; k++) if (p[k] > p[argmax]) argmax = k
+    return w.classes[argmax]
+  })
+  const dist = tags.reduce((acc, t) => ({ ...acc, [t]: (acc[t] || 0) + 1 }), {})
+  return { tags, source: 'trained-classifier', dist, label_string: tags.map(t => t[0]).join('') }
+}
+
+// ─── embedding-based strategy: embed + linear head ──────────────
+let __embedWeights = null
+let __embedCache = null
+function loadEmbedWeights() {
+  if (__embedWeights) return __embedWeights
+  const wpath = join(ROOT, 'tools', 'butterfly-embed-weights.json')
+  if (!existsSync(wpath)) throw new Error(`Embed weights not found at ${wpath}. Run: node tools/butterfly-train-embed.mjs`)
+  __embedWeights = JSON.parse(readFileSync(wpath, 'utf8'))
+  return __embedWeights
+}
+function loadEmbedCache() {
+  if (__embedCache) return __embedCache
+  const cpath = join(ROOT, 'tools', 'butterfly-embed-cache.json')
+  __embedCache = existsSync(cpath) ? JSON.parse(readFileSync(cpath, 'utf8')) : {}
+  return __embedCache
+}
+async function fetchEmbed(text, model) {
+  const cache = loadEmbedCache()
+  if (cache[text]) return cache[text]
+  const res = await fetch(`${LMS_BASE}/embeddings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, input: text }),
+  })
+  if (!res.ok) throw new Error(`LM Studio embed ${res.status}: ${await res.text()}`)
+  const j = await res.json()
+  const v = j.data[0].embedding
+  cache[text] = v
+  return v
+}
+async function embedTagAll(messages) {
+  const w = loadEmbedWeights()
+  const tags = []
+  for (const m of messages) {
+    const x = await fetchEmbed(m.content, w.embed_model)
+    const z = w.W.map((wk, k) => wk.reduce((s, wv, j) => s + wv * x[j], w.b[k]))
+    const maxZ = Math.max(...z)
+    const exps = z.map(v => Math.exp(v - maxZ))
+    const sum = exps.reduce((s, e) => s + e, 0)
+    const p = exps.map(e => e / sum)
+    let argmax = 0
+    for (let k = 1; k < p.length; k++) if (p[k] > p[argmax]) argmax = k
+    tags.push(w.classes[argmax])
+  }
+  const dist = tags.reduce((acc, t) => ({ ...acc, [t]: (acc[t] || 0) + 1 }), {})
+  return { tags, source: 'embed-classifier', dist, label_string: tags.map(t => t[0]).join('') }
+}
+
 async function llmTagAll(messages) {
+  if (STRATEGY === 'trained') return trainedTagAll(messages)
+  if (STRATEGY === 'embed') return embedTagAll(messages)
   if (STRATEGY === 'onechar') return llmTagOneChar(messages)
   return llmTagJSON(messages)
 }

@@ -365,6 +365,58 @@ What this means in practice: butterfly's mechanism is **domain-dependent**. The 
 
 Reproduce: `MODEL=qwen3-14b-mlx STRATEGY=onechar MAX_KEEPS=3 CONFIGS=len38-bud100-gens3 node tools/butterfly-llm-tagger.mjs`. Results in `test-results/butterfly-sweep/butterfly-llmtagger-*.json`.
 
+### Train a tagger from scratch — can a tiny learned classifier replicate regex?
+
+Two more taggers, both trained on the regex's own labels:
+
+| tagger | params | size | needle preservation @ hard regime |
+|---|---|---|---|
+| Regex (hand-tuned thresholds) | ~14 hard rules | source code | **100% / 0%  Δ=100pp** |
+| **14-feature softmax** (gradient descent on regex labels) | 45 | 1.2 KB | **100% / 0%  Δ=100pp** |
+| **768-dim embed + linear head** (nomic-embed-text + softmax) | 2,307 | 45 KB | **100% / 0%  Δ=100pp** |
+| qwen3-14b-mlx · onechar prompt · cap=3 | (frontier) | — | 0% / 0%  Δ=0pp |
+
+Both learned classifiers reach 100% training accuracy in seconds and reproduce the regex's mechanism win exactly. This is partly tautological (training labels come from the regex) but it confirms: **gradient descent over either hand features OR raw text embeddings recovers the same boundary the hand-tuned thresholds picked**. The mechanism isn't hiding in some pathological piece of regex code — it's in the *shape distribution of the features the regex weighs*.
+
+Reproduce: `node tools/butterfly-train-classifier.mjs && STRATEGY=trained node tools/butterfly-llm-tagger.mjs` for the 1.2 KB version. Or `tools/butterfly-train-embed.mjs && STRATEGY=embed node tools/butterfly-llm-tagger.mjs` for the embedding version.
+
+### Adversarial transcripts — testing the shape claim directly
+
+Four new transcripts where the needle is real, load-bearing content but does **NOT** take any of the shapes the regex catches:
+
+| transcript | needle (load-bearing fact) | needle shape |
+|---|---|---|
+| `numeric-threshold` | "we agreed on a hard cap of **47 concurrent connections per pod**" | a number in prose, no `req/min` suffix |
+| `implicit-deadline` | "**cooper said end of next week, friday the 24th**" | lowercase name + relative date phrasing |
+| `preference-statement` | "i **don't want to go with postgres** for this — too heavy for our write pattern" | stated preference, no `Decision:` marker |
+| `buried-causation` | "the **rollback brought back the version-pinned dependencies that were the actual blocker**" | causation in prose, no `Root cause:` marker |
+
+Results on these 4, same hard regime (38 msgs, 100 tok, 3 gens), 4 taggers:
+
+```
+tagger              mean Δ across 4 adversarial transcripts
+─────────────────────────────────────────────────────────
+regex                0pp   (all messages → melt, including the needles)
+trained (14-feat)    0pp   (inherits regex's blind spots)
+embed (768-dim)      0pp   (trained on regex labels — same blind spots)
+qwen3-14b · onechar  0pp   (picks 5 messages with cap, but
+                            still 0% on the needle keywords)
+```
+
+**Every tagger we tested fails on adversarial.** The regex and its learned descendants tag everything as `melt` (no signal fires). Qwen3 picks 5 messages it considers important, but they're not the needle-carrying ones — *and* the chrysalis bloats with the 5 keeps + 13-19 summarizes, blowing the 100-token budget so even useful content gets truncated.
+
+There's a worse twist: across all 4 adversarial transcripts, the qwen3 tagger's gen-3 chrysalis output is **identical** — just a noise message from gen 2 injection (`"did anyone actually try the new prod metrics dashboard?"`). The original conversation is gone entirely by gen 3.
+
+**That's a new finding the original confirmation didn't show:** the multi-generation noise injection acts as a feedback loop that amplifies any tagger's gen-1 weakness. Once the needle gets dropped in the first cocoon, no later generation can recover it — the only thing surviving across generations is whatever the tagger consistently labels as keep, and if that's noise, the protocol locks in on noise.
+
+Reproduce: `node tools/butterfly-adversarial.mjs`.
+
+### The fully hardened claim
+
+Putting all the rounds together:
+
+> *Butterfly's tag-and-rebuild mechanism beats lastN truncation at tight budgets under noise compounding **only when the tagger's prior matches the load-bearing-content distribution in the transcripts being compacted.** The compaction mechanism is real but it's a **content-shape adapter**, not a universal context manager. Generic "find what's important" prompts on frontier instruction-tuned LLMs do not reliably replicate it. Training a classifier on labeled examples of your domain's load-bearing shapes does. The engineering work is the tagger, not the mechanism.*
+
 ### Reproduce in 4 ms
 
 The harder-regime experiment runs in **pure code, no LLM, no GPU**:
