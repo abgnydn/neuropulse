@@ -168,6 +168,55 @@ function pickLastN(turns, budget) {
   return out.map(m => `[${m.role}] ${m.content}`).join('\n')
 }
 
+// Returns the indices of the last K turns whose content fits in `budget`.
+function pickLastNIndices(turns, budget) {
+  const idxs = []; let acc = 0
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = tokens(turns[i].content)
+    if (acc + t > budget && idxs.length > 0) break
+    idxs.unshift(i); acc += t
+  }
+  return new Set(idxs)
+}
+
+// Hybrid tagger output: keep the union of (regex-tagged keeps) plus
+// (last-N-turn indices). Everything else: regex's original label.
+// Result: chrysalis preserves both selective identifiers AND recent
+// context. Two distinct preservation mechanisms in one memory.
+function hybridTagger(turns, lastnFrac) {
+  // Allocate fraction of budget to lastN; remainder feeds the chrysalis.
+  // lastnFrac default 0.4 — 40% of budget to recency, 60% to selectivity.
+  // (Total budget is passed via the chrysalis call's `budget` arg.)
+  // We return per-turn tags here; the budget split happens in the
+  // chrysalis step below (see hybridChrysalis).
+  const regexTags = turns.map(t => regexTag(t.content))
+  return { regexTags, lastnFrac }
+}
+
+function hybridChrysalis(turns, hybridState, totalBudget) {
+  const { regexTags, lastnFrac } = hybridState
+  const lastnBudget = Math.floor(totalBudget * lastnFrac)
+  const chrysBudget = totalBudget - lastnBudget
+  const lastnIdx = pickLastNIndices(turns, lastnBudget)
+
+  // chrysalis on turns NOT already in lastN window
+  // (avoids double-counting recent keeps in both halves)
+  const chrysTurns = turns.map((t, i) => lastnIdx.has(i) ? null : t)
+  const chrysTags  = regexTags.map((t, i) => lastnIdx.has(i) ? 'melt' : t)
+  const chrysParts = []
+  for (let i = 0; i < turns.length; i++) {
+    if (chrysTags[i] === 'keep')           chrysParts.push(`[${turns[i].role}] ${turns[i].content}`)
+    else if (chrysTags[i] === 'summarize') chrysParts.push(`[${turns[i].role}] ${firstSentence(turns[i].content)}`)
+  }
+  let chrys = chrysParts.join('\n')
+  const chrysMaxChars = chrysBudget * 4
+  if (chrys.length > chrysMaxChars) chrys = chrys.slice(0, chrysMaxChars).replace(/\s\S*$/, '') + '…'
+
+  const lastnPart = turns.filter((_, i) => lastnIdx.has(i)).map(m => `[${m.role}] ${m.content}`).join('\n')
+
+  return chrys + (chrys && lastnPart ? '\n\n[recent ↓]\n' : '') + lastnPart
+}
+
 // ─── scoring: turn-level + answer-level ─────────────────────────
 // Turn-level: each has_answer:true turn "survives" if its first 60 chars
 // of content appear as substring in the compacted memory.
@@ -201,16 +250,23 @@ async function runExample(ex, budget, strategyName) {
   if (evidenceTurns.length === 0) return null  // no ground-truth to score against
 
   // Tag every turn (sync for regex/trained, async for embed)
-  let tags
-  if (strategyName === 'regex')   tags = turns.map(t => regexTag(t.content))
-  else if (strategyName === 'trained') tags = turns.map(t => trainedTag(t.content))
-  else if (strategyName === 'embed') {
-    tags = []
-    for (const t of turns) tags.push(await embedTag(t.content))
+  // Hybrid strategy: skip per-turn tagging; uses regex internally + lastN split.
+  let tags = null, bflyMemory
+  if (strategyName === 'hybrid') {
+    const lastnFrac = parseFloat(process.env.LASTN_FRAC || '0.4')
+    const state = hybridTagger(turns, lastnFrac)
+    bflyMemory = hybridChrysalis(turns, state, budget)
+    tags = state.regexTags
+  } else {
+    if (strategyName === 'regex')   tags = turns.map(t => regexTag(t.content))
+    else if (strategyName === 'trained') tags = turns.map(t => trainedTag(t.content))
+    else if (strategyName === 'embed') {
+      tags = []
+      for (const t of turns) tags.push(await embedTag(t.content))
+    }
+    else throw new Error(`unknown strategy: ${strategyName}`)
+    bflyMemory = chrysalis(turns, tags, budget)
   }
-  else throw new Error(`unknown strategy: ${strategyName}`)
-
-  const bflyMemory = chrysalis(turns, tags, budget)
   const lastnMemory = pickLastN(turns, budget)
 
   return {
