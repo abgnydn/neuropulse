@@ -448,11 +448,45 @@ budget    regex turn  hybrid turn  lastN turn   regex ans  hybrid ans  lastN ans
 
 Butterfly's regex tagger beats lastN at every budget on both metrics. Margins are smaller than on oracle because the needle-to-haystack ratio (2 in 550) is much worse — but the direction is consistent across two independent peer-reviewed datasets. The mechanism is real on diverse external data, not just our 4 hand-written transcripts.
 
+### Train the classifier on the right distribution — it triples the regex baseline
+
+The natural objection: our trained classifier failed on LongMemEval because we trained it on 100 messages from 4 unrelated hand-written transcripts. Train it on LongMemEval's *own* labeled data and see if it generalizes.
+
+Each turn in `longmemeval_oracle` has a `has_answer: true/false` flag — direct supervision. 500 examples × ~22 turns = ~11K labeled training examples. We trained a 14-parameter binary softmax classifier (same features) on the oracle's has_answer labels, then evaluated on `longmemeval_s` (different examples, never seen during training, much more filler).
+
+```
+longmemeval_s, 500 held-out examples, turn-rate evidence preservation:
+
+budget    regex      longmem-trained   hybrid    lastN
+                                                  
+ 512       1.1%         2.5%    +1.4pp   0.8%     0.0%
+1024       1.8%         4.4%    +2.6pp   1.1%     0.2%
+2048       3.4%         9.2%    +5.8pp   2.6%     0.7%
+4096       7.0%        20.6%   +13.6pp   4.6%     3.5%      ← 3× regex baseline
+```
+
+A 14-parameter classifier trained on LongMemEval's own labels **nearly triples** the regex baseline at the most useful budget and **6× the lastN baseline**. The "trained classifiers don't generalize" finding from earlier reverses — they generalize fine *if you train them on a representative distribution*. The previous trained classifier failed because the training set was 100 messages from 4 unrelated transcripts.
+
+The learned weights look completely different from the in-domain version:
+
+```
+                    in-domain trained    longmem trained
+file_path           +2.98 (keep)         -0.04   (flipped)
+decision_kw         +2.41 (keep)         -0.52   (flipped!)
+proper_name         +1.34 (keep)         -0.43   (flipped!)
+log_length          +0.21                -3.25   (DOMINANT: shorter = evidence)
+bias                -1.74                +3.13   (default keep, modulated by length)
+```
+
+The model learned that on LongMemEval, **evidence is short user statements** ("I graduated with Business Administration"), not long assistant explanations. Identifier features are *anti-correlated* with evidence here because they appear in the long assistant responses that AREN'T evidence. Reversed prior, reversed weights. The 14-feature template was rich enough to encode either prior.
+
+**The full story:** the mechanism is real, the tagger does the work, and a tiny domain-trained classifier substantially outperforms hand-coded rules — provided you train it on data representative of where you'll deploy it. The engineering recipe is "label a few hundred examples from your target, train a 14-parameter classifier, ship a 1.2 KB model." Not "build a smart LLM tagger." Not "tune a hand-coded regex forever."
+
 ### The fully hardened claim
 
 Putting all the rounds together:
 
-> *Butterfly's tag-and-rebuild mechanism beats lastN truncation at tight budgets under noise compounding **only when the tagger's prior matches the load-bearing-content distribution in the transcripts being compacted.** The compaction mechanism is real but it's a **content-shape adapter**, not a universal context manager. Hand-coded rule-based taggers generalize better than tiny classifiers trained on small in-domain sets, because rules encode domain knowledge directly while small-sample-trained classifiers overfit. Generic "find what's important" prompts on frontier instruction-tuned LLMs do not reliably replicate the mechanism either. The engineering work is the tagger and its training distribution, not the mechanism.*
+> *Butterfly's tag-and-rebuild mechanism beats `lastN` truncation at tight budgets under noise compounding **when the tagger's prior matches the load-bearing-content distribution of where it's deployed.** The mechanism is a **content-shape adapter**, not a universal context manager. A 14-parameter softmax classifier trained on a few hundred has_answer-labeled examples from the target domain triples the hand-coded regex baseline on the LongMemEval held-out split (20.6% vs 7.0% turn-rate at budget=4096). Training on the wrong distribution underperforms hand rules. Generic "find what's important" prompts on frontier LLMs don't replicate the mechanism. **The engineering work is the tagger and its training distribution, not the rebuild step.**
 
 ### Reproduce in 4 ms
 

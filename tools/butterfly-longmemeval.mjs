@@ -70,6 +70,30 @@ function regexTag(text) {
   return score >= 3 ? 'keep' : score >= 1 ? 'summarize' : 'melt'
 }
 
+// ─── tagger 2b: longmem-trained binary classifier ────────────────
+// Trained on LongMemEval oracle's has_answer labels (v3.9). Binary
+// keep / not-keep. For not-keep turns, regex's existing rules decide
+// summarize vs melt. Use this to test "does training on the right
+// distribution recover the win?"
+let _longmemW = null
+function loadLongmem() {
+  if (_longmemW) return _longmemW
+  const p = join(ROOT, 'tools', 'butterfly-longmem-weights.json')
+  _longmemW = JSON.parse(readFileSync(p, 'utf8'))
+  return _longmemW
+}
+function sigmoid(z) { return 1 / (1 + Math.exp(-z)) }
+function longmemTrainedTag(text) {
+  const w = loadLongmem()
+  const x = FEAT.map(f => f(text))
+  const z = w.W.reduce((s, wv, j) => s + wv * x[j], w.b)
+  const p = sigmoid(z)
+  if (p >= (w.threshold || 0.5)) return 'keep'
+  // Bottom tier: regex decides summarize vs melt for not-keeps
+  const rt = regexTag(text)
+  return rt === 'keep' ? 'summarize' : rt  // demote regex's keep to summarize
+}
+
 // ─── tagger 2: trained 14-feature classifier (loaded from JSON) ──
 let _trainedW = null
 function loadTrained() {
@@ -261,6 +285,7 @@ async function runExample(ex, budget, strategyName) {
   } else {
     if (strategyName === 'regex')   tags = turns.map(t => regexTag(t.content))
     else if (strategyName === 'trained') tags = turns.map(t => trainedTag(t.content))
+    else if (strategyName === 'longmem-trained') tags = turns.map(t => longmemTrainedTag(t.content))
     else if (strategyName === 'embed') {
       tags = []
       for (const t of turns) tags.push(await embedTag(t.content))
