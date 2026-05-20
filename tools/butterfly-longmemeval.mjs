@@ -40,7 +40,8 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
-const DATA_PATH = join(ROOT, 'test-results', 'longmemeval', 'longmemeval_oracle.json')
+const DATA_FILE = process.env.DATA_FILE || 'longmemeval_oracle.json'
+const DATA_PATH = join(ROOT, 'test-results', 'longmemeval', DATA_FILE)
 const RESULTS_DIR = join(ROOT, 'test-results', 'butterfly-sweep')
 const N_EXAMPLES = parseInt(process.env.N || '500', 10)
 const BUDGETS = (process.env.BUDGETS || '256,512,1024,2048').split(',').map(Number)
