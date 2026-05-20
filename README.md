@@ -411,11 +411,33 @@ There's a worse twist: across all 4 adversarial transcripts, the qwen3 tagger's 
 
 Reproduce: `node tools/butterfly-adversarial.mjs`.
 
+### External benchmark — LongMemEval oracle (500 real conversations)
+
+The natural next test: does the regex-tagger win replicate on an independent dataset? [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (ICLR 2025) is the canonical long-term-conversational-memory benchmark, cited by MemoryAgentBench (ICLR 2026). Each example is a list of `{role, content, has_answer: bool}` sessions; ground truth is the set of evidence turns flagged `has_answer: true`.
+
+Direct score: "what fraction of evidence turns survive in the compacted memory" — no LLM judge needed.
+
+```
+tagger         params   in-domain  ──── LongMemEval (500 examples) ────
+                                   bud=256   bud=512   bud=1024  bud=2048
+─────────────────────────────────────────────────────────────────────────
+Regex            ~14      100/0    21.4%     22.6%     26.3%     29.0%
+Trained 14-feat   45      100/0     4.6%      4.6%      4.7%      4.7%
+Embed 768-d    2,307      100/0     0.0%      0.0%      0.0%      0.0%
+LastN baseline      -       —       3.3%      5.2%     12.3%     23.4%
+```
+
+Three real findings:
+
+1. **The regex tagger wins on independent data**, by +5 to +18pp across all tested budgets. Not just our 4 hand-written transcripts — the win replicates on 500 real conversations from a peer-reviewed benchmark.
+2. **More parameters → worse generalization** when training data is small. The 14-feature classifier (45 params) flat at 4.7% on LongMemEval despite hitting 100% on the in-domain set. The 768-dim embedding classifier (2,307 params) is *worse still* — 0% turn rate at every budget. Both overfit to the 100-message in-domain training set.
+3. **Different metrics, different winners.** Regex wins evidence-turn preservation. LastN wins *answer-string-in-memory* at high budgets (116/479 vs 63/479 at bud=2048) — because LongMemEval answers often appear in recent context, where lastN keeps everything. The hybrid (regex-tagged keeps + last K turns) likely wins both. Open follow-up.
+
 ### The fully hardened claim
 
 Putting all the rounds together:
 
-> *Butterfly's tag-and-rebuild mechanism beats lastN truncation at tight budgets under noise compounding **only when the tagger's prior matches the load-bearing-content distribution in the transcripts being compacted.** The compaction mechanism is real but it's a **content-shape adapter**, not a universal context manager. Generic "find what's important" prompts on frontier instruction-tuned LLMs do not reliably replicate it. Training a classifier on labeled examples of your domain's load-bearing shapes does. The engineering work is the tagger, not the mechanism.*
+> *Butterfly's tag-and-rebuild mechanism beats lastN truncation at tight budgets under noise compounding **only when the tagger's prior matches the load-bearing-content distribution in the transcripts being compacted.** The compaction mechanism is real but it's a **content-shape adapter**, not a universal context manager. Hand-coded rule-based taggers generalize better than tiny classifiers trained on small in-domain sets, because rules encode domain knowledge directly while small-sample-trained classifiers overfit. Generic "find what's important" prompts on frontier instruction-tuned LLMs do not reliably replicate the mechanism either. The engineering work is the tagger and its training distribution, not the mechanism.*
 
 ### Reproduce in 4 ms
 
