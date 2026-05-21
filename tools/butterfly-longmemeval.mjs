@@ -366,6 +366,26 @@ async function main() {
       const lastnAnswers = rows.filter(r => r.lastn_score.answer_in_memory).length
       const bflyHits = rows.filter(r => r.bfly_score.turn_rate >= 0.5).length
       const lastnHits = rows.filter(r => r.lastn_score.turn_rate >= 0.5).length
+      // Per question_type breakdown
+      const byType = {}
+      for (const r of rows) {
+        const t = r.question_type || 'unknown'
+        if (!byType[t]) byType[t] = { n: 0, bfly_turn_sum: 0, lastn_turn_sum: 0, bfly_ans: 0, lastn_ans: 0 }
+        byType[t].n += 1
+        byType[t].bfly_turn_sum += r.bfly_score.turn_rate
+        byType[t].lastn_turn_sum += r.lastn_score.turn_rate
+        if (r.bfly_score.answer_in_memory) byType[t].bfly_ans += 1
+        if (r.lastn_score.answer_in_memory) byType[t].lastn_ans += 1
+      }
+      const perType = Object.fromEntries(Object.entries(byType).map(([t, s]) => [t, {
+        n: s.n,
+        bfly_turn_rate: +(s.bfly_turn_sum / s.n).toFixed(3),
+        lastn_turn_rate: +(s.lastn_turn_sum / s.n).toFixed(3),
+        delta: +((s.bfly_turn_sum - s.lastn_turn_sum) / s.n).toFixed(3),
+        bfly_ans_rate: +(s.bfly_ans / s.n).toFixed(3),
+        lastn_ans_rate: +(s.lastn_ans / s.n).toFixed(3),
+      }]))
+
       const summary = {
         strategy, budget, n: N,
         mean_bfly_turn_rate: +meanBflyTurns.toFixed(3),
@@ -375,6 +395,7 @@ async function main() {
         lastn_examples_with_majority_evidence: lastnHits,
         bfly_examples_with_answer_in_memory: bflyAnswers,
         lastn_examples_with_answer_in_memory: lastnAnswers,
+        per_question_type: perType,
       }
       all.push({ summary, rows })
       console.log(`  bfly turn-rate=${(meanBflyTurns*100).toFixed(1)}%  lastN=${(meanLastNTurns*100).toFixed(1)}%  Δ=${((meanBflyTurns-meanLastNTurns)*100).toFixed(1)}pp`)

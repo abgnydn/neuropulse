@@ -490,6 +490,47 @@ What works where:
 
 On short/medium contexts, the lastN window in the hybrid adds value because answers tend to live in recent turns. On 121K-token contexts, the last-N window is mostly filler — the trained classifier alone wins.
 
+### Per-question-type — where the classifier wins and where it doesn't
+
+The 86% headline aggregates across six LongMemEval question types. Broken out (oracle, budget=2048, longmem-trained classifier):
+
+```
+question_type                  n    bfly%   lastN%   Δ
+─────────────────────────────────────────────────────────
+single-session-preference     30    100%      7%   +93pp
+multi-session                125     91%      8%   +83pp
+knowledge-update              72     90%     11%   +79pp
+temporal-reasoning           132     83%     11%   +72pp
+single-session-user           64     92%     39%   +53pp
+single-session-assistant      56     64%     93%   -29pp   ← LASTN WINS
+```
+
+The classifier wins 5/6 question types by 50-93pp — and *loses* on `single-session-assistant` by 29pp. The reason is in the learned weights: `log_length: -3.25` heavily down-weights long messages. On most question types the evidence is short user statements, where this prior is correct. But on `single-session-assistant` the evidence is in long assistant responses — exactly what the classifier learned to ignore.
+
+Production implication: **question-type routing or a richer feature set is needed** to handle every case. The 1.2 KB classifier alone won't get you there; a hybrid (route some types to lastN, others to the classifier) gets you 100% coverage with the right router.
+
+### Cross-domain test — does the trained classifier work outside its training distribution?
+
+The longmem-trained classifier crushes LongMemEval at 87% turn-rate. But its learned weights are negative on identifier features (`file_path`, `decision_kw`, `proper_name`) — exactly opposite of what the regex tagger needed to win on our engineering chat transcripts. So: does it still work on engineering chat?
+
+Tested on the original 4 engineering transcripts at the hard regime (38 msgs, 100-token budget, 3 gens):
+
+```
+transcript                regex    in-domain trained    longmem-trained
+jwt-clock-race            100%        100%                 0%
+auth-owner-pto            100%        100%                 0%
+rate-limit-decision       100%        100%                 0%
+cache-race-fileline       100%        100%                20%
+```
+
+**The classifier is domain-locked.** It works at 87% on LongMemEval and at ~5% on engineering chat. Same architecture, same 14 features — but training on personal conversation data makes it predict "shorter = evidence," which is exactly wrong for engineering chat where evidence is "long assistant messages with file paths."
+
+So production butterfly is **one classifier per deployment domain**. Not "train one universal compaction tagger." Either:
+- Multiple classifiers, each trained on its own domain's labeled data, and a domain-router on top, OR
+- A richer multi-domain training set that covers all your deployment surfaces.
+
+Either way, the engineering cost is in collecting labeled examples from the actual domain you'll deploy in. The classifier itself is cheap (45 parameters, training in seconds).
+
 The learned weights look completely different from the in-domain version:
 
 ```
