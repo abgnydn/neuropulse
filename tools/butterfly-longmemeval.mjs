@@ -320,10 +320,77 @@ async function runExample(ex, budget, strategyName) {
 }
 
 // ─── main ─────────────────────────────────────────────────────────
+// Streaming JSON array reader — works for arbitrarily large files
+// that exceed Node's max-string-length (~512 MB). Maintains a per-chunk
+// scan cursor so we don't re-scan completed prefixes. Tracks string and
+// brace depth as bytes flow in; emits one parsed object per top-level
+// array element.
+async function readJsonArray(path, maxExamples) {
+  const { createReadStream } = await import('node:fs')
+  return new Promise((resolve, reject) => {
+    const stream = createReadStream(path, { encoding: 'utf8', highWaterMark: 1 << 20 })
+    const examples = []
+    let pending = []          // chunks belonging to the current in-progress object
+    let depth = 0
+    let inString = false
+    let escape = false
+    let seenOuterOpen = false
+    let chunkIdx = 0          // index of current chunk within pending[]
+
+    function tryStop() {
+      if (examples.length >= maxExamples) { stream.destroy(); return true }
+      return false
+    }
+
+    stream.on('data', (chunk) => {
+      if (tryStop()) return
+      // Scan this chunk only — never re-scan prior chunks.
+      for (let i = 0; i < chunk.length; i++) {
+        const c = chunk[i]
+        if (escape) { escape = false; continue }
+        if (c === '\\') { escape = true; continue }
+        if (c === '"') { inString = !inString; continue }
+        if (inString) continue
+        if (!seenOuterOpen) {
+          if (c === '[') seenOuterOpen = true
+          continue
+        }
+        if (c === '{') {
+          depth++
+        } else if (c === '}') {
+          depth--
+          if (depth === 0) {
+            // Object ended at chunk[i]. Assemble: any pending chunks
+            // plus current chunk up to and including i.
+            const head = pending.join('')
+            const tail = chunk.slice(0, i + 1)
+            const piece = head + tail
+            // The piece may start with leading commas / whitespace / "[" —
+            // find the actual opening "{".
+            const start = piece.indexOf('{')
+            try { examples.push(JSON.parse(piece.slice(start))) }
+            catch (e) { reject(new Error(`parse error: ${e.message}`)); return }
+            pending = []
+            // Keep the rest of this chunk for the next object.
+            chunk = chunk.slice(i + 1)
+            i = -1   // restart loop on the remainder
+            if (tryStop()) return
+          }
+        }
+      }
+      // Whatever's left in chunk is part of the next (incomplete) object,
+      // OR is between-object whitespace/comma. Either way, keep it.
+      if (chunk.length > 0) pending.push(chunk)
+    })
+    stream.on('end', () => resolve(examples))
+    stream.on('close', () => resolve(examples))
+    stream.on('error', reject)
+  })
+}
+
 async function main() {
-  console.log(`[longmemeval] loading dataset…`)
-  const data = JSON.parse(readFileSync(DATA_PATH, 'utf8'))
-  const examples = data.slice(0, N_EXAMPLES)
+  console.log(`[longmemeval] loading dataset (streaming)…`)
+  const examples = await readJsonArray(DATA_PATH, N_EXAMPLES)
   console.log(`[longmemeval] ${examples.length} examples · strategies=${STRATEGIES.join(',')} · budgets=${BUDGETS.join(',')}`)
 
   // Pre-embed for embed strategy: warm the cache by embedding everything once.

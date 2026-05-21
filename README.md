@@ -531,6 +531,32 @@ So production butterfly is **one classifier per deployment domain**. Not "train 
 
 Either way, the engineering cost is in collecting labeled examples from the actual domain you'll deploy in. The classifier itself is cheap (45 parameters, training in seconds).
 
+### Stress test — longmemeval_m (1.25M tokens, 5,057 turns per example)
+
+The largest LongMemEval split. Each example has 501 sessions, 5,057 turns, ~1.25M tokens of context — and **only 1 evidence turn**. A 1:5,057 needle. We ran the full 500-example sweep at budgets from 4K to 32K tokens (the 32K budget represents ~2.5% of original, a 39× compression):
+
+```
+longmemeval_m, 500 examples, ~1.25M tokens, 5057 turns per example:
+
+budget    regex   longmem-trained   longmem-hybrid   lastN
+ 4096      0.5%      1.8%             1.1%            0.1%
+ 8192      0.9%      5.1%             2.9%            0.7%
+16384      2.6%      9.8%             6.6%            1.2%
+32768      5.5%     18.8%            12.5%            2.8%   ← 7× lastN, 3.4× regex
+```
+
+At budget=32K (2.5% of original context size), the trained classifier preserves **19% of evidence turns** — finding 1 needle in 5,057 turns at 7× lastN's rate. The direction is consistent with the smaller splits: longmem-trained > longmem-hybrid > regex > lastN at every budget.
+
+**The pattern holds across three orders of magnitude of context size:**
+
+| split | avg context | longmem-trained @ best budget | vs lastN |
+|---|---|---|---|
+| oracle | 6.6K tokens | 86.1% @ 2K (3× compression) | +63pp |
+| s | 121K tokens | 20.6% @ 4K (30× compression) | +17pp |
+| m | 1.25M tokens | 18.8% @ 32K (39× compression) | +16pp |
+
+Same 1.2 KB classifier file, three benchmarks, consistent direction. The mechanism scales.
+
 The learned weights look completely different from the in-domain version:
 
 ```
