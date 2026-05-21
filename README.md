@@ -467,6 +467,29 @@ budget    regex      longmem-trained   hybrid    lastN
 
 A 14-parameter classifier trained on LongMemEval's own labels **nearly triples** the regex baseline at the most useful budget and **6× the lastN baseline**. The "trained classifiers don't generalize" finding from earlier reverses — they generalize fine *if you train them on a representative distribution*. The previous trained classifier failed because the training set was 100 messages from 4 unrelated transcripts.
 
+And on the *easier* oracle benchmark — same trained classifier, no retraining — the win is dramatic:
+
+```
+longmemeval_oracle, 500 examples, turn-rate evidence preservation:
+
+budget    regex      longmem-trained   longmem-hybrid   lastN
+                                                         
+ 512      22.6%        69.7%   ↑↑↑      54.1%           5.2%
+1024      26.3%        83.7%   ↑↑↑      77.6%          12.3%
+2048      29.0%        86.1%   ↑↑↑      87.2%          23.4%   ← +63.8pp vs lastN
+```
+
+**86% of evidence turns preserved at a 2K-token budget** on ~6.6K-token contexts (3× compression). The longmem-trained classifier alone hits 86.1%. Adding the lastN window (longmem-hybrid) pushes to 87.2% AND boosts answer-in-memory from 125/479 → 145/479 — also beating lastN's previously-dominant 116/479 on that metric.
+
+What works where:
+
+| dataset | best tagger | best budget result | vs lastN |
+|---|---|---|---|
+| oracle (~6.6K tok) | longmem-hybrid | 87% turn-rate @ 2K | +64pp |
+| longmemeval_s (~121K tok) | longmem-trained | 20% turn-rate @ 4K | +17pp |
+
+On short/medium contexts, the lastN window in the hybrid adds value because answers tend to live in recent turns. On 121K-token contexts, the last-N window is mostly filler — the trained classifier alone wins.
+
 The learned weights look completely different from the in-domain version:
 
 ```
@@ -486,7 +509,9 @@ The model learned that on LongMemEval, **evidence is short user statements** ("I
 
 Putting all the rounds together:
 
-> *Butterfly's tag-and-rebuild mechanism beats `lastN` truncation at tight budgets under noise compounding **when the tagger's prior matches the load-bearing-content distribution of where it's deployed.** The mechanism is a **content-shape adapter**, not a universal context manager. A 14-parameter softmax classifier trained on a few hundred has_answer-labeled examples from the target domain triples the hand-coded regex baseline on the LongMemEval held-out split (20.6% vs 7.0% turn-rate at budget=4096). Training on the wrong distribution underperforms hand rules. Generic "find what's important" prompts on frontier LLMs don't replicate the mechanism. **The engineering work is the tagger and its training distribution, not the rebuild step.**
+> A 14-parameter softmax classifier trained on ~11K has_answer-labeled turns from LongMemEval **preserves 87% of evidence turns at a 2K-token budget on the oracle benchmark** (3× context compression), vs lastN's 23% and a hand-coded regex's 29%. On the harder *longmemeval_s* held-out split (121K-token contexts, 550 turns per example), the same classifier triples the regex baseline. Training on the wrong distribution underperforms hand rules; training on the right distribution outperforms by ~60 percentage points. Generic "find what's important" prompts on frontier LLMs don't replicate the mechanism either.
+>
+> **The engineering work is the tagger and its training distribution.** Ship a 1.2 KB classifier, not an LLM agent loop.
 
 ### Reproduce in 4 ms
 

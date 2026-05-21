@@ -218,8 +218,11 @@ function hybridTagger(turns, lastnFrac) {
   return { regexTags, lastnFrac }
 }
 
+// hybridState now accepts either { regexTags } (regex hybrid) or
+// { longmemTags } (longmem-trained hybrid). The lastN split is the same.
 function hybridChrysalis(turns, hybridState, totalBudget) {
-  const { regexTags, lastnFrac } = hybridState
+  const tags = hybridState.regexTags || hybridState.longmemTags
+  const { lastnFrac } = hybridState
   const lastnBudget = Math.floor(totalBudget * lastnFrac)
   const chrysBudget = totalBudget - lastnBudget
   const lastnIdx = pickLastNIndices(turns, lastnBudget)
@@ -227,7 +230,7 @@ function hybridChrysalis(turns, hybridState, totalBudget) {
   // chrysalis on turns NOT already in lastN window
   // (avoids double-counting recent keeps in both halves)
   const chrysTurns = turns.map((t, i) => lastnIdx.has(i) ? null : t)
-  const chrysTags  = regexTags.map((t, i) => lastnIdx.has(i) ? 'melt' : t)
+  const chrysTags  = tags.map((t, i) => lastnIdx.has(i) ? 'melt' : t)
   const chrysParts = []
   for (let i = 0; i < turns.length; i++) {
     if (chrysTags[i] === 'keep')           chrysParts.push(`[${turns[i].role}] ${turns[i].content}`)
@@ -282,6 +285,14 @@ async function runExample(ex, budget, strategyName) {
     const state = hybridTagger(turns, lastnFrac)
     bflyMemory = hybridChrysalis(turns, state, budget)
     tags = state.regexTags
+  } else if (strategyName === 'longmem-hybrid') {
+    // Best-of-both: longmem-trained classifier picks keep/not-keep
+    // for the chrysalis half; regex's existing rules decide
+    // summarize vs melt for not-keep turns. lastN takes the rest.
+    const lastnFrac = parseFloat(process.env.LASTN_FRAC || '0.4')
+    const longmemTags = turns.map(t => longmemTrainedTag(t.content))
+    bflyMemory = hybridChrysalis(turns, { longmemTags, lastnFrac }, budget)
+    tags = longmemTags
   } else {
     if (strategyName === 'regex')   tags = turns.map(t => regexTag(t.content))
     else if (strategyName === 'trained') tags = turns.map(t => trainedTag(t.content))
