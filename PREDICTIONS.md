@@ -230,6 +230,38 @@ Each prediction has six fields:
     bootstrap, but also no robustness against transcript-specific
     quirks. The 4-transcript spread is the only diversification.
 
+### P-20260526-07 · Continuous-attention self-consistency on Phi-3-mini
+
+- **filed**: 2026-05-26
+- **author**: ahmet
+- **claim**: Iterating Phi-3-mini's attention to a self-consistency point per layer (Picard iteration of `Q ← softmax(Q K^T / √d) V`, RoPE applied once at iter=0, K/V held fixed, KV cache untouched) produces hidden states that **diverge from one-step output in a layer-dependent, attention-entropy-correlated way.** Two competing per-layer predictions are filed; whichever the data confirms is a real result. The fixed point of the Picard map is the **self-consistency point**, not the energy minimum — they coincide only under Lipschitz/smoothness conditions on Ramsauer's E that Phi-3-mini's inference-time Q almost certainly does not satisfy.
+- **target**: `src/shaders/attention_fixedpoint.wgsl` (new, sub-step probe — NOT DEQ-equivalent; per-block fixed-point deferred). Feature-flagged via `?attn=fixedpoint`. Run on the validation suite's existing prompt set: 15-prompt logit sweep + 290-token long-context decode (10 steps). Build SHA recorded per the standard fingerprint footer. Phi-3-mini-4k-instruct q4f16_1 via WebGPU on M2 Pro.
+- **measure**: At each of the 9 `VALIDATE_LAYERS = {0, 4, 8, 12, 16, 20, 24, 28, 31}` checkpoints, three quantities per layer:
+  1. **`residual_ratio_L`** = (||h_fixedpoint − h_HF_fp16||₂ at layer L) / (||h_onestep − h_HF_fp16||₂ at layer L). 1.0 = same as discrete; >1.0 = worse.
+  2. **`top1_match_rate`** = fraction of the 15-prompt sweep where fixed-point and one-step produce identical top-1 next-token.
+  3. **`long_context_top1`** = of the 10 decode steps after 290-token prompt, how many produce identical top-1 to one-step.
+  Plus per-layer per-token telemetry: iteration count to convergence, ||Q_t − Q_{t-1}||_∞ at convergence, attention-entropy `H(softmax(QK^T/√d))` averaged across heads.
+- **threshold** (per-layer, three buckets):
+  - **Bucket A — match**: `residual_ratio_L ≤ 2.0` AND `top1_match_rate ≥ 0.95` AND `long_context_top1 ≥ 9/10`.
+  - **Bucket B — structured drift**: `2.0 < residual_ratio_L ≤ 50.0` AND `top1_match_rate ∈ [0.60, 0.95)` AND `long_context_top1 ∈ [5, 9)`.
+  - **Bucket C — catastrophic**: `residual_ratio_L > 50.0` OR `top1_match_rate < 0.60` OR `long_context_top1 < 5/10` OR NaN/non-convergence at `max_iter = 100`.
+  Bucket assignments are per-layer; aggregate outcomes (A/B/C across the 9 checkpoints) are the publishable result, not a single global bucket.
+- **competing pre-registered hypotheses** (whichever matches the layer-resolved data is the finding):
+  - **H_ahmet (mine)**: Generic Bucket B across most layers, with Bucket C concentrated in the deepest middle (layers 14-20). Reasoning: deeper middle layers depend more on prior-layer "one-step" semantics being preserved, so they should be most sensitive to fixed-point divergence.
+  - **H_agent (webgpu-q research agent, 2026-05-26)**: Attention-sink layers (0-2, 30-31) hit Bucket A trivially because softmax is near-saturated (near-one-hot) → one Picard step IS the fixed point. Middle layers (3-29) hit Bucket B. Layers immediately preceding sink-formation transitions specifically hit Bucket C. The interesting science is the transition, not the average. Reasoning: attention-entropy at a layer is the causal driver of bucket outcome.
+  - **Settling test**: per-layer attention entropy (averaged across heads and tokens, on the 15-prompt sweep) plotted against bucket outcome. If `ρ(H, bucket-numeric) < -0.5` (high entropy ↔ Bucket C), H_agent is broadly correct.
+- **disentanglement control**: A separate 4-layer / 64-hidden / 256-vocab transformer trained to convergence on induction-heads + modular arithmetic (Phase 0, see E45 brain note). Run the same fixed-point protocol on it. If small-well-trained converges Bucket A across all layers and Phi-3-mini does not, divergence is scale-related (or training-objective-related). If both produce the same structured Bucket B pattern, it is a general phenomenon, not a Phi-3 idiosyncrasy.
+- **conditional next experiment** (NOT pre-committed, NOT budgeted): IF Bucket C is the dominant outcome, file a follow-up P-XXX to train a fresh attention layer from scratch with a fixed-point regularizer (`λ · ||Q_{t+1} − Q_t||` at iter=K) and compare quality vs a vanilla-trained attention layer of the same size. Decision deferred to post-P-20260526-07 outcome.
+- **status**: open
+- **outcome**: —
+- **threats to validity** (declared up-front):
+  - **Sub-step probe ≠ DEQ.** This experiment iterates Q inside a single attention call (per-attention FP), not the whole transformer block (per-block FP). The result speaks to "what happens when attention is iterated to self-consistency" but does NOT speak to "what a continuous transformer would look like." Per-block FP is a strictly larger experiment, deferred.
+  - **RoPE choice.** Q is iterated post-RoPE; RoPE is applied once at iter=0. The alternative (re-apply RoPE each iter, treating Q's position as drifting) is semantically odd but mathematically a valid choice; this experiment does not test that interpretation.
+  - **Picard, not Newton.** Picard iteration has linear convergence rate and can fail to converge on flat (high-entropy) softmax maps even within the `max_iter=100` budget. A non-convergence outcome may reflect Picard's weakness, not the operator's. Anderson acceleration is the natural follow-up if Picard non-converges on most layers.
+  - **int4 quantization noise floor.** The HF fp16 reference has int4 quantization error baked in already. The `residual_ratio_L` metric *normalizes* against the one-step int4 baseline, so it isolates fixed-point divergence from quantization. But absolute residual magnitudes will be larger than HF fp16 baselines — this is expected.
+  - **Single GPU, single seed, single weight set.** No cross-vendor reproducibility claim made; per the canonical RESEARCH_STANDARDS § 4, the artifact records `shaderHashes` so reviewers can group by shader version, but results from Apple Metal-3 are not bit-comparable to Nvidia Vulkan or Intel iGPU.
+  - **Pre-commitment timestamp.** This entry is filed BEFORE `attention_fixedpoint.wgsl` exists in the repo. Build SHA on the run will reflect the kernel-added commit; this entry's commit SHA reflects the pre-registration commit, which contains zero experimental code. The audit trail is git.
+
 ## Methodology notes
 
 - Every prediction is run against the build SHA recorded in the
