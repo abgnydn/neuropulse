@@ -2724,6 +2724,21 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
       try {
         engine = await createInferenceEngine((p) => updateLoading(p))
         hideLoading()
+        // E45: re-apply continuous-attention URL flags after device-lost reinit.
+        {
+          const params = new URLSearchParams(location.search)
+          if (params.get('attn') === 'fixedpoint') {
+            engine.e45Config.attentionKernel = 'fixedpoint'
+            const maxIterRaw = params.get('max_iter')
+            if (maxIterRaw !== null) {
+              const n = parseInt(maxIterRaw, 10)
+              if (Number.isFinite(n) && n > 0 && n <= 1000) {
+                engine.e45Config.fixedPointMaxIter = n
+              }
+            }
+            console.log(`[E45 fixedpoint] re-activated after device-lost reinit`)
+          }
+        }
       } catch (initErr) {
         console.error('[inference] reinit failed:', initErr)
         output.innerHTML += `<span style="color:#f44;opacity:.7"> [reinit failed — please reload the page]</span>`
@@ -2875,6 +2890,29 @@ async function initEngine() {
     })
 
     hideLoading()
+
+    // E45 / P-20260526-07: apply continuous-attention fixed-point probe flags
+    // from URL. ?attn=fixedpoint activates the Picard-iterated kernel;
+    // ?max_iter=N (1..1000) sets the iteration budget. Default 'standard'
+    // preserves the validated baseline. See attention_fixedpoint.wgsl.
+    {
+      const params = new URLSearchParams(location.search)
+      if (params.get('attn') === 'fixedpoint') {
+        engine.e45Config.attentionKernel = 'fixedpoint'
+        const maxIterRaw = params.get('max_iter')
+        if (maxIterRaw !== null) {
+          const n = parseInt(maxIterRaw, 10)
+          if (Number.isFinite(n) && n > 0 && n <= 1000) {
+            engine.e45Config.fixedPointMaxIter = n
+          }
+        }
+        console.log(
+          `[E45 fixedpoint] URL-activated: max_iter=${engine.e45Config.fixedPointMaxIter}. ` +
+          `Sub-step probe; sees the same validation harness as discrete attention. ` +
+          `Watch console for per-token telemetry.`,
+        )
+      }
+    }
 
     // Butterfly experiment: floating panel runs an in-browser transgenerational
     // compaction demo using the same Phi-3 instance. See src/butterfly-mode.ts.

@@ -278,6 +278,25 @@ export interface InferenceEngine {
   runValidationSuite(): Promise<ValidationReport>
   tokenizer: Tokenizer
   ready: boolean
+  /** E45 / P-20260526-07: config for the continuous-attention fixed-point probe.
+   *  Mutate BEFORE calling generate(). Default 'standard' preserves the validated
+   *  baseline; set `attentionKernel = 'fixedpoint'` to swap the attention kernel
+   *  for the Picard-iterated variant. See attention_fixedpoint.wgsl, PREDICTIONS.md,
+   *  and brain experiment E45 for the pre-registration and symbol-collision guards. */
+  e45Config: {
+    attentionKernel: 'standard' | 'fixedpoint'
+    fixedPointMaxIter: number
+  }
+  /** E45: read the fixed-point attention telemetry buffer after a generate() run.
+   *  Returns LAYERS × HEADS × 4 f32 values. Per (layer, head):
+   *    [0] = ||Q_t - Q_{t-1}||_inf at the final iter
+   *    [1] = iter_count (= max_iter in Phase 1)
+   *    [2] = init_max_score (raw softmax score over KV slots at iter 0)
+   *    [3] = init_min_score
+   *  Only meaningful when attentionKernel was 'fixedpoint' on the most recent
+   *  decodeToken call; otherwise the buffer carries whatever it had from a
+   *  prior fixedpoint run (or zeros at engine init). */
+  readAttnTelemetry(): Promise<Float32Array>
 }
 
 export async function createInferenceEngine(
@@ -325,6 +344,11 @@ export async function createInferenceEngine(
     kOut:       makeBuf(device, PHI3.D * 2, 'kOut'),
     vOut:       makeBuf(device, PHI3.D * 2, 'vOut'),
     attnOut:    makeBuf(device, PHI3.D * 2, 'attnOut'),
+    // E45 / P-20260526-07: telemetry buffer for the fixed-point attention probe.
+    // 32 layers × 32 heads × 4 f32 slots = 16,384 bytes.
+    // Per (layer, head): [final_diff_inf, iter_count, init_max_score, init_min_score].
+    // Written ONLY when ?attn=fixedpoint is active. Otherwise inert.
+    attnTelemetry: makeBuf(device, PHI3.LAYERS * PHI3.HEADS * 4 * 4, 'attnTelemetry'),
     ffnOut:     makeBuf(device, PHI3.FFN * 2, 'ffnOut'),
     logits:     makeBuf(device, PHI3.VOCAB * 4, 'logits'),
     tokenOut:   makeBuf(device, 4, 'tokenOut'),
@@ -393,6 +417,24 @@ export async function createInferenceEngine(
     label: 'lens_token_readback',
   })
 
+  // E45 / P-20260526-07: readback for fixed-point attention telemetry.
+  // Same layout as B.attnTelemetry (32 × 32 × 4 × 4 = 16,384 bytes).
+  const attnTelemetryReadBuf = device.createBuffer({
+    size: PHI3.LAYERS * PHI3.HEADS * 4 * 4,
+    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    label: 'attn_telemetry_readback',
+  })
+
+  // E45 / P-20260526-07: config for the continuous-attention fixed-point probe.
+  // Mutable from outside via `engine.e45Config.attentionKernel = 'fixedpoint'`
+  // (typically set by main.ts after URL parsing, BEFORE the first generate()).
+  // Default 'standard' preserves the validated baseline; the existing 6-test
+  // validation suite continues to pass with default settings.
+  const e45Config = {
+    attentionKernel: 'standard' as 'standard' | 'fixedpoint',
+    fixedPointMaxIter: 100,  // Phase 1: 100. Phase 2 will pin smaller.
+  }
+
   /** Read f16 activation values from a GPU buffer, convert to f32 */
   async function readActivations(srcBuf: GPUBuffer, f16Count: number): Promise<Float32Array> {
     const byteSize = f16Count * 2
@@ -403,6 +445,22 @@ export async function createInferenceEngine(
     const f16 = new Uint16Array(readbackBuf.getMappedRange(0, byteSize).slice(0))
     readbackBuf.unmap()
     return f16ToF32(f16)
+  }
+
+  /** E45 / P-20260526-07: read the fixed-point attention telemetry buffer.
+   *  Returns a flat Float32Array of length LAYERS × HEADS × 4. Indexing:
+   *    telem[(layer * HEADS + head) * 4 + slot] where slot ∈
+   *    {0: final_diff_inf, 1: iter_count, 2: init_max_score, 3: init_min_score}.
+   *  Only meaningful after a generate() call with attentionKernel = 'fixedpoint'. */
+  async function readAttnTelemetry(): Promise<Float32Array> {
+    const byteSize = PHI3.LAYERS * PHI3.HEADS * 4 * 4
+    const enc = device.createCommandEncoder()
+    enc.copyBufferToBuffer(B.attnTelemetry, 0, attnTelemetryReadBuf, 0, byteSize)
+    device.queue.submit([enc.finish()])
+    await attnTelemetryReadBuf.mapAsync(GPUMapMode.READ)
+    const data = new Float32Array(attnTelemetryReadBuf.getMappedRange(0, byteSize).slice(0))
+    attnTelemetryReadBuf.unmap()
+    return data
   }
 
   // Which steps get readback and from which buffer + size
@@ -568,14 +626,29 @@ export async function createInferenceEngine(
           B.kOut, B.vOut, kvPages[L], B.posMap, kvAppU,
         ]), 12)
 
-        const attnU = uniformBuf(device, [
-          i32(1), i32(PHI3.MAX_PAGES), i32(nnzPages), i32(0),
-          i32(0), i32(0), i32(0), f32(SM_SCALE), u32(1),
-        ])
-        dispatch(enc, P.attention, bg(device, P.attention, [
-          B.qOut, B.pageIndptr, B.pageValues, kvPages[L],
-          B.lengthInfo, B.attnOut, attnU,
-        ]), 1, PHI3.HEADS)
+        if (e45Config.attentionKernel === 'fixedpoint') {
+          // E45 / P-20260526-07: Picard fixed-point iteration of attention.
+          // Sub-step probe, NOT DEQ-equivalent. See attention_fixedpoint.wgsl
+          // and PREDICTIONS.md for the pre-registration.
+          const attnU = uniformBuf(device, [
+            i32(1), i32(PHI3.MAX_PAGES), i32(nnzPages), i32(0),
+            i32(0), i32(0), i32(0), f32(SM_SCALE), u32(1),
+            i32(e45Config.fixedPointMaxIter), i32(L * PHI3.HEADS * 4),
+          ])
+          dispatch(enc, P.attentionFixedpoint, bg(device, P.attentionFixedpoint, [
+            B.qOut, B.pageIndptr, B.pageValues, kvPages[L],
+            B.lengthInfo, B.attnOut, B.attnTelemetry, attnU,
+          ]), 1, PHI3.HEADS)
+        } else {
+          const attnU = uniformBuf(device, [
+            i32(1), i32(PHI3.MAX_PAGES), i32(nnzPages), i32(0),
+            i32(0), i32(0), i32(0), f32(SM_SCALE), u32(1),
+          ])
+          dispatch(enc, P.attention, bg(device, P.attention, [
+            B.qOut, B.pageIndptr, B.pageValues, kvPages[L],
+            B.lengthInfo, B.attnOut, attnU,
+          ]), 1, PHI3.HEADS)
+        }
 
         applyAblation(enc, L)
 
@@ -648,14 +721,29 @@ export async function createInferenceEngine(
 
       // [3] Attention
       enc = device.createCommandEncoder()
-      const attnU = uniformBuf(device, [
-        i32(1), i32(PHI3.MAX_PAGES), i32(nnzPages), i32(0),
-        i32(0), i32(0), i32(0), f32(SM_SCALE), u32(1),
-      ])
-      dispatch(enc, P.attention, bg(device, P.attention, [
-        B.qOut, B.pageIndptr, B.pageValues, kvPages[L],
-        B.lengthInfo, B.attnOut, attnU,
-      ]), 1, PHI3.HEADS)
+      if (e45Config.attentionKernel === 'fixedpoint') {
+        // E45 / P-20260526-07: Picard fixed-point iteration of attention.
+        // Sub-step probe, NOT DEQ-equivalent. See attention_fixedpoint.wgsl
+        // and PREDICTIONS.md for the pre-registration.
+        const attnU = uniformBuf(device, [
+          i32(1), i32(PHI3.MAX_PAGES), i32(nnzPages), i32(0),
+          i32(0), i32(0), i32(0), f32(SM_SCALE), u32(1),
+          i32(e45Config.fixedPointMaxIter), i32(L * PHI3.HEADS * 4),
+        ])
+        dispatch(enc, P.attentionFixedpoint, bg(device, P.attentionFixedpoint, [
+          B.qOut, B.pageIndptr, B.pageValues, kvPages[L],
+          B.lengthInfo, B.attnOut, B.attnTelemetry, attnU,
+        ]), 1, PHI3.HEADS)
+      } else {
+        const attnU = uniformBuf(device, [
+          i32(1), i32(PHI3.MAX_PAGES), i32(nnzPages), i32(0),
+          i32(0), i32(0), i32(0), f32(SM_SCALE), u32(1),
+        ])
+        dispatch(enc, P.attention, bg(device, P.attention, [
+          B.qOut, B.pageIndptr, B.pageValues, kvPages[L],
+          B.lengthInfo, B.attnOut, attnU,
+        ]), 1, PHI3.HEADS)
+      }
       // Capture post-softmax attention scores for THIS layer into the
       // mega-buffer at offset L * 32 * 256 words. The dispatch only depends
       // on captureAllScores — the callback is just for streaming the result
@@ -861,6 +949,18 @@ export async function createInferenceEngine(
     interruptRequested = false
     generationActive = true
 
+    // E45 / P-20260526-07: announce continuous-attention probe activation once
+    // per generate() call. Audit trail for "yes, the experiment ran on this run."
+    if (e45Config.attentionKernel === 'fixedpoint') {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[E45 fixedpoint] generate(): attentionKernel='fixedpoint', ` +
+        `max_iter=${e45Config.fixedPointMaxIter}. ` +
+        `Sub-step probe (per-attention FP). NOT DEQ-equivalent. ` +
+        `See PREDICTIONS.md P-20260526-07.`,
+      )
+    }
+
     // Build a per-layer lookup once: layer -> Set<head> (empty set = ablate all heads)
     const ablationByLayer = new Map<number, Set<number> | 'all'>()
     for (const a of ablations ?? []) {
@@ -942,6 +1042,40 @@ export async function createInferenceEngine(
         false, callbacks.onLayerLogitLens,
         ablationByLayer,
       )
+
+      // E45 / P-20260526-07: per-token telemetry log for the fixed-point probe.
+      // Summarizes ||Q_t - Q_{t-1}||_inf and initial-softmax score range across
+      // all (layer, head) pairs. Phase 1 diagnostic; Phase 2 will write JSON
+      // artifacts under tests/results/YYYY-MM-DD/E45-*.json per RESEARCH_STANDARDS § 2.
+      if (e45Config.attentionKernel === 'fixedpoint') {
+        try {
+          const telem = await readAttnTelemetry()
+          let minDiff = Infinity, maxDiff = -Infinity
+          let minScore = Infinity, maxScore = -Infinity
+          for (let L = 0; L < PHI3.LAYERS; L++) {
+            for (let h = 0; h < PHI3.HEADS; h++) {
+              const base = (L * PHI3.HEADS + h) * 4
+              const d = telem[base]
+              const maxS = telem[base + 2]
+              const minS = telem[base + 3]
+              if (Number.isFinite(d)) {
+                minDiff = Math.min(minDiff, d)
+                maxDiff = Math.max(maxDiff, d)
+              }
+              if (Number.isFinite(maxS)) maxScore = Math.max(maxScore, maxS)
+              if (Number.isFinite(minS)) minScore = Math.min(minScore, minS)
+            }
+          }
+          // eslint-disable-next-line no-console
+          console.log(
+            `[E45 fixedpoint] tok ${i}: ||Q_t-Q_{t-1}||_inf range=[${minDiff.toExponential(2)}, ${maxDiff.toExponential(2)}], ` +
+            `init score range=[${minScore.toFixed(2)}, ${maxScore.toFixed(2)}], iter=${e45Config.fixedPointMaxIter}`,
+          )
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn('[E45 fixedpoint] telemetry readback failed:', e)
+        }
+      }
     }
 
     generationActive = false
@@ -1604,5 +1738,8 @@ export async function createInferenceEngine(
     generate, interrupt, validateLastAttention, runValidationSuite, tokenizer,
     debugEmbedToken,
     ready: true,
+    // E45 / P-20260526-07: continuous-attention fixed-point probe surface.
+    e45Config,
+    readAttnTelemetry,
   }
 }

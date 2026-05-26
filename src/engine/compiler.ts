@@ -19,6 +19,10 @@ import ropeSrc from './shaders/rope.wgsl?raw'
 import kvAppendSrc from './shaders/kv_append.wgsl?raw'
 import attentionSrc from './shaders/attention.wgsl?raw'
 import attentionScoresSrc from './shaders/attention_scores.wgsl?raw'
+// E45 / P-20260526-07 — continuous-attention self-consistency probe.
+// Sub-step Picard iteration of Q ← softmax(QK^T/√d)V. NOT DEQ-equivalent.
+// See PREDICTIONS.md and brain experiment E45 for the pre-registration.
+import attentionFixedpointSrc from './shaders/attention_fixedpoint.wgsl?raw'
 import fusedFfnSrc from './shaders/fused_ffn.wgsl?raw'
 import embeddingSrc from './shaders/embedding.wgsl?raw'
 import argmaxSrc from './shaders/argmax.wgsl?raw'
@@ -59,6 +63,10 @@ interface Pipelines {
   kvAppend: GPUComputePipeline
   attention: GPUComputePipeline
   attentionScores: GPUComputePipeline // viz-only: post-softmax scores per (head, slot)
+  /** E45 / P-20260526-07: Picard fixed-point iteration of attention. Active
+   *  only when `?attn=fixedpoint` is set. Same bindings as attention plus
+   *  a telemetry storage buffer. Sub-step probe, NOT DEQ-equivalent. */
+  attentionFixedpoint: GPUComputePipeline
   oProjMatmul: GPUComputePipeline     // int4 matmul, K=3072→3072
   addNorm: GPUComputePipeline
   fusedFfn: GPUComputePipeline        // gate+up+SiLU fused
@@ -95,6 +103,13 @@ interface Buffers {
   kOut: GPUBuffer          // 3072 f16 = 6KB
   vOut: GPUBuffer          // 3072 f16 = 6KB
   attnOut: GPUBuffer       // 3072 f16 = 6KB
+
+  /** E45 / P-20260526-07: telemetry from the fixed-point attention kernel.
+   *  Layout: [layer * 32 + head] * 4 f32 = LAYERS × HEADS × 4 f32 = 16 KB.
+   *  Per (layer, head): [final_diff_inf, iter_count, init_max_score, init_min_score].
+   *  Allocated unconditionally so the experiment can run without buffer
+   *  re-allocation; only written when attentionFixedpoint pipeline runs. */
+  attnTelemetry: GPUBuffer  // 32 × 32 × 4 × 4 = 16 KB
 
   // FFN intermediates
   ffnOut: GPUBuffer        // 8192 f16 = 16KB (SiLU output)
@@ -158,6 +173,7 @@ export function compile(device: GPUDevice): { pipelines: Pipelines; buffers: Buf
     kvAppend: createPipeline(device, kvAppendSrc, 'kv_append'),
     attention: createPipeline(device, attentionSrc, 'attention'),
     attentionScores: createPipeline(device, attentionScoresSrc, 'attention_scores'),
+    attentionFixedpoint: createPipeline(device, attentionFixedpointSrc, 'attention_fixedpoint'),
     oProjMatmul: createPipeline(device, int4MatmulSrc, 'int4_matmul'),
     addNorm: createPipeline(device, addNormSrc, 'add_norm'),
     fusedFfn: createPipeline(device, fusedFfnSrc, 'fused_ffn_kernel'),
@@ -182,6 +198,9 @@ export function compile(device: GPUDevice): { pipelines: Pipelines; buffers: Buf
     kOut: createBuf(device, D * f16, STORAGE, 'kOut'),
     vOut: createBuf(device, D * f16, STORAGE, 'vOut'),
     attnOut: createBuf(device, D * f16, STORAGE, 'attnOut'),
+
+    // E45: 32 layers × 32 heads × 4 f32 telemetry slots = 16,384 bytes
+    attnTelemetry: createBuf(device, PHI3.LAYERS * PHI3.HEADS * 4 * 4, STORAGE, 'attnTelemetry'),
 
     ffnOut: createBuf(device, PHI3.FFN * f16, STORAGE, 'ffnOut'),
 
