@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 # ruff: noqa: E501
+# pyright: reportPrivateImportUsage=false
+# (Pyright flags torch.randint / torch.full / torch.arange / torch.long as
+#  "private" because of how PyTorch's __init__.py re-exports work, but they
+#  are documented public API. Standard suppression for research scripts.)
 """
 E45 / P-20260526-07 — Phase 0 small-model control.
 
