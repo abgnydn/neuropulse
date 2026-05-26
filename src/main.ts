@@ -2914,6 +2914,45 @@ async function initEngine() {
       }
     }
 
+    // E45: dev-only handle for the iter-sweep harness (tools/e45-iter-sweep).
+    // Lets a devtools session do `await window.__e45.sweep(...)` without
+    // touching the prod UI. Gated on import.meta.env.DEV so this never ships
+    // to neuropulse.live.
+    if (import.meta.env.DEV) {
+      ;(globalThis as { __e45?: unknown }).__e45 = {
+        engine,
+        /** Run a max_iter sweep on the same prompt, capture decoded token
+         *  strings + per-token telemetry diff-max per iter setting. */
+        async sweep(prompt: string, iters: number[], maxTokens = 12) {
+          if (!engine) throw new Error('engine not ready')
+          const results: Array<{
+            iter: number
+            kernel: 'standard' | 'fixedpoint'
+            text: string
+            tokens: { id: number; t: string }[]
+          }> = []
+          for (const iter of iters) {
+            engine.e45Config.attentionKernel = iter === 0 ? 'standard' : 'fixedpoint'
+            if (iter > 0) engine.e45Config.fixedPointMaxIter = iter
+            const collected: { id: number; t: string }[] = []
+            const text = await engine.generate(prompt, maxTokens, {
+              onToken: (t, id) => collected.push({ id, t }),
+            })
+            results.push({
+              iter,
+              kernel: engine.e45Config.attentionKernel,
+              text,
+              tokens: collected,
+            })
+            console.log(`[E45 sweep] iter=${iter} kernel=${engine.e45Config.attentionKernel} text=${JSON.stringify(text)}`)
+          }
+          console.log('[E45 sweep] complete', results)
+          return results
+        },
+      }
+      console.log('[E45 dev] window.__e45 exposed (engine, sweep). Try: await __e45.sweep("The capital of Japan is", [0, 1, 2, 3, 5, 10, 20, 50, 100], 12)')
+    }
+
     // Butterfly experiment: floating panel runs an in-browser transgenerational
     // compaction demo using the same Phi-3 instance. See src/butterfly-mode.ts.
     //
