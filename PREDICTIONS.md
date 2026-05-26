@@ -252,8 +252,16 @@ Each prediction has six fields:
   - **Settling test**: per-layer attention entropy (averaged across heads and tokens, on the 15-prompt sweep) plotted against bucket outcome. If `ρ(H, bucket-numeric) < -0.5` (high entropy ↔ Bucket C), H_agent is broadly correct.
 - **disentanglement control**: A separate 4-layer / 64-hidden / 256-vocab transformer trained to convergence on induction-heads + modular arithmetic (Phase 0, see E45 brain note). Run the same fixed-point protocol on it. If small-well-trained converges Bucket A across all layers and Phi-3-mini does not, divergence is scale-related (or training-objective-related). If both produce the same structured Bucket B pattern, it is a general phenomenon, not a Phi-3 idiosyncrasy.
 - **conditional next experiment** (NOT pre-committed, NOT budgeted): IF Bucket C is the dominant outcome, file a follow-up P-XXX to train a fresh attention layer from scratch with a fixed-point regularizer (`λ · ||Q_{t+1} − Q_t||` at iter=K) and compare quality vs a vanilla-trained attention layer of the same size. Decision deferred to post-P-20260526-07 outcome.
-- **status**: open
-- **outcome**: —
+- **status**: open — Phase 1 wiring gate **CLOSED** 2026-05-26 (in-browser run, M2 Pro, Chrome, build `710c68a`+). Awaiting Phase 2 (`max_iter=100` sweep over 6-test validation + 15-prompt + long-context).
+- **outcome**: — (Phase 2 result pending; Phase-1 wiring sanity recorded below.)
+- **phase-1 wiring sanity** (max_iter=1 ≡ baseline, recorded for audit; NOT the experimental answer):
+  - Attention shader equivalence (fixedpoint vs explicit-softmax reference, same q4 weights, layer 31, kv_len=36): relErr=**0.0206%** (target <1e-2%), l2=4.61e-3.
+  - Logit agreement vs HF teacher-forced (20 steps): 17/20 top-1, meanJSD=4.32e-2.
+  - Multi-prompt sweep (15×5): 59/75 top-1, meanJSD=1.02e-1.
+  - Long-context decode (290-token prompt, 10 steps, paged-KV 19 pages, kv_len=299): 9/10 top-1, meanJSD=2.78e-2.
+  - Sampling self-test (5000 samples @ T=1): PASS, JSD=1.38e-4.
+  - Per-layer hidden state vs HF fp16 (9 checkpoints): identical to standard-kernel baseline within f32 noise; embed cos=0.5360 → L31 cos=0.3382 is the known q4 quantization floor, not a fixedpoint regression.
+  - 180+ tokens generated end-to-end with per-token telemetry readback (`||Q_t-Q_{t-1}||_inf ∈ [0.25, 1.6]`, init pre-softmax scores ∈ [-28, +18]); no NaN, no device-lost. Wiring is closed end-to-end.
 - **threats to validity** (declared up-front):
   - **Sub-step probe ≠ DEQ.** This experiment iterates Q inside a single attention call (per-attention FP), not the whole transformer block (per-block FP). The result speaks to "what happens when attention is iterated to self-consistency" but does NOT speak to "what a continuous transformer would look like." Per-block FP is a strictly larger experiment, deferred.
   - **RoPE choice.** Q is iterated post-RoPE; RoPE is applied once at iter=0. The alternative (re-apply RoPE each iter, treating Q's position as drifting) is semantically odd but mathematically a valid choice; this experiment does not test that interpretation.
