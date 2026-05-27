@@ -1,0 +1,351 @@
+{
+  "meta": {
+    "protocol": "E45 / P-20260526-07 phase-0 small-model control",
+    "hypothesis": "If small well-trained transformer converges Bucket A across all layers but Phi-3-mini does not (per neuropulse-side run), divergence is scale-related or training-objective-related, NOT a general phenomenon.",
+    "passBar": "informational \u2014 disentanglement control, no pass/fail on its own",
+    "seed": 42,
+    "warmup": 0,
+    "trials": 1,
+    "model_config": {
+      "n_layer": 4,
+      "d_model": 64,
+      "n_head": 4,
+      "vocab": 256,
+      "seq_len": 32
+    }
+  },
+  "env": {
+    "python_version": "3.14.4",
+    "torch_version": "2.11.0",
+    "device": "cpu",
+    "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+    "timestamp": "2026-05-27T10:59:03.577327+00:00"
+  },
+  "rows": [
+    {
+      "max_iter": 1,
+      "top1_match_rate": 1.0,
+      "bucket_counts": {
+        "A": 4
+      },
+      "per_layer": [
+        {
+          "layer": 0,
+          "l2_diff": 0.0,
+          "ref_l2": 244.2381134033203,
+          "residual_ratio": 0.0,
+          "bucket": "A",
+          "entropy_iter0": 2.8862545490264893,
+          "final_diff_inf": 5.399259567260742,
+          "init_max_score": 9.016464233398438,
+          "init_min_score": -7.6450605392456055
+        },
+        {
+          "layer": 1,
+          "l2_diff": 0.0,
+          "ref_l2": 271.24114990234375,
+          "residual_ratio": 0.0,
+          "bucket": "A",
+          "entropy_iter0": 0.9981457591056824,
+          "final_diff_inf": 7.947149276733398,
+          "init_max_score": 22.118642807006836,
+          "init_min_score": -32.193321228027344
+        },
+        {
+          "layer": 2,
+          "l2_diff": 0.0,
+          "ref_l2": 405.9919128417969,
+          "residual_ratio": 0.0,
+          "bucket": "A",
+          "entropy_iter0": 1.2525562047958374,
+          "final_diff_inf": 9.278512954711914,
+          "init_max_score": 22.6544132232666,
+          "init_min_score": -19.752912521362305
+        },
+        {
+          "layer": 3,
+          "l2_diff": 0.0,
+          "ref_l2": 693.6453247070312,
+          "residual_ratio": 0.0,
+          "bucket": "A",
+          "entropy_iter0": 0.7406059503555298,
+          "final_diff_inf": 9.825429916381836,
+          "init_max_score": 29.470256805419922,
+          "init_min_score": -34.8604621887207
+        }
+      ]
+    },
+    {
+      "max_iter": 2,
+      "top1_match_rate": 0.912109375,
+      "bucket_counts": {
+        "A": 3,
+        "B": 1
+      },
+      "per_layer": [
+        {
+          "layer": 0,
+          "l2_diff": 58.61480712890625,
+          "ref_l2": 244.2381134033203,
+          "residual_ratio": 0.2399904188258826,
+          "bucket": "A",
+          "entropy_iter0": 2.8862545490264893,
+          "final_diff_inf": 3.479408025741577,
+          "init_max_score": 9.016464233398438,
+          "init_min_score": -7.6450605392456055
+        },
+        {
+          "layer": 1,
+          "l2_diff": 192.59556579589844,
+          "ref_l2": 271.24114990234375,
+          "residual_ratio": 0.7100529026117148,
+          "bucket": "A",
+          "entropy_iter0": 0.8857690095901489,
+          "final_diff_inf": 3.5748040676116943,
+          "init_max_score": 22.209186553955078,
+          "init_min_score": -33.24991226196289
+        },
+        {
+          "layer": 2,
+          "l2_diff": 357.2208557128906,
+          "ref_l2": 405.9919128417969,
+          "residual_ratio": 0.8798718506791762,
+          "bucket": "A",
+          "entropy_iter0": 1.2700718641281128,
+          "final_diff_inf": 6.171492576599121,
+          "init_max_score": 24.75214958190918,
+          "init_min_score": -19.398286819458008
+        },
+        {
+          "layer": 3,
+          "l2_diff": 1426.46875,
+          "ref_l2": 693.6453247070312,
+          "residual_ratio": 2.056481459890881,
+          "bucket": "B",
+          "entropy_iter0": 0.8690932989120483,
+          "final_diff_inf": 5.032498359680176,
+          "init_max_score": 28.827648162841797,
+          "init_min_score": -32.591732025146484
+        }
+      ]
+    },
+    {
+      "max_iter": 5,
+      "top1_match_rate": 0.91015625,
+      "bucket_counts": {
+        "A": 3,
+        "B": 1
+      },
+      "per_layer": [
+        {
+          "layer": 0,
+          "l2_diff": 58.55855178833008,
+          "ref_l2": 244.2381134033203,
+          "residual_ratio": 0.23976008892449133,
+          "bucket": "A",
+          "entropy_iter0": 2.8862545490264893,
+          "final_diff_inf": 0.43497616052627563,
+          "init_max_score": 9.016464233398438,
+          "init_min_score": -7.6450605392456055
+        },
+        {
+          "layer": 1,
+          "l2_diff": 207.83213806152344,
+          "ref_l2": 271.24114990234375,
+          "residual_ratio": 0.7662264303788353,
+          "bucket": "A",
+          "entropy_iter0": 0.8952574729919434,
+          "final_diff_inf": 1.4299578666687012,
+          "init_max_score": 22.223310470581055,
+          "init_min_score": -33.10101318359375
+        },
+        {
+          "layer": 2,
+          "l2_diff": 355.16094970703125,
+          "ref_l2": 405.9919128417969,
+          "residual_ratio": 0.8747980895014208,
+          "bucket": "A",
+          "entropy_iter0": 1.2690098285675049,
+          "final_diff_inf": 3.755418300628662,
+          "init_max_score": 26.660791397094727,
+          "init_min_score": -19.530506134033203
+        },
+        {
+          "layer": 3,
+          "l2_diff": 1477.4339599609375,
+          "ref_l2": 693.6453247070312,
+          "residual_ratio": 2.129955911668471,
+          "bucket": "B",
+          "entropy_iter0": 0.9554531574249268,
+          "final_diff_inf": 2.375544548034668,
+          "init_max_score": 30.02501678466797,
+          "init_min_score": -34.000999450683594
+        }
+      ]
+    },
+    {
+      "max_iter": 10,
+      "top1_match_rate": 0.91015625,
+      "bucket_counts": {
+        "A": 3,
+        "B": 1
+      },
+      "per_layer": [
+        {
+          "layer": 0,
+          "l2_diff": 58.93471145629883,
+          "ref_l2": 244.2381134033203,
+          "residual_ratio": 0.24130022392933223,
+          "bucket": "A",
+          "entropy_iter0": 2.8862545490264893,
+          "final_diff_inf": 0.09773889183998108,
+          "init_max_score": 9.016464233398438,
+          "init_min_score": -7.6450605392456055
+        },
+        {
+          "layer": 1,
+          "l2_diff": 214.032958984375,
+          "ref_l2": 271.24114990234375,
+          "residual_ratio": 0.7890873455647652,
+          "bucket": "A",
+          "entropy_iter0": 0.8935695886611938,
+          "final_diff_inf": 0.9906554818153381,
+          "init_max_score": 22.223430633544922,
+          "init_min_score": -33.10014343261719
+        },
+        {
+          "layer": 2,
+          "l2_diff": 379.44403076171875,
+          "ref_l2": 405.9919128417969,
+          "residual_ratio": 0.9346098253675731,
+          "bucket": "A",
+          "entropy_iter0": 1.2584151029586792,
+          "final_diff_inf": 3.755012035369873,
+          "init_max_score": 26.95350456237793,
+          "init_min_score": -19.38939666748047
+        },
+        {
+          "layer": 3,
+          "l2_diff": 1640.0936279296875,
+          "ref_l2": 693.6453247070312,
+          "residual_ratio": 2.3644556800298466,
+          "bucket": "B",
+          "entropy_iter0": 0.9764103889465332,
+          "final_diff_inf": 2.3039252758026123,
+          "init_max_score": 30.06607437133789,
+          "init_min_score": -33.635501861572266
+        }
+      ]
+    },
+    {
+      "max_iter": 50,
+      "top1_match_rate": 0.91015625,
+      "bucket_counts": {
+        "A": 3,
+        "B": 1
+      },
+      "per_layer": [
+        {
+          "layer": 0,
+          "l2_diff": 58.98006057739258,
+          "ref_l2": 244.2381134033203,
+          "residual_ratio": 0.24148589978664145,
+          "bucket": "A",
+          "entropy_iter0": 2.8862545490264893,
+          "final_diff_inf": 1.259148120880127e-06,
+          "init_max_score": 9.016464233398438,
+          "init_min_score": -7.6450605392456055
+        },
+        {
+          "layer": 1,
+          "l2_diff": 214.95567321777344,
+          "ref_l2": 271.24114990234375,
+          "residual_ratio": 0.7924891680158596,
+          "bucket": "A",
+          "entropy_iter0": 0.8932240605354309,
+          "final_diff_inf": 0.41233712434768677,
+          "init_max_score": 22.223430633544922,
+          "init_min_score": -33.10014343261719
+        },
+        {
+          "layer": 2,
+          "l2_diff": 379.8760986328125,
+          "ref_l2": 405.9919128417969,
+          "residual_ratio": 0.9356740531450908,
+          "bucket": "A",
+          "entropy_iter0": 1.2530903816223145,
+          "final_diff_inf": 3.755011558532715,
+          "init_max_score": 27.774866104125977,
+          "init_min_score": -19.391094207763672
+        },
+        {
+          "layer": 3,
+          "l2_diff": 1647.6209716796875,
+          "ref_l2": 693.6453247070312,
+          "residual_ratio": 2.375307542619967,
+          "bucket": "B",
+          "entropy_iter0": 0.976576566696167,
+          "final_diff_inf": 2.2858448028564453,
+          "init_max_score": 30.00881576538086,
+          "init_min_score": -33.66002655029297
+        }
+      ]
+    },
+    {
+      "max_iter": 100,
+      "top1_match_rate": 0.91015625,
+      "bucket_counts": {
+        "A": 3,
+        "B": 1
+      },
+      "per_layer": [
+        {
+          "layer": 0,
+          "l2_diff": 58.98006057739258,
+          "ref_l2": 244.2381134033203,
+          "residual_ratio": 0.24148589978664145,
+          "bucket": "A",
+          "entropy_iter0": 2.8862545490264893,
+          "final_diff_inf": 9.5367431640625e-07,
+          "init_max_score": 9.016464233398438,
+          "init_min_score": -7.6450605392456055
+        },
+        {
+          "layer": 1,
+          "l2_diff": 214.93222045898438,
+          "ref_l2": 271.24114990234375,
+          "residual_ratio": 0.7924027034112171,
+          "bucket": "A",
+          "entropy_iter0": 0.8932240605354309,
+          "final_diff_inf": 0.2705976366996765,
+          "init_max_score": 22.223430633544922,
+          "init_min_score": -33.10014343261719
+        },
+        {
+          "layer": 2,
+          "l2_diff": 379.7783203125,
+          "ref_l2": 405.9919128417969,
+          "residual_ratio": 0.9354332150465481,
+          "bucket": "A",
+          "entropy_iter0": 1.2529821395874023,
+          "final_diff_inf": 3.755011558532715,
+          "init_max_score": 27.774925231933594,
+          "init_min_score": -19.391096115112305
+        },
+        {
+          "layer": 3,
+          "l2_diff": 1647.3184814453125,
+          "ref_l2": 693.6453247070312,
+          "residual_ratio": 2.3748714548621455,
+          "bucket": "B",
+          "entropy_iter0": 0.9767190217971802,
+          "final_diff_inf": 2.2858457565307617,
+          "init_max_score": 30.0085391998291,
+          "init_min_score": -33.66001892089844
+        }
+      ]
+    }
+  ],
+  "status": "informational",
+  "diagnosis": "Compare bucket distribution at max_iter=100 against the Phi-3-mini run's per-layer bucket histogram. Concordant patterns \u2192 general phenomenon. Divergent patterns \u2192 Phi-3-mini idiosyncrasy."
+}

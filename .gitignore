@@ -10,4 +10,6 @@ tools/reference.json
 test-results/
 playwright-report/
 .playwright-profile-e45/
+tools/small-model-control/small_model.pt
+tests/results/e45-probe.png
 tools/butterfly-embed-cache.json
