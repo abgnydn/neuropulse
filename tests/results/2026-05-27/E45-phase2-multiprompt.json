@@ -1,0 +1,1381 @@
+{
+  "experimentId": "E45",
+  "predictionId": "P-20260526-07",
+  "phase": "2-multiprompt",
+  "baseUrl": "http://localhost:4000",
+  "iters": [
+    1,
+    2,
+    3,
+    10
+  ],
+  "maxNewTokens": 12,
+  "promptsTotal": 16,
+  "promptsDone": 16,
+  "startedAt": "2026-05-27T08:27:55.717Z",
+  "doneAt": "2026-05-27T08:32:33.493Z",
+  "elapsedSec": 278,
+  "results": [
+    {
+      "prompt": "The capital of Japan is",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "The capital of Japan is Tokyo. Tokyo is a major global",
+          "ms": 40326,
+          "tokenIds": [
+            450,
+            7483,
+            310,
+            5546,
+            338,
+            20377,
+            29889,
+            20377,
+            338,
+            263,
+            4655,
+            5534
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "lee\n\n\n\n\nTop \nTop \n",
+          "ms": 3408,
+          "tokenIds": [
+            17179,
+            13,
+            13,
+            13,
+            13,
+            13,
+            7031,
+            29871,
+            13,
+            7031,
+            29871,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "Capital capital capital capital Capitallee Capitalícioleeleeleelee",
+          "ms": 3305,
+          "tokenIds": [
+            25343,
+            7483,
+            7483,
+            7483,
+            25343,
+            17179,
+            25343,
+            24394,
+            17179,
+            17179,
+            17179,
+            17179
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "Capital capital capital capital Capitallee Capitalícioleeleeleelee",
+          "ms": 3428,
+          "tokenIds": [
+            25343,
+            7483,
+            7483,
+            7483,
+            25343,
+            17179,
+            25343,
+            24394,
+            17179,
+            17179,
+            17179,
+            17179
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Hello, world!",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "Hello! I'm glad to assist you. How can",
+          "ms": 3095,
+          "tokenIds": [
+            15043,
+            29991,
+            306,
+            29915,
+            29885,
+            10932,
+            304,
+            6985,
+            366,
+            29889,
+            1128,
+            508
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "ício 2. \n\n \n \n ",
+          "ms": 3194,
+          "tokenIds": [
+            24394,
+            29871,
+            29906,
+            29889,
+            29871,
+            13,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "RESS\n\n\n\n\n\nTopicidealong",
+          "ms": 3343,
+          "tokenIds": [
+            26785,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            7031,
+            293,
+            680,
+            284,
+            549
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "ícioworldbre  to the\n\n\n\n\n\n",
+          "ms": 3333,
+          "tokenIds": [
+            24394,
+            11526,
+            1030,
+            29871,
+            304,
+            278,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "What is 2 + 2?",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "2 + 2 equals 4. This is a",
+          "ms": 3606,
+          "tokenIds": [
+            29871,
+            29906,
+            718,
+            29871,
+            29906,
+            15743,
+            29871,
+            29946,
+            29889,
+            910,
+            338,
+            263
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "+ \n+ \n \n \n \n",
+          "ms": 3637,
+          "tokenIds": [
+            29974,
+            29871,
+            13,
+            29974,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "+ \n\n+\n+\n\n\n\n+",
+          "ms": 3622,
+          "tokenIds": [
+            29974,
+            29871,
+            13,
+            13,
+            29974,
+            13,
+            29974,
+            13,
+            13,
+            13,
+            13,
+            29974
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "+ \n+ \n \n \n \n",
+          "ms": 3916,
+          "tokenIds": [
+            29974,
+            29871,
+            13,
+            29974,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Name three colors.",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "1. Red\n\n2. Blue\n\n3",
+          "ms": 3214,
+          "tokenIds": [
+            29871,
+            29896,
+            29889,
+            4367,
+            13,
+            13,
+            29906,
+            29889,
+            10924,
+            13,
+            13,
+            29941
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "lee2 \n\n\n\n\n \n \n",
+          "ms": 3110,
+          "tokenIds": [
+            17179,
+            29906,
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            29871,
+            13,
+            29871,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "lee \n \n \n \n \n ",
+          "ms": 3251,
+          "tokenIds": [
+            17179,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "color 2 2      color",
+          "ms": 3453,
+          "tokenIds": [
+            2780,
+            29871,
+            29906,
+            29871,
+            29906,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            2780
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Write a Python function to reverse a string",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "Certainly! Below is a Python function that takes a",
+          "ms": 3553,
+          "tokenIds": [
+            315,
+            13946,
+            368,
+            29991,
+            13866,
+            338,
+            263,
+            5132,
+            740,
+            393,
+            4893,
+            263
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "RESS\n\n\n\n\n\n\npython\npython\n",
+          "ms": 3568,
+          "tokenIds": [
+            26785,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            4691,
+            13,
+            4691,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "RESS\n\n\n\n\n\n\n\npython\npython",
+          "ms": 3616,
+          "tokenIds": [
+            26785,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            4691,
+            13,
+            4691
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "RESS\n\n\n\n\n\n\nTopicidea",
+          "ms": 3693,
+          "tokenIds": [
+            26785,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            7031,
+            293,
+            680,
+            29874
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Explain gravity in one sentence.",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "Gravity is a fundamental force that attracts objects with mass",
+          "ms": 3440,
+          "tokenIds": [
+            4989,
+            17037,
+            338,
+            263,
+            15281,
+            4889,
+            393,
+            13978,
+            29879,
+            3618,
+            411,
+            4158
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "ício\n\n\n\n\n\n\n\nplz.",
+          "ms": 3605,
+          "tokenIds": [
+            24394,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            572,
+            29920,
+            29889
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "ício\n\n\n\n\n\n\n\nplz.",
+          "ms": 3517,
+          "tokenIds": [
+            24394,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            572,
+            29920,
+            29889
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "ício\n\n\n\n\n\n\n\nplz.",
+          "ms": 3456,
+          "tokenIds": [
+            24394,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            572,
+            29920,
+            29889
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "The quick brown fox jumps over the lazy",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "dog. This sentence is a well-known pangram",
+          "ms": 3938,
+          "tokenIds": [
+            11203,
+            29889,
+            910,
+            10541,
+            338,
+            263,
+            1532,
+            29899,
+            5203,
+            282,
+            574,
+            2572
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "ício.\n\n\n\n\nbreathing.\n",
+          "ms": 3940,
+          "tokenIds": [
+            24394,
+            29889,
+            13,
+            13,
+            13,
+            13,
+            13,
+            1030,
+            493,
+            292,
+            29889,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "RESS.\n\n\n\n\n\n\nRESS.\n",
+          "ms": 3849,
+          "tokenIds": [
+            26785,
+            29889,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            26785,
+            29889,
+            13
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "RESS.\n\n\n\n\n\nbreathing.",
+          "ms": 4163,
+          "tokenIds": [
+            26785,
+            29889,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            1030,
+            493,
+            292,
+            29889
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "こんにちは、元気ですか?",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "Ohayō gozaimasu! Watashi mo",
+          "ms": 4109,
+          "tokenIds": [
+            29871,
+            6439,
+            388,
+            30099,
+            748,
+            1362,
+            25268,
+            29884,
+            29991,
+            14269,
+            18321,
+            2730
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "lee \n \n \n \n \n ",
+          "ms": 4209,
+          "tokenIds": [
+            17179,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "lee \n \n \n \n \n ",
+          "ms": 4103,
+          "tokenIds": [
+            17179,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "lee \n \n \n \n\n\n\n",
+          "ms": 4389,
+          "tokenIds": [
+            17179,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            13,
+            13,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "🚀 rocket emoji test",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "Absolutely! Here's a simple \"rocket",
+          "ms": 4005,
+          "tokenIds": [
+            1976,
+            2929,
+            11579,
+            29991,
+            2266,
+            29915,
+            29879,
+            263,
+            2560,
+            376,
+            307,
+            3522
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "RESS \n\n\n\n\n\n\n\n \n",
+          "ms": 3882,
+          "tokenIds": [
+            26785,
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            29871,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "RESS\n\n\n\n\n\n\n\n\npickle",
+          "ms": 4120,
+          "tokenIds": [
+            26785,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            23945,
+            280
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "RESS\n\n\n\n\n\n\n\n\npickle",
+          "ms": 4105,
+          "tokenIds": [
+            26785,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            23945,
+            280
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Parse JSON: {\"key\": 42, \"list\": [1,2,3]}",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "To parse the given JSON string, you can use a programming",
+          "ms": 4916,
+          "tokenIds": [
+            1763,
+            6088,
+            278,
+            2183,
+            4663,
+            1347,
+            29892,
+            366,
+            508,
+            671,
+            263,
+            8720
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "betterms, and \n\n\n\n\n\n",
+          "ms": 4826,
+          "tokenIds": [
+            6878,
+            357,
+            1516,
+            29892,
+            322,
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "",
+          "ms": 5092,
+          "tokenIds": [
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            29871,
+            13
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "",
+          "ms": 5237,
+          "tokenIds": [
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            29871,
+            13,
+            29871
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Why is the sky blue?",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "The sky appears blue to the human eye due to a phenomen",
+          "ms": 3445,
+          "tokenIds": [
+            450,
+            14744,
+            5692,
+            7254,
+            304,
+            278,
+            5199,
+            10977,
+            2861,
+            304,
+            263,
+            27791
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "ício\n\n\n\nbrowned.\nblow",
+          "ms": 3497,
+          "tokenIds": [
+            24394,
+            13,
+            13,
+            13,
+            13,
+            29890,
+            4708,
+            287,
+            29889,
+            13,
+            29890,
+            677
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "lee\n\n\n\n\n\n\n\ncoloredges",
+          "ms": 3495,
+          "tokenIds": [
+            17179,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            2780,
+            287,
+            2710
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "ício\n\n\n\nbrowned.\nbyth",
+          "ms": 3704,
+          "tokenIds": [
+            24394,
+            13,
+            13,
+            13,
+            13,
+            29890,
+            4708,
+            287,
+            29889,
+            13,
+            29890,
+            1541
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "List 5 fruits.",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "1. Apples\n\n2. Bananas\n",
+          "ms": 3606,
+          "tokenIds": [
+            29871,
+            29896,
+            29889,
+            2401,
+            793,
+            13,
+            13,
+            29906,
+            29889,
+            10765,
+            16397,
+            13
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "lee22 \n\n\n\n\n \n ",
+          "ms": 3366,
+          "tokenIds": [
+            17179,
+            29906,
+            29906,
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            29871,
+            13,
+            29871
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "lee\n\n\n\n\n\n\n\nTopicide",
+          "ms": 3486,
+          "tokenIds": [
+            17179,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            7031,
+            293,
+            680
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "lee \n\n\n\n\n\n\nktion \n",
+          "ms": 3571,
+          "tokenIds": [
+            17179,
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            7066,
+            29871,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Translate hello to French.",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "The translation of \"hello\" to French is \"bonj",
+          "ms": 3458,
+          "tokenIds": [
+            450,
+            13962,
+            310,
+            376,
+            12199,
+            29908,
+            304,
+            5176,
+            338,
+            376,
+            6718,
+            29926
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "lee\n\n\n\n\n\n\n\nTopicide",
+          "ms": 3563,
+          "tokenIds": [
+            17179,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            7031,
+            293,
+            680
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "lee\n\n\n\n\n\n\n\nTopicide",
+          "ms": 3538,
+          "tokenIds": [
+            17179,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            7031,
+            293,
+            680
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "lee\n\n\n\n\n\n\n\nTopicide",
+          "ms": 3611,
+          "tokenIds": [
+            17179,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            7031,
+            293,
+            680
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "What is 15 percent of 80?",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "15 percent of 80 is calculated as follows",
+          "ms": 3988,
+          "tokenIds": [
+            29871,
+            29896,
+            29945,
+            10151,
+            310,
+            29871,
+            29947,
+            29900,
+            338,
+            12833,
+            408,
+            4477
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "",
+          "ms": 3984,
+          "tokenIds": [
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            29871,
+            13,
+            29871,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "",
+          "ms": 4145,
+          "tokenIds": [
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            29871
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "",
+          "ms": 4339,
+          "tokenIds": [
+            29871,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            29871,
+            13,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Who wrote Hamlet?",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "William Shakespeare, an English playwright and poet, wrote",
+          "ms": 3451,
+          "tokenIds": [
+            4667,
+            23688,
+            29892,
+            385,
+            4223,
+            1708,
+            29893,
+            1266,
+            322,
+            9821,
+            29892,
+            5456
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "ício      ício ício ício",
+          "ms": 3284,
+          "tokenIds": [
+            24394,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            24394,
+            29871,
+            24394,
+            29871,
+            24394
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "lee           ",
+          "ms": 3478,
+          "tokenIds": [
+            17179,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "ício       ício ício ",
+          "ms": 3677,
+          "tokenIds": [
+            24394,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            29871,
+            24394,
+            29871,
+            24394,
+            29871
+          ]
+        }
+      ]
+    },
+    {
+      "prompt": "Define recursion.",
+      "sweep": [
+        {
+          "iter": 1,
+          "kernel": "fixedpoint",
+          "text": "Recursion, in the context of computer science and programming",
+          "ms": 3032,
+          "tokenIds": [
+            3599,
+            1295,
+            291,
+            29892,
+            297,
+            278,
+            3030,
+            310,
+            6601,
+            10466,
+            322,
+            8720
+          ]
+        },
+        {
+          "iter": 2,
+          "kernel": "fixedpoint",
+          "text": "lee. the \n\n \n \n \n",
+          "ms": 3210,
+          "tokenIds": [
+            17179,
+            29889,
+            278,
+            29871,
+            13,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13
+          ]
+        },
+        {
+          "iter": 3,
+          "kernel": "fixedpoint",
+          "text": "lee. the \n \n \n \n ",
+          "ms": 3279,
+          "tokenIds": [
+            17179,
+            29889,
+            278,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871
+          ]
+        },
+        {
+          "iter": 10,
+          "kernel": "fixedpoint",
+          "text": "lee. the \n\n \n \n \n",
+          "ms": 3305,
+          "tokenIds": [
+            17179,
+            29889,
+            278,
+            29871,
+            13,
+            13,
+            29871,
+            13,
+            29871,
+            13,
+            29871,
+            13
+          ]
+        }
+      ]
+    }
+  ],
+  "pageErrors": []
+}
