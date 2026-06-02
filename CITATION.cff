@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use neuropulse in academic work, please cite as below."
+type: software
+title: "neuropulse: a real-time 1:1 visualization of a full-scale LLM forward pass in the browser"
+authors:
+  - family-names: Günaydın
+    given-names: Ahmet Barış
+    email: hi@barisgunaydin.com
+    affiliation: Independent researcher
+# doi: 10.5281/zenodo.XXXXXXXX   # add after the GitHub release mints it
+repository-code: "https://github.com/abgnydn/neuropulse"
+url: "https://neuropulse.live"
+license: MIT
+version: 0.2.0
+date-released: 2026-06-02
+keywords:
+  - WebGPU
+  - WGSL
+  - large language models
+  - transformer
+  - Phi-3
+  - mechanistic interpretability
+  - visualization
+  - in-browser computation
+  - reproducible research
+  - pre-registration
+abstract: >-
+  neuropulse renders a real forward pass of Phi-3-mini-4k-instruct in a web
+  browser, 1:1 from live WebGPU activations — no server, no sampling, no
+  approximation. The engine is a hand-written Phi-3 decode loop built from
+  eleven WGSL compute kernels over MLC q4f16_1 weights; each generated token is
+  292 GPU dispatches headless (348 with the visualizer reading back per-layer
+  attention scores and eight logit-lens probes). Every intermediate tensor is
+  read back and drawn on a Three.js scene so a 3.8B-parameter transformer can
+  be watched as it runs. The project is an empirical lab: a precision/methods
+  note, a pinned HuggingFace cross-validation artifact with per-layer L2/cosine
+  bounds, and a pre-registered ablation log of dated, falsifiable claims.
+  Experiment E45 tests and falsifies the zero-shot-inference variant of a
+  continuous-attention self-consistency fixed point. The Butterfly
+  context-compaction study that ran on this platform lives in its own
+  repository (github.com/abgnydn/butterfly).

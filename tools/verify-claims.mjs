@@ -28,10 +28,17 @@ async function parseCompilerConstants() {
   return out
 }
 
+// Experimental WGSL kernels that ship in the tree but are NOT part of the
+// canonical Phi-3 forward pass — they run only behind an opt-in flag and are
+// excluded from the "11 kernels" count the docs describe.
+//   attention_fixedpoint.wgsl — Picard-iterated attention, selected only via
+//   ?attn=fixedpoint for the E45 research (see PREDICTIONS.md P-20260526-07).
+const EXPERIMENTAL_SHADERS = new Set(['attention_fixedpoint.wgsl'])
+
 async function countShaders() {
   const dir = join(ROOT, 'src/engine/shaders')
   const files = await readdir(dir)
-  return files.filter((f) => f.endsWith('.wgsl')).sort()
+  return files.filter((f) => f.endsWith('.wgsl') && !EXPERIMENTAL_SHADERS.has(f)).sort()
 }
 
 function deriveFacts(phi3, kernels) {

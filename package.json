@@ -11,9 +11,7 @@
     "verify:claims": "node tools/verify-claims.mjs",
     "verify:shortcuts": "node tools/check-shortcuts.mjs",
     "verify": "npm run verify:claims && npm run verify:shortcuts",
-    "check": "npm run typecheck && npm run verify && npm run build",
-    "sweep:butterfly": "node tools/run-butterfly-sweep.mjs",
-    "grade:butterfly": "node tools/grade-butterfly.mjs"
+    "check": "npm run typecheck && npm run verify && npm run build"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

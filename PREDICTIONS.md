@@ -268,7 +268,7 @@ Each prediction has six fields:
   - **Attractor vocabulary is low-dimensional**: across all 16 prompts at iter ≥ 2, outputs are dominated by `"lee"` (id 17179), `"ício"` (id 24394), `"RESS"`, `"Topicide"`/`"Topicidea"`, and `\n`/spaces. Not a single global attractor; a small subspace.
   - **Per-token telemetry consistency**: at iter=10, `||Q_t-Q_{t-1}||_∞` is at f32 noise (≤1.91e-6) for most tokens but spikes to ~12 for tokens in some prompts, matching the prompt-dependent convergence rate.
 - **phase-0 small-model control** (filed 2026-05-27; artifact `tools/small-model-control/results/2026-05-27/E45-phase0-small-model.json`; script `tools/small-model-control/picard_disentangle.py`, ~3 min on CPU): 4-layer / 64-hidden / 4-head / 256-vocab toy transformer (RMSNorm + SwiGLU + RoPE — same family as Phi-3) trained 5000 steps on induction-heads + modular arithmetic. Picard sweep over max_iter ∈ {1, 2, 5, 10, 50, 100} on 16-sequence eval set. Findings:
-  - **iter=1**: top1_match=100%, all 4 layers Bucket A. Baseline.
+  - **iter=1**: top1_match=100%, all four layers Bucket A. Baseline.
   - **iter=2**: top1_match=**91.2%**, buckets {A: 3, B: 1}. **Mild drift, not collapse.**
   - **iter=5/10/50/100**: top1_match stable at 91.0%, buckets unchanged.
   - **vs Phi-3-mini**: Phi-3 at iter=2 = 0% coherent across 16 prompts; toy at iter=2 = 91% top-1 retained. **Cliff phenomenon exists in both but severity is dramatically different.**
