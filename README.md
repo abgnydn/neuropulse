@@ -422,7 +422,7 @@ Reproduce: `node tools/butterfly-adversarial.mjs`.
 
 ### External benchmark — LongMemEval oracle (500 real conversations)
 
-The natural next test: does the regex-tagger win replicate on an independent dataset? [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (ICLR 2025) is the canonical long-term-conversational-memory benchmark, cited by MemoryAgentBench (ICLR 2026). Each example is a list of `{role, content, has_answer: bool}` sessions; ground truth is the set of evidence turns flagged `has_answer: true`.
+The natural next test: does the regex-tagger win replicate on an independent dataset? [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (Wu et al., ICLR 2025; arXiv:2410.10813) is the canonical long-term-conversational-memory benchmark, alongside MemoryAgentBench (arXiv:2507.05257, 2025). Each example is a list of `{role, content, has_answer: bool}` sessions; ground truth is the set of evidence turns flagged `has_answer: true`.
 
 Direct score: "what fraction of evidence turns survive in the compacted memory" — no LLM judge needed.
 
