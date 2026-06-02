@@ -10,6 +10,8 @@
 
 ### The first accurate real-time visualization of a full-scale LLM forward pass.
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20505470.svg)](https://doi.org/10.5281/zenodo.20505470)
+
 3.8 billion parameters. Your GPU. Your browser. Every tensor rendered 1:1.<br>
 No server. No API key. No fakery.
 
@@ -678,9 +680,12 @@ Open **http://localhost:5173/app/** in Chrome, Edge, or Safari Technology Previe
   title   = {Neuropulse: Real-Time 1:1 Visualization of a Full-Scale LLM
              Forward Pass in the Browser},
   year    = {2026},
-  url     = {https://github.com/abgnydn/neuropulse}
+  doi     = {10.5281/zenodo.20505470},
+  url     = {https://doi.org/10.5281/zenodo.20505470}
 }
 ```
+
+DOI: [10.5281/zenodo.20505470](https://doi.org/10.5281/zenodo.20505470) (concept — resolves to the latest version).
 
 <br>
 

@@ -7,7 +7,7 @@ authors:
     given-names: Ahmet Barış
     email: hi@barisgunaydin.com
     affiliation: Independent researcher
-# doi: 10.5281/zenodo.XXXXXXXX   # add after the GitHub release mints it
+doi: 10.5281/zenodo.20505470   # concept DOI (resolves to latest version)
 repository-code: "https://github.com/abgnydn/neuropulse"
 url: "https://neuropulse.live"
 license: MIT
