@@ -43,7 +43,7 @@ No server. No API key. No fakery.
 <br>
 
 > [!NOTE]
-> **Strict 1:1.** Every pixel on screen is a function of a real GPU tensor. The brightness of each point **is** the activation value. The lines between attention heads **are** the real attention weights. The token probabilities rolling across the screen **are** the actual logits from the final layer.
+> **Strict 1:1.** Every pixel on screen is a function of a real GPU tensor. The brightness of each point **tracks** its activation magnitude. The lines between attention heads **are** the real attention weights. The token probabilities rolling across the screen **are** the actual logits from the final layer.
 
 <br>
 
@@ -66,7 +66,7 @@ Every "AI visualization" you've seen online is **decoration**.
 
 Animated dots pulsing to a fake rhythm. Particle systems that aren't connected to anything real. A beautiful metaphor with no model behind the curtain. You walk away thinking you saw how an LLM works. You didn't — you saw how a designer *imagines* it works.
 
-Neuropulse is the opposite. Type a prompt. Watch 3.8 billion parameters process it. Nothing is interpolated. Nothing is smoothed. Nothing is made up.
+Neuropulse is the opposite. Type a prompt. Watch 3.8 billion parameters process it. Nothing is interpolated. Nothing is made up.
 
 <br>
 
