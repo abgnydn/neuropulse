@@ -6,8 +6,8 @@
     <text x="400" y="80" font-size="62" font-weight="300" fill="#1f2328" text-anchor="middle">11</text>
     <text x="400" y="120" font-size="11" letter-spacing="3.2" fill="#6e7781" text-anchor="middle" font-family="'SF Mono', Menlo, Consolas, monospace">WGSL KERNELS</text>
     <line x1="533.3333333333334" y1="38" x2="533.3333333333334" y2="112" stroke="#1f2328" stroke-width="0.6" opacity="0.35"/>
-    <text x="666.6666666666667" y="80" font-size="62" font-weight="300" fill="#1f2328" text-anchor="middle">22</text>
-    <text x="666.6666666666667" y="120" font-size="11" letter-spacing="3.2" fill="#6e7781" text-anchor="middle" font-family="'SF Mono', Menlo, Consolas, monospace">GPU BUFFERS</text>
+    <text x="666.6666666666667" y="80" font-size="62" font-weight="300" fill="#1f2328" text-anchor="middle">1:1</text>
+    <text x="666.6666666666667" y="120" font-size="11" letter-spacing="3.2" fill="#6e7781" text-anchor="middle" font-family="'SF Mono', Menlo, Consolas, monospace">PIXEL : TENSOR</text>
     <line x1="800" y1="38" x2="800" y2="112" stroke="#1f2328" stroke-width="0.6" opacity="0.35"/>
     <text x="933.3333333333334" y="80" font-size="62" font-weight="300" fill="#1f2328" text-anchor="middle">292</text>
     <text x="933.3333333333334" y="120" font-size="11" letter-spacing="3.2" fill="#6e7781" text-anchor="middle" font-family="'SF Mono', Menlo, Consolas, monospace">DISPATCHES / TOKEN</text>

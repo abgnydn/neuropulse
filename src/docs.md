@@ -23,7 +23,7 @@ piece to the research project at https://zerotvm.com.
   heads per layer** (96 dims each), **8,192-dim FFN** with SwiGLU gating,
   **paged KV cache** (16 tokens per page, up to 257 pages).
 - Vocabulary: 32,064 tokens. Chat template: `<|system|>…<|end|>\n<|user|>…<|end|>\n<|assistant|>`.
-- 292 WebGPU dispatches per output token. 13 pipelines. 22 GPU buffers.
+- 292 WebGPU dispatches per output token. 13 pipelines from 11 hand-written kernels.
 
 ## Key concepts
 

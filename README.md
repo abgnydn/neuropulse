@@ -35,7 +35,7 @@ No server. No API key. No fakery.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="public/stats-dark.svg">
-  <img alt="3.8B parameters · 11 WGSL kernels · 22 GPU buffers · 292 dispatches per token · 32 transformer layers · 0 frameworks in inference" src="public/stats-light.svg" width="100%">
+  <img alt="3.8B parameters · 11 WGSL kernels · 1:1 pixel-to-tensor · 292 dispatches per token · 32 transformer layers · 0 frameworks in inference" src="public/stats-light.svg" width="100%">
 </picture>
 
 </div>
@@ -177,7 +177,7 @@ Four pieces. No frameworks in the inference path. No dependency soup.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="public/stack-dark.svg">
-  <img alt="The stack — four quadrants: Inference (WebGPU · 11 WGSL kernels · 22 GPU buffers · 292 dispatches/token · q4f16_1), Rendering (Three.js · strict 1:1 · PCA layout · audio · soft Gaussian sprites · dockable panels), Weights (Phi-3-mini · MLC · Cache API + OPFS · streaming load · instant reload), UI (vanilla TypeScript · zero frameworks · Vite · ~3,400 LOC · CI-verified)" src="public/stack-light.svg" width="100%">
+  <img alt="The stack — four quadrants: Inference (WebGPU · 11 WGSL kernels · f32 accumulators · 292 dispatches/token · q4f16_1), Rendering (Three.js · strict 1:1 · PCA layout · audio · soft Gaussian sprites · dockable panels), Weights (Phi-3-mini · MLC · Cache API + OPFS · streaming load · instant reload), UI (vanilla TypeScript · zero frameworks · Vite · 5 view modes + 4 overlays · CI-verified)" src="public/stack-light.svg" width="100%">
 </picture>
 
 </div>
