@@ -19,8 +19,7 @@ const rel = (p) => relative(ROOT, p)
 // Parse the canonical constants from source
 // ──────────────────────────────────────────────────────────────────────
 
-async function parseCompilerConstants() {
-  const src = await readFile(join(ROOT, 'src/engine/compiler.ts'), 'utf8')
+function parsePhi3(src) {
   const block = src.match(/export const PHI3 = \{([\s\S]*?)\} as const/)
   if (!block) throw new Error('PHI3 block not found in compiler.ts')
   const out = {}
@@ -28,12 +27,15 @@ async function parseCompilerConstants() {
   return out
 }
 
-// Experimental WGSL kernels that ship in the tree but are NOT part of the
-// canonical Phi-3 forward pass — they run only behind an opt-in flag and are
-// excluded from the "11 kernels" count the docs describe.
-//   attention_fixedpoint.wgsl — Picard-iterated attention, selected only via
-//   ?attn=fixedpoint for the E45 research (see PREDICTIONS.md P-20260526-07).
+// Experimental runtime objects that ship in the tree but are NOT part of the
+// canonical Phi-3 forward pass — opt-in only, excluded from the documented
+// counts. attention_fixedpoint.wgsl + its `attentionFixedpoint` pipeline +
+// the `attnTelemetry` buffer are the Picard-iterated attention probe, live
+// only behind ?attn=fixedpoint (E45; see PREDICTIONS.md P-20260526-07). The
+// "11 kernels / 13 pipelines / 22 buffers" counts all exclude these.
 const EXPERIMENTAL_SHADERS = new Set(['attention_fixedpoint.wgsl'])
+const EXPERIMENTAL_PIPELINES = new Set(['attentionFixedpoint'])
+const EXPERIMENTAL_BUFFERS = new Set(['attnTelemetry'])
 
 async function countShaders() {
   const dir = join(ROOT, 'src/engine/shaders')
@@ -41,7 +43,18 @@ async function countShaders() {
   return files.filter((f) => f.endsWith('.wgsl') && !EXPERIMENTAL_SHADERS.has(f)).sort()
 }
 
-function deriveFacts(phi3, kernels) {
+// Count the typed fields of an interface in compiler.ts (Pipelines / Buffers),
+// excluding opt-in experimental members. Mirrors the kernel-count convention
+// so "13 pipelines" and "22 GPU buffers" track the source automatically.
+function interfaceFields(src, name, gpuType, exclude) {
+  const m = src.match(new RegExp(`interface ${name} \\{([\\s\\S]*?)\\n\\}`))
+  if (!m) throw new Error(`${name} interface not found in compiler.ts`)
+  return [...m[1].matchAll(new RegExp(`^\\s*(\\w+):\\s*${gpuType}\\b`, 'gm'))]
+    .map((x) => x[1])
+    .filter((f) => !exclude.has(f))
+}
+
+function deriveFacts(phi3, kernels, pipelines, buffers) {
   const layerSteps = 9 // STEP_NAMES in inference.ts
   const prologue = 1   // embedding
   const epilogue = 3   // final rmsNorm + lm_head + argmax
@@ -60,6 +73,8 @@ function deriveFacts(phi3, kernels) {
     qkvDim: phi3.QKV_DIM,
     maxContext: phi3.PAGE_SIZE * phi3.MAX_PAGES,
     kernels: kernels.length,
+    pipelines: pipelines.length,
+    buffers: buffers.length,
     fastDispatches,
     visualizedDispatches,
   }
@@ -124,6 +139,22 @@ function buildChecks(F) {
       pattern: new RegExp(`${N}\\s+(?:hand-written\\s+)?(?:WGSL\\s+)?(?:GPU\\s+)?kernels?\\b`, 'gi'),
       accept: (v) => num(v) === F.kernels,
       expected: `${F.kernels}`,
+    },
+    {
+      name: 'pipelines',
+      // "13 pipelines" / "13 WGSL pipelines". Excludes the experimental
+      // attentionFixedpoint pipeline, mirroring the kernel-count convention.
+      pattern: new RegExp(`${N}\\s+(?:WGSL\\s+)?pipelines?\\b`, 'gi'),
+      accept: (v) => num(v) === F.pipelines,
+      expected: `${F.pipelines}`,
+    },
+    {
+      name: 'buffers',
+      // "22 GPU buffers" — the shared Buffers struct minus the experimental
+      // attnTelemetry buffer. Per-layer LayerWeights are not counted here.
+      pattern: new RegExp(`${N}\\s+(?:GPU\\s+)?buffers?\\b`, 'gi'),
+      accept: (v) => num(v) === F.buffers,
+      expected: `${F.buffers}`,
     },
     {
       name: 'dispatches',
@@ -193,13 +224,17 @@ function* iterClaims(src, pattern) {
 // ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const phi3 = await parseCompilerConstants()
+  const compilerSrc = await readFile(join(ROOT, 'src/engine/compiler.ts'), 'utf8')
+  const phi3 = parsePhi3(compilerSrc)
   const kernels = await countShaders()
-  const F = deriveFacts(phi3, kernels)
+  const pipelines = interfaceFields(compilerSrc, 'Pipelines', 'GPUComputePipeline', EXPERIMENTAL_PIPELINES)
+  const buffers = interfaceFields(compilerSrc, 'Buffers', 'GPUBuffer', EXPERIMENTAL_BUFFERS)
+  const F = deriveFacts(phi3, kernels, pipelines, buffers)
 
   console.log('— neuropulse claim verification —')
   console.log(`  layers=${F.layers} heads=${F.heads} D=${F.hiddenDim} ffn=${F.ffnDim} vocab=${F.vocab}`)
   console.log(`  kernels=${F.kernels} (files: ${kernels.join(', ')})`)
+  console.log(`  pipelines=${F.pipelines}  buffers=${F.buffers} (shared, excl. experimental)`)
   console.log(`  dispatches: fast=${F.fastDispatches}, visualized=${F.visualizedDispatches}`)
   console.log('')
 
@@ -222,6 +257,23 @@ async function main() {
           })
         }
       }
+    }
+  }
+
+  // Cross-check the phi3-facts.ts SSOT constants against the source-derived
+  // counts, so the documented numbers can't drift from compiler.ts either.
+  const factsSrc = await readFile(join(ROOT, 'src/engine/phi3-facts.ts'), 'utf8')
+  for (const [constName, expected] of [['PIPELINES', F.pipelines], ['BUFFERS', F.buffers]]) {
+    const m = factsSrc.match(new RegExp(`export const ${constName}\\s*=\\s*(\\d+)`))
+    if (m && Number(m[1]) !== expected) {
+      failures.push({
+        surface: 'src/engine/phi3-facts.ts',
+        line: factsSrc.slice(0, m.index).split('\n').length,
+        check: `${constName} SSOT`,
+        found: m[1],
+        expected: `${expected}`,
+        context: m[0],
+      })
     }
   }
 

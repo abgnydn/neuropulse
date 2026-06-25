@@ -74,6 +74,21 @@ export const KERNELS = [
   'rope',
 ] as const
 
+/** GPU compute pipelines built per forward pass — `Pipelines` in compiler.ts.
+ *  Excludes the experimental `attentionFixedpoint` pipeline (opt-in only via
+ *  ?attn=fixedpoint), mirroring the 11-kernel convention. int4_matmul is
+ *  compiled three times (qkv, o-proj, ffn-down), so pipelines (13) outnumber
+ *  distinct kernels (11). verify-claims.mjs re-derives this from the interface
+ *  and fails the build on drift. */
+export const PIPELINES = 13
+
+/** Shared GPU buffers allocated once in compiler.ts `compile()` — the
+ *  `Buffers` struct (activations, KV page tables, embedding + LM-head weights).
+ *  Excludes the experimental `attnTelemetry` E45 buffer; the per-layer
+ *  `LayerWeights` set (11 buffers × LAYERS) is counted separately. Gated by
+ *  verify-claims.mjs against the interface in compiler.ts. */
+export const BUFFERS = 22
+
 export const STORAGE = {
   /** Approximate quantized weight payload streamed on first visit. */
   weightSizeGB: 2.0,
@@ -115,6 +130,8 @@ export const PHI3_FACTS = {
   ARCH,
   DISPATCHES,
   KERNELS,
+  PIPELINES,
+  BUFFERS,
   STORAGE,
   MODEL,
   VALIDATION,
