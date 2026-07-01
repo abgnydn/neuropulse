@@ -101,6 +101,21 @@ export class BrainVisualizer {
   private mouse = new THREE.Vector2(-999, -999)
   private tooltip: HTMLDivElement
   private hoveredNeuron: NeuronData | null = null
+  private mouseMoved = false
+  private _meshCache: THREE.Mesh[] | null = null
+  /** Cached list of neuron picking meshes — rebuilt only when the neuron
+   *  count changes. Avoids allocating a ~1000-element array every frame. */
+  private get neuronMeshes(): THREE.Mesh[] {
+    if (!this._meshCache || this._meshCache.length !== this.neurons.length) {
+      this._meshCache = this.neurons.map((n) => n.mesh)
+    }
+    return this._meshCache
+  }
+  /** Honor the OS "reduce motion" setting for the scene's decorative,
+   *  non-data-driven animation (starfield, dust, breathing pulses). */
+  private reducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   // Click-to-inspect panel
   private inspectPanel: HTMLDivElement
@@ -296,6 +311,7 @@ export class BrainVisualizer {
       const rect = canvas.getBoundingClientRect()
       this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
       this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+      this.mouseMoved = true
       this.tooltip.style.left = (e.clientX - rect.left + 12) + 'px'
       this.tooltip.style.top = (e.clientY - rect.top - 8) + 'px'
     })
@@ -310,7 +326,7 @@ export class BrainVisualizer {
       const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1
       const my = -((e.clientY - rect.top) / rect.height) * 2 + 1
       this.raycaster.setFromCamera(new THREE.Vector2(mx, my), this.camera)
-      const meshes = this.neurons.map(n => n.mesh)
+      const meshes = this.neuronMeshes
       const hits = this.raycaster.intersectObjects(meshes)
       if (hits.length > 0) {
         const idx = meshes.indexOf(hits[0].object as THREE.Mesh)
@@ -1332,9 +1348,9 @@ export class BrainVisualizer {
         this.controls.target.lerp(this.journeyCamLookAt, 0.1)
       }
       // subtle starfield counter-rotation for parallax feel
-      if (this.starfield) this.starfield.rotation.y += 0.0004
-      // dust drift, spotlight pulse
-      this.journeyTick()
+      if (this.starfield && !this.reducedMotion) this.starfield.rotation.y += 0.0004
+      // dust drift, spotlight pulse — decorative, skipped under reduce-motion
+      if (!this.reducedMotion) this.journeyTick()
     } else if (this.cinematicCamera) {
       // Cinematic camera tween — tracks the active layer when enabled.
       this.camera.position.lerp(this._cameraTweenTarget, 0.06)
@@ -1416,7 +1432,7 @@ export class BrainVisualizer {
       //   · ±2/±3:         small traveling ripple so the whole model feels alive
       //   · Global:        low-intensity "heartbeat" wave rolling along the
       //                    layer axis, so there's always motion in view
-      if (this.journeyActive) {
+      if (this.journeyActive && !this.reducedMotion) {
         const focus = this.journeyFocusLayer
         const globalWave = 0.08 * (0.5 + 0.5 * Math.sin(this.time * 0.9 + n.layer * 0.35))
         let layerPulse = 0
@@ -1447,21 +1463,24 @@ export class BrainVisualizer {
 
     // ─── Hover tooltip ───
     if (this.mouse.x > -10) {
-      this.raycaster.setFromCamera(this.mouse, this.camera)
-      const meshes = this.neurons.map(n => n.mesh)
-      const hits = this.raycaster.intersectObjects(meshes)
-      if (hits.length > 0) {
-        const idx = meshes.indexOf(hits[0].object as THREE.Mesh)
-        if (idx >= 0) {
-          const n = this.neurons[idx]
-          this.tooltip.style.display = 'block'
-          const rl = n.role === 'attn' ? `Head ${n.subIndex}` : n.role === 'ffn' ? `FFN ${n.subIndex}` : 'Residual'
-          this.tooltip.innerHTML = `Layer <strong>${n.layer}</strong>/31 &nbsp;|&nbsp; ${rl} &nbsp;|&nbsp; <strong>${(n.activation * 100).toFixed(0)}%</strong><br>Step: ${STEP_NAMES[this.currentStep] || '—'}`
-          this.hoveredNeuron = n
-        }
+      // Raycast only when the pointer actually moved — picking against ~1000
+      // meshes every frame was the render loop's biggest per-frame cost. The
+      // tooltip text still refreshes each frame so the live activation %
+      // tracks the current step.
+      if (this.mouseMoved) {
+        this.mouseMoved = false
+        this.raycaster.setFromCamera(this.mouse, this.camera)
+        const hits = this.raycaster.intersectObjects(this.neuronMeshes)
+        const idx = hits.length > 0 ? this.neuronMeshes.indexOf(hits[0].object as THREE.Mesh) : -1
+        this.hoveredNeuron = idx >= 0 ? this.neurons[idx] : null
+      }
+      const n = this.hoveredNeuron
+      if (n) {
+        this.tooltip.style.display = 'block'
+        const rl = n.role === 'attn' ? `Head ${n.subIndex}` : n.role === 'ffn' ? `FFN ${n.subIndex}` : 'Residual'
+        this.tooltip.innerHTML = `Layer <strong>${n.layer}</strong>/31 &nbsp;|&nbsp; ${rl} &nbsp;|&nbsp; <strong>${(n.activation * 100).toFixed(0)}%</strong><br>Step: ${STEP_NAMES[this.currentStep] || '—'}`
       } else {
         this.tooltip.style.display = 'none'
-        this.hoveredNeuron = null
       }
     }
 

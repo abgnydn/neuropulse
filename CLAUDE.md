@@ -76,15 +76,19 @@ The project aspires to lab-grade reproducibility. Three gates exist:
 2. **`tools/check-shortcuts.mjs`** — diffs keyboard shortcuts wired in
    `main.ts` against shortcuts advertised in HUD / glossary copy. Catches
    the "scroll advances Journey" class of doc/code drift.
-3. **`tools/reference/parity.json`** — pinned HF cross-validation artifact:
-   weight URLs + SHA-256s, validation prompts, expected per-layer L2/cosine
-   bounds. The in-app validation suite (`accurateBtn`) regenerates a fresh
-   sample on the visitor's own GPU and compares it against this snapshot
-   **in-browser**. It is deliberately NOT run in CI — it needs the ~2 GB
-   `q4f16_1` weights and a WebGPU device, which stock runners lack. CI
-   (`.github/workflows/check.yml`) guards only the weight-free gates
-   (#1, #2, `tsc`, `vite build`). See `METHODS.md` for the tolerance
-   derivation.
+3. **`tools/reference/parity.json`** — HF cross-validation schema: the
+   numeric tolerances and `validateLayers` are committed, but the per-shard
+   SHA-256s, HF input-ids, and pinned model revision are **placeholders**
+   (`shards: []` / `revision: TBD`) until `tools/dump_phi3_reference.py` runs
+   against a pinned HF rev. The live in-app suite (`accurateBtn`) validates
+   against the populated `public/reference.json`, regenerating a fresh sample
+   on the visitor's own GPU and comparing **in-browser**. NOTE: the weight
+   loader does NOT currently verify downloaded shards against those SHA-256s —
+   integrity checking is future work, not a shipped guarantee; do not describe
+   it as one in user-facing copy. The suite is deliberately NOT run in CI (it
+   needs the ~2 GB weights + a WebGPU device); CI
+   (`.github/workflows/check.yml`) guards only the weight-free gates (#1, #2,
+   `tsc`, `vite build`). See `METHODS.md` for the tolerance derivation.
 
 `METHODS.md` documents precision (f16 weights, f32 accumulators, ε_norm),
 known divergences from HF, and per-kernel ULP error budgets.
