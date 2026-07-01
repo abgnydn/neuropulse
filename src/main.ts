@@ -118,6 +118,29 @@ function initAblationPanel() {
       flex: 0 0 auto;
     }
     .ablate-close:hover { color: #f4ecdf; border-color: #f4ecdf; }
+    .ablate-info {
+      background: transparent; border: 1px solid rgba(255,154,31,0.5);
+      color: #ffd28a; width: 22px; height: 22px; border-radius: 50%;
+      cursor: pointer; font-family: 'Fraunces', Georgia, serif; font-style: italic;
+      font-size: 13px; line-height: 1; display: inline-flex; align-items: center;
+      justify-content: center; flex: 0 0 auto; padding: 0 0 1px 0;
+    }
+    .ablate-info:hover, .ablate-info.on { background: rgba(255,154,31,0.2); border-color: #ff9a1f; color: #fff; }
+    .ablate-info-body {
+      display: none; margin: 0 0 10px; padding: 10px 12px;
+      background: rgba(255,154,31,0.06); border: 1px solid rgba(255,154,31,0.25);
+      border-radius: 6px; font-size: 12px; line-height: 1.5; color: #d8cdb8;
+    }
+    .ablate-info-body.on { display: block; }
+    .ablate-info-body b { color: #ffd28a; font-weight: 600; }
+    .ablate-info-body p { margin: 0 0 7px; }
+    .ablate-info-body p:last-child { margin-bottom: 0; }
+    .ablate-learnmore {
+      background: transparent; border: none; color: #00e5ff; cursor: pointer;
+      font-family: inherit; font-size: 12px; padding: 2px 0; text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .ablate-learnmore:hover { color: #7df; }
     .ablate-hint { color: #8a7f6c; font-size: 11px; font-style: italic; }
     .ablate-btn {
       background: rgba(255, 154, 31, 0.18); color: #ffd28a;
@@ -177,7 +200,13 @@ function initAblationPanel() {
       <span class="ablate-status" id="ablateStatus">No heads ablated — shift-click attention spheres, or sweep a layer to see impact.</span>
       <button class="ablate-btn" id="ablateRunBtn" type="button" disabled>Run ablated</button>
       <button class="ablate-btn clear" id="ablateClearBtn" type="button">Clear</button>
+      <button class="ablate-info" id="ablateInfoBtn" type="button" aria-label="What is ablation?" title="What is this?">i</button>
       <button class="ablate-close" id="ablateCloseBtn" type="button" aria-label="Hide ablation panel (A)" title="Hide · A">✕</button>
+    </div>
+    <div class="ablate-info-body" id="ablateInfoBody">
+      <p><b>Ablation</b> switches off attention heads to see what they do. Shift-click heads in the 3D scene, then <b>Run ablated</b> — the model answers with and without them, side by side.</p>
+      <p>Turning off 1–2 of 1,024 heads usually changes nothing (the model is very redundant) — that's expected, not a glitch. <b>Sweep</b> finds the heads that matter.</p>
+      <p><button class="ablate-learnmore" id="ablateLearnMore" type="button">Full explanation →</button></p>
     </div>
     <div class="ablate-sweep-row">
       <label for="ablateSweepLayer">Sweep layer</label>
@@ -211,6 +240,9 @@ function initAblationPanel() {
   const sweepStatus = panel.querySelector<HTMLSpanElement>('#ablateSweepStatus')!
   const stripEl = panel.querySelector<HTMLDivElement>('#ablateStrip')!
   const closeBtn = panel.querySelector<HTMLButtonElement>('#ablateCloseBtn')!
+  const infoBtn = panel.querySelector<HTMLButtonElement>('#ablateInfoBtn')!
+  const infoBody = panel.querySelector<HTMLDivElement>('#ablateInfoBody')!
+  const learnMore = panel.querySelector<HTMLButtonElement>('#ablateLearnMore')!
 
   function setPanelOpen(open: boolean) {
     panel.classList.toggle('open', open)
@@ -226,6 +258,17 @@ function initAblationPanel() {
   closeBtn.addEventListener('click', (e) => {
     e.stopPropagation()
     setCollapsed(true)
+  })
+  // "i" toggles the plain-English teaser; "Full explanation →" opens the
+  // glossary (the roomy home for detail) at the Ablation entry.
+  infoBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    infoBtn.classList.toggle('on')
+    infoBody.classList.toggle('on')
+  })
+  learnMore.addEventListener('click', (e) => {
+    e.stopPropagation()
+    openGlossaryAt('gloss-ablation')
   })
   panel.addEventListener('click', (e) => {
     if (!panel.classList.contains('collapsed')) return
@@ -1152,6 +1195,23 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
     }
   })
 })()
+
+/** Open the glossary overlay and scroll to / flash a specific entry by id.
+ *  Used by panel "Learn more →" links so detail lives in the roomy glossary
+ *  rather than cramped floating cards. */
+function openGlossaryAt(entryId?: string): void {
+  const overlay = document.getElementById('glossary-overlay')
+  if (!overlay) return
+  overlay.classList.add('visible')
+  if (!entryId) return
+  const el = document.getElementById(entryId)
+  if (!el) return
+  requestAnimationFrame(() => {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('gloss-flash')
+    setTimeout(() => el.classList.remove('gloss-flash'), 1600)
+  })
+}
 
 // ─── Preset-hint floating toast (educational annotation for each preset) ───
 ;(function wirePresetHints() {

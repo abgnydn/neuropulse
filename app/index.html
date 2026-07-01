@@ -1907,6 +1907,13 @@ body.mode-journey .side > *.expanded .panel-info { display: flex; }
 .glossary-item {
   padding: 12px 0 14px;
   border-top: 1px solid rgba(244, 236, 223, 0.08);
+  border-radius: 8px;
+}
+/* Brief highlight when a panel's "Learn more →" deep-links to this entry. */
+.glossary-item.gloss-flash { animation: glossFlash 1.6s ease; }
+@keyframes glossFlash {
+  0%, 100% { background: transparent; }
+  25%      { background: rgba(0, 229, 255, 0.14); }
 }
 .glossary-term {
   font-family: 'Fraunces', Georgia, serif;
@@ -2783,6 +2790,18 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
         <div class="glossary-term">Dispatch</div>
         <div class="glossary-def">One WebGPU kernel invocation. Phi-3 takes <b>292 dispatches per output token</b> in the headless engine path; the visualizer adds <b>~56 more</b> for live attention-score readback and the 8-layer logit-lens probes. Every one is visible in the 3D scene as its tensor lights up.</div>
         <div class="glossary-hint">→ Cinematic mode shows the running counter on the scrub bar (N / 292)</div>
+      </div>
+
+      <div class="glossary-item" id="gloss-ablation" data-highlight="attention">
+        <div class="glossary-term">Ablation <button class="glossary-show" type="button" data-highlight="attention" aria-label="Show attention heads in scene">show</button></div>
+        <div class="glossary-def">Deliberately <b>switching off</b> part of the model to see what it was doing — like unplugging a wire to find what stops working. <b>Shift-click</b> attention heads in the 3D scene (they turn amber), then hit <b>Run ablated</b>: the model answers your prompt twice — once normally (<b>Baseline</b>) and once with those heads zeroed (<b>Ablated</b>). If the answers differ, those heads mattered for this prompt.<br><br>Phi-3 has <b>1,024 heads</b> and is very redundant, so switching off just one or two usually changes <i>nothing</i> — it routes around them. Identical answers are a real finding, not a bug. To see the output actually collapse, ablate the heads that matter (see <b>Sweep</b>) or a whole component.</div>
+        <div class="glossary-hint">→ Ablation panel (press A) · amber heads in the ring</div>
+      </div>
+
+      <div class="glossary-item" id="gloss-sweep" data-highlight="attention">
+        <div class="glossary-term">Sweep <button class="glossary-show" type="button" data-highlight="attention" aria-label="Show attention heads in scene">show</button></div>
+        <div class="glossary-def">The <b>discovery</b> tool for ablation. Instead of guessing which heads matter, a sweep runs your prompt <b>33 times</b> on one layer — a baseline, then once per head with just that head switched off — and measures how much each one changed the answer. The result is the <b>32-cell strip</b>, colored by impact: <b>cyan</b> = this head didn't matter, <b>amber → red</b> = it changed the answer a lot. Click a red cell to mark that head, then Run ablated on the important ones.<br><br>It's 33 full generations back-to-back, so it takes ~60&nbsp;s and spins up your GPU.</div>
+        <div class="glossary-hint">→ Ablation panel · "Sweep 32 heads"</div>
       </div>
 
     </div>
