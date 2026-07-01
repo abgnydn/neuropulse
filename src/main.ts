@@ -149,7 +149,9 @@ function initAblationPanel() {
     .ablate-sweep-status { color: #8a7f6c; font-size: 11px; flex: 1; }
     .ablate-sweep-status.running { color: #00e5ff; }
 
-    .ablate-strip { display: none; grid-template-columns: repeat(32, 1fr); gap: 2px; margin-bottom: 8px; }
+    /* 32 fixed-width head cells that scroll horizontally within the panel
+       rather than stretching the panel wider than its container. */
+    .ablate-strip { display: none; grid-template-columns: repeat(32, minmax(12px, 1fr)); gap: 2px; margin-bottom: 8px; max-width: 100%; overflow-x: auto; padding-bottom: 4px; }
     .ablate-strip.visible { display: grid; }
     .ablate-strip-cell {
       aspect-ratio: 1; background: rgba(80,80,80,0.2); border-radius: 2px;
@@ -284,7 +286,7 @@ function initAblationPanel() {
     }
     const abls = viz.getAblations()
     if (abls.length === 0) return
-    const prompt = (promptInput.value.trim() || 'Paris is the capital of')
+    const prompt = (promptInput.value.trim() || lastPrompt || 'What is consciousness?')
     runBtn.disabled = true; clearBtn.disabled = true; sweepBtn.disabled = true
     runBtn.textContent = 'Running…'
     baseOut.classList.remove('empty'); ablOut.classList.remove('empty')
@@ -380,7 +382,7 @@ function initAblationPanel() {
     )
     if (!ok) return
 
-    const prompt = (promptInput.value.trim() || 'Paris is the capital of')
+    const prompt = (promptInput.value.trim() || lastPrompt || 'What is consciousness?')
     const maxTokens = 8  // short: sweep is qualitative, not the final answer
 
     sweepBtn.disabled = true; runBtn.disabled = true; clearBtn.disabled = true
@@ -448,6 +450,9 @@ const promptInput = document.getElementById('promptInput') as HTMLInputElement
 
 let isRunning = false
 let isValidating = false
+// Last prompt actually run — the prompt box is cleared after each generation,
+// so ablation/sweep fall back to this (not a hardcoded string) to stay in sync.
+let lastPrompt = ''
 let totalTokens = 0
 let engine: InferenceEngine | null = null
 
@@ -2885,6 +2890,7 @@ function startInference(mode: 'think' | 'ask' = 'think') {
   if (!prompt) return
   if (isValidating) return  // never interrupt the validation suite
   if (!engine) return // no engine = no inference (error screen is already up)
+  lastPrompt = prompt
   promptInput.value = ''
 
   // If a generation is already running, ask it to stop at the next token
