@@ -1,0 +1,28 @@
+name: check
+
+# Weight-free correctness gate. Runs the claim/shortcut verifiers, the
+# TypeScript typecheck, and the production build on every push and PR.
+#
+# NOTE: this does NOT run the HF numerical-parity suite. That suite needs the
+# ~2 GB q4f16_1 weights and a WebGPU-capable GPU, neither of which a stock CI
+# runner has — parity is validated in-browser on the visitor's own machine
+# (the `accurateBtn` flow). CI guards only the gates that are pure static
+# analysis: `tools/verify-claims.mjs`, `tools/check-shortcuts.mjs`, `tsc`, and
+# the Vite build. See METHODS.md for the parity story.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check

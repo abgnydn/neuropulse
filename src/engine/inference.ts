@@ -1034,6 +1034,12 @@ export async function createInferenceEngine(
       const nnzPages = Math.floor(pos / PHI3.PAGE_SIZE) + 1
       callbacks.onKVCache?.(pos, PHI3.MAX_PAGES, nnzPages)
 
+      // KV-cache capacity backstop. The paged cache holds PAGE_SIZE*MAX_PAGES
+      // (4112) slots; decoding at/beyond that sets nnzPages > MAX_PAGES and
+      // indexes past the page table on the GPU. Stop cleanly rather than
+      // corrupt memory / hang the device.
+      if (pos + 1 >= PHI3.PAGE_SIZE * PHI3.MAX_PAGES) break
+
       pos++
       // Capture post-softmax attention scores for ALL 32 layers every token.
       tokenId = await decodeToken(
@@ -1198,7 +1204,12 @@ export async function createInferenceEngine(
         const pageStart = p * PHI3.PAGE_SIZE
         const slotsInPage = Math.min(PHI3.PAGE_SIZE, kvLen - pageStart)
         for (let inPageSlot = 0; inPageSlot < slotsInPage; inPageSlot++) {
-          const w = allScores[layerOff + h * ATTN_SCORE_MAX_SLOTS + slotGlobal]
+          // Only ATTN_SCORE_MAX_SLOTS scores per head were captured on the
+          // GPU; beyond that the slot's weight is unknown (treat as 0) rather
+          // than reading into the next head's region / past the array.
+          const w = slotGlobal < ATTN_SCORE_MAX_SLOTS
+            ? allScores[layerOff + h * ATTN_SCORE_MAX_SLOTS + slotGlobal]
+            : 0
           if (w !== 0) {
             const vBase = physPage * 98304 + 49152 + h * 1536 + inPageSlot * 96
             const outBase = h * PHI3.HEAD_DIM

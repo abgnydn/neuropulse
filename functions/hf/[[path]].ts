@@ -26,6 +26,14 @@ export const onRequestGet = async (ctx: PagesContext): Promise<Response> => {
   const pathAfter = url.pathname.replace(/^\/hf\//, '')
   if (!pathAfter) return new Response('Missing path', { status: 400 })
 
+  // Allowlist: only proxy the pinned MLC Phi-3 weight/tokenizer assets.
+  // Without this the function is an open, globally-cached HuggingFace relay —
+  // any caller could use the 300-POP edge to cache-poison or bandwidth-abuse
+  // arbitrary HF content under this origin's CORS-* headers.
+  if (!/^mlc-ai\/Phi-3-mini-4k-instruct-q4f16_1-MLC\/resolve\//.test(pathAfter)) {
+    return new Response('Forbidden', { status: 403 })
+  }
+
   const hfUrl = 'https://huggingface.co/' + pathAfter + url.search
 
   // CF runtime cache lookup — free, part of the Workers platform.
