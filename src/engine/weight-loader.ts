@@ -25,12 +25,17 @@
  * Second visit = instant cold-start from OPFS (no network).
  */
 
+import { WEIGHT_REVISION, SHARD_SHA256 } from './weight-manifest'
+
 // ============================================================
 // Model URL + cache name
 // ============================================================
 
+// Pinned to an immutable HF git revision (not `main`) so the bytes always
+// match the SHA-256s in weight-manifest.ts / parity.json. This is what makes
+// the download content-addressed and verifiable.
 export const PHI3_MODEL_BASE =
-  'https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC/resolve/main/'
+  `https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC/resolve/${WEIGHT_REVISION}/`
 
 export const CACHE_NAME = 'neuropulse-phi3-weights'
 // Older sessions used 'neural-pulse-phi3-weights'. The anyCacheMatch tier
@@ -51,7 +56,7 @@ const LOCAL_MIRROR_BASE = (import.meta as { env?: { DEV?: boolean } }).env?.DEV
 // HF if the function 4xx/5xx's (e.g., not deployed, cold start error).
 const CF_PROXY_BASE =
   typeof window !== 'undefined' && !LOCAL_MIRROR_BASE
-    ? '/hf/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC/resolve/main/'
+    ? `/hf/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC/resolve/${WEIGHT_REVISION}/`
     : null
 
 // ============================================================
@@ -350,6 +355,29 @@ async function streamFetch(
   return buf.buffer as ArrayBuffer
 }
 
+/** SHA-256 of a buffer as lowercase hex. */
+async function sha256Hex(buf: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', buf)
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/** Verify a freshly-downloaded shard against its pinned SHA-256. No-op for
+ *  paths we have no hash for (e.g. the ndarray-cache manifest). Throws on
+ *  mismatch so the caller can fall through to another tier or fail loudly —
+ *  a tampered/corrupt shard is never written to OPFS or the browser cache. */
+async function verifyShard(dataPath: string, buf: ArrayBuffer): Promise<void> {
+  const expected = SHARD_SHA256[dataPath]
+  if (!expected) return
+  const actual = await sha256Hex(buf)
+  if (actual !== expected) {
+    throw new Error(
+      `Integrity check failed for ${dataPath}: expected ${expected.slice(0, 12)}…, got ${actual.slice(0, 12)}…`,
+    )
+  }
+}
+
 async function fetchShard(
   url: string,
   dataPath: string,
@@ -395,16 +423,18 @@ async function fetchShard(
   if (CF_PROXY_BASE) {
     try {
       const buf = await streamFetch(CF_PROXY_BASE + dataPath, onBytes)
+      await verifyShard(dataPath, buf) // reject tampered edge bytes before caching
       void opfsWrite(opfs, dataPath, buf)
       void putInOurCache(url, buf)
       return { buf, fromCache: false }
     } catch {
-      /* proxy down — fall through to direct HF */
+      /* proxy down or integrity mismatch — fall through to direct HF */
     }
   }
 
   // Tier 4: direct HuggingFace network (streaming + retry)
   const buf = await streamFetch(url, onBytes)
+  await verifyShard(dataPath, buf) // hard-fail if even HF served unexpected bytes
   void opfsWrite(opfs, dataPath, buf)
   void putInOurCache(url, buf)
   return { buf, fromCache: false }

@@ -1,11 +1,427 @@
 {
   "$schema": "./parity.schema.json",
   "schemaVersion": 1,
-  "_comment": "Reference parity baseline. Numeric tolerances are committed; per-shard SHA-256 hashes and HF input-ids are populated by tools/dump_phi3_reference.py the first time it runs against a pinned HF revision. Until then, the placeholders below are intentional and verify-claims will not fail on this file (it is not in the SURFACES list).",
+  "_comment": "Reference parity baseline. Shard SHA-256s + pinned revision are populated (from HF LFS oids) and enforced at runtime by src/engine/weight-loader.ts against freshly-downloaded shards. HF input-ids / expectedTopTokens are still populated by tools/dump_phi3_reference.py against this revision. Not in verify-claims SURFACES.",
   "modelSource": {
     "repo": "mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
-    "revision": "TBD: pin to a specific HF git rev when the runner first writes this file",
-    "shards": []
+    "revision": "7ecdc19b399efd7e967025c02496353e0dc50500",
+    "shards": [
+      {
+        "dataPath": "params_shard_0.bin",
+        "nbytes": 49250304,
+        "sha256": "2560487bb506ead9a2f78f85a7e9f39fcdd098313650c47fbad9c241482934c5"
+      },
+      {
+        "dataPath": "params_shard_1.bin",
+        "nbytes": 25165824,
+        "sha256": "6c3c88fade027e28b5ae0686498571663067586157232502a8113f1b567d8881"
+      },
+      {
+        "dataPath": "params_shard_2.bin",
+        "nbytes": 23470080,
+        "sha256": "cf5e54fe900eef0500a8d5559594701984d68abf43b3bad2976537b8249020f4"
+      },
+      {
+        "dataPath": "params_shard_3.bin",
+        "nbytes": 25165824,
+        "sha256": "22ad0bb5a0772dc9d9a2155eaa7bf4bc3352a2ca30ebf1646fa263b9f70ecb78"
+      },
+      {
+        "dataPath": "params_shard_4.bin",
+        "nbytes": 33239040,
+        "sha256": "8e9e70c53d3e1f20fc936597347b6f4fa2b2fcddc6484dac5aa33b1399f34633"
+      },
+      {
+        "dataPath": "params_shard_5.bin",
+        "nbytes": 21239808,
+        "sha256": "4756cf76c4a532040af67206bbdecc4c1aa950fbe4622fd88d0018851417f214"
+      },
+      {
+        "dataPath": "params_shard_6.bin",
+        "nbytes": 25165824,
+        "sha256": "b0ee79d56584c818c90d3da0015a1e7df9b11fa5ab289d96afd10dd6ee0f2fb8"
+      },
+      {
+        "dataPath": "params_shard_7.bin",
+        "nbytes": 22616064,
+        "sha256": "15a7a9f882b27e228f18c9c2b6156b02c8b8aab4bdc446ea0792175f540576e1"
+      },
+      {
+        "dataPath": "params_shard_8.bin",
+        "nbytes": 25165824,
+        "sha256": "557427f59c46dc418674152f5ad29c9cdb3c9e8a49b4e1a0ed2f5c0f262f1435"
+      },
+      {
+        "dataPath": "params_shard_9.bin",
+        "nbytes": 33239040,
+        "sha256": "d63a08735a78a2823df3b7e86ee682f11ffbd08e1435d70a674264ae8771711b"
+      },
+      {
+        "dataPath": "params_shard_10.bin",
+        "nbytes": 21239808,
+        "sha256": "651f275ffa17f7ca7c5d5ca339fcc89df7b39e4debfa5444602a4e739e028338"
+      },
+      {
+        "dataPath": "params_shard_11.bin",
+        "nbytes": 25165824,
+        "sha256": "1c52e515ade22a30dca78a01deb8f7e8a42493183fc14333a350c746156aa349"
+      },
+      {
+        "dataPath": "params_shard_12.bin",
+        "nbytes": 22616064,
+        "sha256": "0a9c23701f6f15fdb81f1d8d9a93fef5a5b0c411e46401f0f9542c48703664ea"
+      },
+      {
+        "dataPath": "params_shard_13.bin",
+        "nbytes": 25165824,
+        "sha256": "ce72d9ab4bf036058c64cde32f28c4b1f6403dba23dd430b15545cd4099d715e"
+      },
+      {
+        "dataPath": "params_shard_14.bin",
+        "nbytes": 33239040,
+        "sha256": "6404c5a962b0b789f653c1e33a7f947e8b16d9957cdbc889c89a96627acd9bc3"
+      },
+      {
+        "dataPath": "params_shard_15.bin",
+        "nbytes": 21239808,
+        "sha256": "aa2435b3dfc359561681ac94a9acecfc2a6376be1aa48fb42937f2cb204dc113"
+      },
+      {
+        "dataPath": "params_shard_16.bin",
+        "nbytes": 25165824,
+        "sha256": "45342e4b979f1b15e47d1415c0942ddfe352a6544f0713f4bc1d240d5b0668f9"
+      },
+      {
+        "dataPath": "params_shard_17.bin",
+        "nbytes": 22616064,
+        "sha256": "bb49c2ba4c27591d5c9c95944010a73537a3edf933f55a5ac57e40a59d4087ff"
+      },
+      {
+        "dataPath": "params_shard_18.bin",
+        "nbytes": 25165824,
+        "sha256": "cf6d37c589bb932239b0d9c460389288f31d887412d5123c3e244c9be3c57b21"
+      },
+      {
+        "dataPath": "params_shard_19.bin",
+        "nbytes": 33239040,
+        "sha256": "852accf4aab7a46fa687105d3ce9cf44a61de85ca6be3ed499d6290f5e75d43f"
+      },
+      {
+        "dataPath": "params_shard_20.bin",
+        "nbytes": 21239808,
+        "sha256": "cddb0f1793ee1f4768dad45428f496652ad643026b143a753f771167b918d669"
+      },
+      {
+        "dataPath": "params_shard_21.bin",
+        "nbytes": 25165824,
+        "sha256": "7ee19ee6ebed1e20b0a4a5f8c3f34bbe12c2d4102dfb869ff34d26795cc614b5"
+      },
+      {
+        "dataPath": "params_shard_22.bin",
+        "nbytes": 22616064,
+        "sha256": "f895d8547c9e5416862b0efeb84f9b0eb745007ee8c20e6a71cac3bb5316e60c"
+      },
+      {
+        "dataPath": "params_shard_23.bin",
+        "nbytes": 25165824,
+        "sha256": "daac8a476f5e2f6f6f99da0f6845f7ab860c3be06dd4685fa22e03ea7de24167"
+      },
+      {
+        "dataPath": "params_shard_24.bin",
+        "nbytes": 33239040,
+        "sha256": "06318a8d158b3bbbdee29e8c7a5426c1ae88dffaaf57b9feee9b9ca6f5022ebe"
+      },
+      {
+        "dataPath": "params_shard_25.bin",
+        "nbytes": 21239808,
+        "sha256": "6690d6a184d206e0458bf076cd1337b30cd0b83f1a3f90dd3c0cdfdb03a4f78c"
+      },
+      {
+        "dataPath": "params_shard_26.bin",
+        "nbytes": 25165824,
+        "sha256": "806fff50e823f47a12cd102181e3341b736daa2bdd012ead74074470525095f7"
+      },
+      {
+        "dataPath": "params_shard_27.bin",
+        "nbytes": 22616064,
+        "sha256": "f8d060e48d7be36adc4c0100f0c5b7cdcbeaf0ca8a7d2adb91056983ae606b7e"
+      },
+      {
+        "dataPath": "params_shard_28.bin",
+        "nbytes": 49250304,
+        "sha256": "69b46ef0493c8421d1bda66c93a267bf19265c8e62582eea414f8251cb0a1707"
+      },
+      {
+        "dataPath": "params_shard_29.bin",
+        "nbytes": 22093824,
+        "sha256": "4e32fd68f6a97d0463631e2848a4986186b937a715256f40ea94704c7713372f"
+      },
+      {
+        "dataPath": "params_shard_30.bin",
+        "nbytes": 25165824,
+        "sha256": "af6f2d7ecc09b070469f00634f6c0813859382e0095a5d099c6df420cd37e114"
+      },
+      {
+        "dataPath": "params_shard_31.bin",
+        "nbytes": 22616064,
+        "sha256": "900abb8c5bd6fbd4af6ec4bffe67ae5fcaed905c3e0b556e5783aacb49ed5375"
+      },
+      {
+        "dataPath": "params_shard_32.bin",
+        "nbytes": 25165824,
+        "sha256": "241f0cf98be14ec0fd253d4aa4f3f797a07a825a649da23404e3138e716285ca"
+      },
+      {
+        "dataPath": "params_shard_33.bin",
+        "nbytes": 33239040,
+        "sha256": "f44b07016b97b61f5e46eeb1a7473769f52676b7a4be8a65235c51972a2b3691"
+      },
+      {
+        "dataPath": "params_shard_34.bin",
+        "nbytes": 21239808,
+        "sha256": "cc68dbe34af155d8551641464150611ca5248386f0a01781f7e5474a479db744"
+      },
+      {
+        "dataPath": "params_shard_35.bin",
+        "nbytes": 25165824,
+        "sha256": "7cd949377e8fb07b4d88833de394bd9f61a2e09f283ae63a62fbde10025c115c"
+      },
+      {
+        "dataPath": "params_shard_36.bin",
+        "nbytes": 22616064,
+        "sha256": "564ed11b072824ca7c93ceac4cbbc299943dabc1d505ea8707f3089530e34039"
+      },
+      {
+        "dataPath": "params_shard_37.bin",
+        "nbytes": 25165824,
+        "sha256": "75822f53ebc14a5fa9bfaf9d7359d061dba21bf4623880a916aafa14982cbbd9"
+      },
+      {
+        "dataPath": "params_shard_38.bin",
+        "nbytes": 33239040,
+        "sha256": "931577bddb6c5aafed8aca31a610c172772a63688152bfd6c34aaa9bdf25da85"
+      },
+      {
+        "dataPath": "params_shard_39.bin",
+        "nbytes": 21239808,
+        "sha256": "f0a868b74e8be629b1c40014b68f45e10b8b6544aeffd199ae83f7f583167bf6"
+      },
+      {
+        "dataPath": "params_shard_40.bin",
+        "nbytes": 25165824,
+        "sha256": "ea17b8aa1fe0199ea421a6b58ed7e7ce875252a04187e7be1063737a5c1ded08"
+      },
+      {
+        "dataPath": "params_shard_41.bin",
+        "nbytes": 22616064,
+        "sha256": "fa13a7957ec2eeeb6dfafbe637e400c0b1cb2f6a3eeb93ce0de23d78239448f2"
+      },
+      {
+        "dataPath": "params_shard_42.bin",
+        "nbytes": 25165824,
+        "sha256": "72eca8242f0a14a551c34f055c359ca441c4be8b0773d678eb6b4af26c096fe2"
+      },
+      {
+        "dataPath": "params_shard_43.bin",
+        "nbytes": 33239040,
+        "sha256": "7b6845f9d11394edcb243343cfecd2173e25de12a833f0a033e14285db149441"
+      },
+      {
+        "dataPath": "params_shard_44.bin",
+        "nbytes": 21239808,
+        "sha256": "d9cddea27b1e235b4b4eff459e01a071f184f448ef5796afb741a26b068bb547"
+      },
+      {
+        "dataPath": "params_shard_45.bin",
+        "nbytes": 25165824,
+        "sha256": "3b591bd106ca4f5d66d6b6ecaf345ef6238e187b8b48591d2cde28b80d0db062"
+      },
+      {
+        "dataPath": "params_shard_46.bin",
+        "nbytes": 22616064,
+        "sha256": "34e943f1bb908ff123989d30453a4ed5353369bf96949529a87d1f6b4fa276d2"
+      },
+      {
+        "dataPath": "params_shard_47.bin",
+        "nbytes": 25165824,
+        "sha256": "f9ca58b834fc7797f7293b7dc26c1ca940a5604374a90fdaceab175f332aae5e"
+      },
+      {
+        "dataPath": "params_shard_48.bin",
+        "nbytes": 33239040,
+        "sha256": "df9f9cf6d2b28166ed592561b8adaf3c101ae3143ea5301caf1236e943a491d7"
+      },
+      {
+        "dataPath": "params_shard_49.bin",
+        "nbytes": 21239808,
+        "sha256": "a4b4c22909e781f3455199a46f5d958c13507eb2476c580ed3887f119f834466"
+      },
+      {
+        "dataPath": "params_shard_50.bin",
+        "nbytes": 25165824,
+        "sha256": "6572403e65c1f1e95b18e6e4462b6b903884c384288b3c523641365a75f0b734"
+      },
+      {
+        "dataPath": "params_shard_51.bin",
+        "nbytes": 22616064,
+        "sha256": "1322c1c1fdbd55e94006cf2ea44edde4873633595920128161a166755eab1c21"
+      },
+      {
+        "dataPath": "params_shard_52.bin",
+        "nbytes": 25165824,
+        "sha256": "680ca6ce42812f9165fe3b6dc8655cbf34cc05c4ff5ac3566080ddb46bc69c7d"
+      },
+      {
+        "dataPath": "params_shard_53.bin",
+        "nbytes": 33239040,
+        "sha256": "35cd49bfec33bef24e80fcf5677caf884a6a1619a0d0d178fd81468a14521c35"
+      },
+      {
+        "dataPath": "params_shard_54.bin",
+        "nbytes": 21239808,
+        "sha256": "721c7c2a9565041866c05dbfc026fa5d6de1c79d44afcc65fc3a2295243b93d1"
+      },
+      {
+        "dataPath": "params_shard_55.bin",
+        "nbytes": 25165824,
+        "sha256": "b14a0e5c3f82a9ed7ab7c68ffa32456d930f876bc72da1cfefa360c2b3909ba6"
+      },
+      {
+        "dataPath": "params_shard_56.bin",
+        "nbytes": 22616064,
+        "sha256": "ec03c432c6c94844bb77ef5047ebc3bbe8ad3adb76185194c1e2289495530d51"
+      },
+      {
+        "dataPath": "params_shard_57.bin",
+        "nbytes": 25165824,
+        "sha256": "0ad103ff7e4e5813b3075491cdb1bc2577edb8a8a8d992fbe367d68829a77102"
+      },
+      {
+        "dataPath": "params_shard_58.bin",
+        "nbytes": 33239040,
+        "sha256": "db04199a621b54187a82df043b98c8f43fe0558ace2d9a31f98820be4a2fd255"
+      },
+      {
+        "dataPath": "params_shard_59.bin",
+        "nbytes": 21239808,
+        "sha256": "1ce8213f930fc22cce95d0df2533457c669ada4b45ae1e39a8b94b99583e607a"
+      },
+      {
+        "dataPath": "params_shard_60.bin",
+        "nbytes": 25165824,
+        "sha256": "e386a7e214417f184e9c3c0991eee7aa1fc6dbbd2dfabc7f85f030392c18d215"
+      },
+      {
+        "dataPath": "params_shard_61.bin",
+        "nbytes": 22616064,
+        "sha256": "399c8440de8df72e083ce2cba804a48ab2210848001c520228daa95987b59330"
+      },
+      {
+        "dataPath": "params_shard_62.bin",
+        "nbytes": 25165824,
+        "sha256": "86ac5efe2685bc167416e539d4a10e3091348c9ef60278df25d9e4b382dc557c"
+      },
+      {
+        "dataPath": "params_shard_63.bin",
+        "nbytes": 33239040,
+        "sha256": "bf1d36fa85c61a296e2044c1a540fc6bf117f5da29ed03fd11ec4b4f2db2284b"
+      },
+      {
+        "dataPath": "params_shard_64.bin",
+        "nbytes": 26548224,
+        "sha256": "6b09b47490e66ca86e16d7438949f9c59a239ce21094872f4d6bb52fc23b50d2"
+      },
+      {
+        "dataPath": "params_shard_65.bin",
+        "nbytes": 25165824,
+        "sha256": "36a94b4305d47e6a2fa697c7938efdcc6bafa28da5cf1876299d106e4c494785"
+      },
+      {
+        "dataPath": "params_shard_66.bin",
+        "nbytes": 22616064,
+        "sha256": "4b9e21d61dbc6590fa64fff4022ba6eda2e1569c68c1dc2a2044daa0bc966447"
+      },
+      {
+        "dataPath": "params_shard_67.bin",
+        "nbytes": 25165824,
+        "sha256": "a118600c63860c3ed86adf0e581e97a7cac71c8beaa7178adcee0d4d5d1b271b"
+      },
+      {
+        "dataPath": "params_shard_68.bin",
+        "nbytes": 33239040,
+        "sha256": "b002700dcd8d215e139e11fb95b700f699a41af3c20da4852eeea49fe1e30b22"
+      },
+      {
+        "dataPath": "params_shard_69.bin",
+        "nbytes": 21239808,
+        "sha256": "a041c77ef491d5c479ff4d0c87c07be11f74b99987f1789e9bce082c05b7e003"
+      },
+      {
+        "dataPath": "params_shard_70.bin",
+        "nbytes": 25165824,
+        "sha256": "dc16924c57acc1168fc32789ddd695794366d0d993afed35299a66bfab4fa7e2"
+      },
+      {
+        "dataPath": "params_shard_71.bin",
+        "nbytes": 22616064,
+        "sha256": "fec68b8a9b1fed80cf6ffe03d0f6ac1fe10cb66aa879b8d60dacd21278f832df"
+      },
+      {
+        "dataPath": "params_shard_72.bin",
+        "nbytes": 25165824,
+        "sha256": "899ea540096c5b10254c3867f4fc9703e7bc33f1818fc97081426eef098228cb"
+      },
+      {
+        "dataPath": "params_shard_73.bin",
+        "nbytes": 33239040,
+        "sha256": "eb54f903bc344d73cc85f0206cfb8fbfd651ff332a156492ccc36fb89f5566e1"
+      },
+      {
+        "dataPath": "params_shard_74.bin",
+        "nbytes": 21239808,
+        "sha256": "22ad65e23dd19e2d21f355f17685e5a126db98297d3573ab8b75177b8c6f689d"
+      },
+      {
+        "dataPath": "params_shard_75.bin",
+        "nbytes": 25165824,
+        "sha256": "68072aa80871e518ef3de32e915514b27d824c171825d1dd06fe7df54e8a1eab"
+      },
+      {
+        "dataPath": "params_shard_76.bin",
+        "nbytes": 22616064,
+        "sha256": "8b5a0bfb4b160391a481a94cff6210ed84bd13438620e97cf117b80160829d7b"
+      },
+      {
+        "dataPath": "params_shard_77.bin",
+        "nbytes": 25165824,
+        "sha256": "e3ffa4e133a237df962e108991d373c518f35513560a38c9dac9dae064eaafd7"
+      },
+      {
+        "dataPath": "params_shard_78.bin",
+        "nbytes": 33239040,
+        "sha256": "e0fc71e2d9e4bf0b8b9cf4036579ec6c8dbc7e4de99231359fc576634a1cc340"
+      },
+      {
+        "dataPath": "params_shard_79.bin",
+        "nbytes": 21239808,
+        "sha256": "1fa0731f35015a603573e9974dd9338cae8d24479a44147631728aa730942691"
+      },
+      {
+        "dataPath": "params_shard_80.bin",
+        "nbytes": 25165824,
+        "sha256": "c7237177e6432850ab1d843f0708504d438b865e322c66708ecb28d284dc3e43"
+      },
+      {
+        "dataPath": "params_shard_81.bin",
+        "nbytes": 22616064,
+        "sha256": "b9438f93c6ecfc86ecb5960a3d69b8ff8d706ea1f0d7d2d1ae04f5da5ae7940b"
+      },
+      {
+        "dataPath": "params_shard_82.bin",
+        "nbytes": 15925248,
+        "sha256": "866fc3b72676b1610456a9b6a760fa32621af1221aba057b73b0b02f8673a722"
+      }
+    ]
   },
   "phi3Facts": {
     "layers": 32,
@@ -16,12 +432,22 @@
     "vocab": 32064
   },
   "validation": {
-    "validateLayers": [0, 4, 8, 12, 16, 20, 24, 28, 31],
+    "validateLayers": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      31
+    ],
     "tolerances": {
       "hiddenRelL2Max": 0.02,
       "hiddenCosineMin": 0.999,
       "attnReconRelL2Max": 0.01,
-      "top1Match": 1.0,
+      "top1Match": 1,
       "meanJsdMax": 0.005,
       "samplerJsdMax": 0.01
     },

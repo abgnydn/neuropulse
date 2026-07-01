@@ -82,13 +82,17 @@ The project aspires to lab-grade reproducibility. Three gates exist:
    (`shards: []` / `revision: TBD`) until `tools/dump_phi3_reference.py` runs
    against a pinned HF rev. The live in-app suite (`accurateBtn`) validates
    against the populated `public/reference.json`, regenerating a fresh sample
-   on the visitor's own GPU and comparing **in-browser**. NOTE: the weight
-   loader does NOT currently verify downloaded shards against those SHA-256s —
-   integrity checking is future work, not a shipped guarantee; do not describe
-   it as one in user-facing copy. The suite is deliberately NOT run in CI (it
-   needs the ~2 GB weights + a WebGPU device); CI
-   (`.github/workflows/check.yml`) guards only the weight-free gates (#1, #2,
-   `tsc`, `vite build`). See `METHODS.md` for the tolerance derivation.
+   on the visitor's own GPU and comparing **in-browser**. Weight integrity IS
+   enforced: the loader pins all fetches to `modelSource.revision` (an
+   immutable HF commit) and checks every freshly-downloaded shard against its
+   SHA-256 before caching (`verifyShard` in `weight-loader.ts`) — a mismatch
+   falls through to the next tier or fails loudly, so tampered/corrupt bytes
+   never reach OPFS. Cache/OPFS reloads skip re-hashing so instant reload is
+   preserved. Runtime hashes live in `src/engine/weight-manifest.ts` (generated
+   from parity.json at the same revision; regenerate both together). The
+   validation suite is deliberately NOT run in CI (it needs the ~2 GB weights +
+   a WebGPU device); CI (`.github/workflows/check.yml`) guards only the
+   weight-free gates (#1, #2, `tsc`, `vite build`). See `METHODS.md`.
 
 `METHODS.md` documents precision (f16 weights, f32 accumulators, ε_norm),
 known divergences from HF, and per-kernel ULP error budgets.
