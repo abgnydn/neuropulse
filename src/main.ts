@@ -276,7 +276,12 @@ function initAblationPanel() {
 
   runBtn.addEventListener('click', async () => {
     if (!engine) { alert('Engine not ready yet.'); return }
-    if (isRunning || isValidating) { alert('Inference already in flight.'); return }
+    if (isValidating) { alert('Validation is running — wait for it to finish.'); return }
+    // Cancel any in-flight generation instead of refusing, then run.
+    if (isRunning) {
+      cancelInFlightInference()
+      if (!(await waitForInferenceIdle())) { alert('Could not stop the current run — try again in a moment.'); return }
+    }
     const abls = viz.getAblations()
     if (abls.length === 0) return
     const prompt = (promptInput.value.trim() || 'Paris is the capital of')
@@ -355,7 +360,12 @@ function initAblationPanel() {
   // it into the full-generation path above.
   sweepBtn.addEventListener('click', async () => {
     if (!engine) { alert('Engine not ready yet.'); return }
-    if (isRunning || isValidating) { alert('Inference already in flight.'); return }
+    if (isValidating) { alert('Validation is running — wait for it to finish.'); return }
+    // Cancel any in-flight generation instead of refusing, then sweep.
+    if (isRunning) {
+      cancelInFlightInference()
+      if (!(await waitForInferenceIdle())) { alert('Could not stop the current run — try again in a moment.'); return }
+    }
     const L = Math.max(0, Math.min(31, Number(sweepLayerInput.value) || 0))
     sweepLayerInput.value = String(L)
 
@@ -2759,7 +2769,7 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
         goBtn.textContent = `Prefill (${length} tok)...`
       }
       if (phase === 'end') {
-        goBtn.textContent = 'Generating...'
+        goBtn.textContent = 'Stop'
         hidePrefill()
       }
     },
@@ -2848,6 +2858,27 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
   }
 }
 
+// ─── Cancellation ───
+/** Ask the engine to stop the in-flight generation at the next token. Returns
+ *  true if a run was actually interrupted. */
+function cancelInFlightInference(): boolean {
+  return (engine as unknown as { interrupt?: () => boolean }).interrupt?.() ?? false
+}
+/** Resolve once no generation is running (isRunning clears in generate()'s
+ *  finally). Resolves false if it doesn't settle within ~10s so callers don't
+ *  hang or double-run. */
+function waitForInferenceIdle(maxFrames = 600): Promise<boolean> {
+  return new Promise((resolve) => {
+    let n = 0
+    const check = () => {
+      if (!isRunning) resolve(true)
+      else if (++n > maxFrames) resolve(false)
+      else requestAnimationFrame(check)
+    }
+    check()
+  })
+}
+
 // ─── Dispatch ───
 function startInference(mode: 'think' | 'ask' = 'think') {
   const prompt = promptInput.value.trim()
@@ -2880,12 +2911,26 @@ function startInference(mode: 'think' | 'ask' = 'think') {
   runRealInference(prompt, mode)
 }
 
-goBtn.addEventListener('click', () => startInference('think'))
+// While a generation is running the Think button reads "Stop" and cancels it.
+goBtn.addEventListener('click', () => {
+  if (isRunning) { cancelInFlightInference(); return }
+  startInference('think')
+})
 document.getElementById('askBtn')?.addEventListener('click', () => startInference('ask'))
 promptInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     // Shift+Enter = Ask (docs-augmented Q&A); plain Enter = Think (completion)
     startInference(e.shiftKey ? 'ask' : 'think')
+  }
+})
+// Escape cancels an in-flight generation (but not the validation suite, and
+// not while a guided tour is running — that has its own Escape handling).
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return
+  if (document.body.classList.contains('tour-running')) return
+  if (isRunning && !isValidating) {
+    e.preventDefault()
+    cancelInFlightInference()
   }
 })
 

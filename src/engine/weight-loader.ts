@@ -135,16 +135,18 @@ async function opfsRead(dir: OPFSDir, dataPath: string): Promise<ArrayBuffer | n
   }
 }
 
-async function opfsWrite(dir: OPFSDir, dataPath: string, data: ArrayBuffer): Promise<void> {
-  if (!dir) return
+async function opfsWrite(dir: OPFSDir, dataPath: string, data: ArrayBuffer): Promise<boolean> {
+  if (!dir) return false
   try {
     const fh = await dir.getFileHandle(opfsKey(dataPath), { create: true })
     // createWritable is widely supported; Safari falls through to the catch.
     const writable = await (fh as unknown as { createWritable: () => Promise<{ write(d: ArrayBuffer): Promise<void>; close(): Promise<void> }> }).createWritable()
     await writable.write(data)
     await writable.close()
+    return true
   } catch {
     // best-effort — failures just mean next visit pays network again
+    return false
   }
 }
 
@@ -378,6 +380,15 @@ async function verifyShard(dataPath: string, buf: ArrayBuffer): Promise<void> {
   }
 }
 
+/** Persist a downloaded shard to exactly ONE store: OPFS (the fast primary)
+ *  when available, otherwise the Cache API. Writing to both — as this used to —
+ *  doubled on-disk usage (~4 GB for a ~2 GB model). Cache API stays read-only
+ *  for migration / WebLLM reuse via anyCacheMatch. */
+async function persistShard(opfs: OPFSDir, dataPath: string, url: string, buf: ArrayBuffer): Promise<void> {
+  if (await opfsWrite(opfs, dataPath, buf)) return
+  await putInOurCache(url, buf) // OPFS unavailable/failed — fall back to Cache API
+}
+
 async function fetchShard(
   url: string,
   dataPath: string,
@@ -411,9 +422,8 @@ async function fetchShard(
   if (cached) {
     const buf = await cached.arrayBuffer()
     onBytes(buf.byteLength)
-    // Promote into OPFS + our named cache for faster future loads
-    void opfsWrite(opfs, dataPath, buf)
-    void putInOurCache(url, buf)
+    // Promote into OPFS (single store) for faster future loads
+    void persistShard(opfs, dataPath, url, buf)
     return { buf, fromCache: true }
   }
 
@@ -424,8 +434,7 @@ async function fetchShard(
     try {
       const buf = await streamFetch(CF_PROXY_BASE + dataPath, onBytes)
       await verifyShard(dataPath, buf) // reject tampered edge bytes before caching
-      void opfsWrite(opfs, dataPath, buf)
-      void putInOurCache(url, buf)
+      void persistShard(opfs, dataPath, url, buf)
       return { buf, fromCache: false }
     } catch {
       /* proxy down or integrity mismatch — fall through to direct HF */
@@ -435,8 +444,7 @@ async function fetchShard(
   // Tier 4: direct HuggingFace network (streaming + retry)
   const buf = await streamFetch(url, onBytes)
   await verifyShard(dataPath, buf) // hard-fail if even HF served unexpected bytes
-  void opfsWrite(opfs, dataPath, buf)
-  void putInOurCache(url, buf)
+  void persistShard(opfs, dataPath, url, buf)
   return { buf, fromCache: false }
 }
 
