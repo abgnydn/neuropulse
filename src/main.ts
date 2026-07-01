@@ -937,64 +937,78 @@ function layoutBottomOrbRail() {
   })
 }
 
-/** Tile every expanded panel into a top-anchored column grid so opening
- *  several at once (or EXPAND ALL) never stacks cards on top of each other,
- *  the top-right toolbar, or the ablation panel. Panels the user has dragged
- *  (saved localStorage position) keep their spot. */
+/** Tile expanded panels into the empty space AROUND the centered answer card
+ *  and 3D model — never on top of them. Cards fill the left and right gutters
+ *  first (full height), then spill below the answer card only if needed, so
+ *  opening several (or EXPAND ALL) stays tidy instead of piling over the
+ *  scene. Panels the user has dragged (saved position) keep their spot. */
 function layoutExpandedPanels() {
   const cards = Array.from(
     document.querySelectorAll<HTMLElement>('.side > [data-anchor].expanded')
   ).filter(p => {
     if (p.id === 'output' || p.classList.contains('side-header')) return false
-    // User-dragged panels keep their saved spot — don't re-tile them.
     const key = (p.id || '') + ':' + (p.className || '').split(/\s+/)[0]
     return !localStorage.getItem(`neuropulse:panel-pos:${key}`)
   })
   if (cards.length === 0) return
 
-  const GAP = 12, LEFT = 20, TARGET_W = 260, MAX_W = 380
-  const vw = window.innerWidth, vh = window.innerHeight
-  let right = vw - 20, top = 72 // 72 clears the top toolbar (buttons end ~52px)
-  // Avoid the ablation panel wherever it actually is: reserve a right gutter
-  // when it's right-docked, or start below it when it's full-width (narrow).
+  const GAP = 12, MARGIN = 20, TOP = 72, TARGET_W = 260, MIN_COL = 232, MAX_W = 380
+  const vw = window.innerWidth, vh = window.innerHeight, bottom = vh - MARGIN
+
+  // The centered answer card defines the "keep clear" center band.
+  const out = document.getElementById('output')
+  const oR = out && getComputedStyle(out).display !== 'none' ? out.getBoundingClientRect() : null
+  const hasCenter = !!oR && oR.width > 40
+  const cxL = hasCenter ? oR!.left - GAP : vw * 0.34
+  const cxR = hasCenter ? oR!.right + GAP : vw * 0.66
+
+  // Right edge clears the ablation panel when it's open (right-docked).
+  let rightBound = vw - MARGIN
   const abl = document.querySelector<HTMLElement>('.ablate-panel.open:not(.collapsed)')
   if (abl) {
     const r = abl.getBoundingClientRect()
-    if (r.left > vw * 0.4) right = Math.min(right, r.left - GAP)
-    else top = Math.max(top, r.bottom + GAP)
+    if (r.left > vw * 0.4) rightBound = Math.min(rightBound, r.left - GAP)
   }
-  const usable = right - LEFT
-  // ~260px target sets the column count; cards then fill each row evenly up to
-  // 380. Never more columns than cards.
-  const cols = Math.max(1, Math.min(cards.length, Math.floor((usable + GAP) / (TARGET_W + GAP))))
-  const cardW = Math.min(MAX_W, Math.floor((usable - (cols - 1) * GAP) / cols))
-  // Cap card height so a full column fits the viewport (tall cards scroll
-  // internally) — nothing is pushed below the fold on small screens.
-  const usableH = (vh - 20) - top
-  const rowsPerCol = Math.ceil(cards.length / cols)
-  const maxCardH = Math.max(110, Math.floor((usableH - (rowsPerCol - 1) * GAP) / rowsPerCol))
 
-  // Masonry: each card drops into the currently-shortest column. Columns have
-  // disjoint x-ranges and cards stack in y, so no two cards can overlap.
-  const colY = new Array<number>(cols).fill(top)
+  // Three X-disjoint regions so columns can never collide: left gutter, right
+  // gutter (both full height), and center-below the answer card (overflow).
+  const regions: Array<{ x0: number; x1: number; top: number }> = []
+  if (cxL - MARGIN >= MIN_COL) regions.push({ x0: MARGIN, x1: cxL, top: TOP })
+  if (rightBound - cxR >= MIN_COL) regions.push({ x0: cxR, x1: rightBound, top: TOP })
+  if (hasCenter && oR!.width >= MIN_COL) regions.push({ x0: oR!.left, x1: oR!.right, top: oR!.bottom + GAP })
+  if (regions.length === 0) regions.push({ x0: MARGIN, x1: rightBound, top: TOP })
+
+  const columns: Array<{ x: number; w: number; top: number }> = []
+  for (const rg of regions) {
+    const w = rg.x1 - rg.x0
+    const n = Math.max(1, Math.floor((w + GAP) / (TARGET_W + GAP)))
+    const cw = Math.min(MAX_W, Math.floor((w - (n - 1) * GAP) / n))
+    for (let i = 0; i < n; i++) columns.push({ x: rg.x0 + i * (cw + GAP), w: cw, top: rg.top })
+  }
+
+  // Cap card height so a full column fits (tall cards scroll internally).
+  const rowsPerCol = Math.ceil(cards.length / columns.length)
+  const maxCardH = Math.max(96, Math.floor(((bottom - TOP) - (rowsPerCol - 1) * GAP) / rowsPerCol))
+
+  // Masonry: each card drops into the currently-shortest column. Gutter columns
+  // start higher (top=72) than the center-below column, so cards fill the
+  // gutters first and only spill below the answer card when they must.
+  const colY = columns.map(c => c.top)
   for (const p of cards) {
-    // Pin an exact border-box width + capped height so padding/content never
-    // pushes the card past its column; transition off so we measure the final
-    // height (the .expanded rule animates over 0.15s otherwise).
     p.style.transition = 'none'
     p.style.boxSizing = 'border-box'
-    p.style.width = `${cardW}px`
-    p.style.maxWidth = `${cardW}px`
     p.style.maxHeight = `${maxCardH}px`
     p.style.overflow = 'auto'
-    const h = p.getBoundingClientRect().height
     let c = 0
-    for (let k = 1; k < cols; k++) if (colY[k] < colY[c]) c = k
-    p.style.left = `${LEFT + c * (cardW + GAP)}px`
+    for (let k = 1; k < columns.length; k++) if (colY[k] < colY[c]) c = k
+    p.style.width = `${columns[c]!.w}px`
+    p.style.maxWidth = `${columns[c]!.w}px`
+    const h = p.getBoundingClientRect().height
+    p.style.left = `${columns[c]!.x}px`
     p.style.top = `${colY[c]}px`
     p.style.right = 'auto'
     p.style.bottom = 'auto'
-    colY[c] += h + GAP
+    colY[c]! += h + GAP
   }
 }
 
