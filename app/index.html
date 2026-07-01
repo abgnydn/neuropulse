@@ -1637,6 +1637,12 @@ body.mode-journey .side > *.expanded .panel-info { display: flex; }
 }
 .panel-info-body.on { display: block; }
 .panel-info-body b { color: #5eead4; font-weight: 500; }
+.panel-info-more {
+  display: inline-block; margin-top: 8px; padding: 0;
+  background: transparent; border: none; color: #00e5ff; cursor: pointer;
+  font: inherit; font-size: 11px; text-decoration: underline; text-underline-offset: 2px;
+}
+.panel-info-more:hover { color: #7de3ff; }
 
 /* ─── Welcome overlay (first visit, dismissed via localStorage) ─── */
 /* ── Storage modal — model cache size + delete ── */
@@ -2468,18 +2474,18 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
          (Scene) mode. `data-anchor="x,y,z"` is read by spatial-panels.ts
          and projected through the live WebGL camera every frame. -->
     <div class="side-header" data-anchor="4.4,2.6,1.5" data-title="Output">AI Output</div>
-    <div class="output-area" id="output" data-anchor="4.3,1.5,1.5" data-title="Output"
+    <div class="output-area" id="output" data-anchor="4.3,1.5,1.5" data-title="Output" data-glossary="gloss-token"
          data-info="The <b>decoded text</b> — tokens as they stream out of the LM head. Each token is an <b>argmax</b> over 32,064 vocabulary logits. Fresh tokens glow cyan for ~0.5s."><span class="cursor"></span></div>
 
     <!-- Top-K Probabilities -->
-    <div id="topkPanel" class="topk-panel" data-anchor="4.3,0.2,1.5" data-title="Top-K"
+    <div id="topkPanel" class="topk-panel" data-anchor="4.3,0.2,1.5" data-title="Top-K" data-glossary="gloss-softmax"
          data-info="The model's <b>top five candidate tokens</b> for the next position, with their softmax probabilities. High top-1 with low spread = confident; flat distribution = uncertain.">
       <div class="topk-header">Token Probabilities</div>
       <div id="topkBars"></div>
     </div>
 
     <!-- Confidence Meter -->
-    <div class="confidence-panel" data-anchor="4.3,-0.9,1.5" data-title="Confidence"
+    <div class="confidence-panel" data-anchor="4.3,-0.9,1.5" data-title="Confidence" data-glossary="gloss-softmax"
          data-info="<b>1 − entropy(softmax)</b>, normalized. Green = peaky distribution (sure). Amber = flat distribution (guessing). Useful for spotting <b>ambiguous completions</b>.">
       <div class="confidence-label">
         <span style="color:#cbc1ad">Confidence</span>
@@ -2491,7 +2497,7 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
     </div>
 
     <!-- KV Cache — floats below the residual axis where the KV strips sit -->
-    <div id="kvPanel" class="kv-panel" data-anchor="0,-1.9,1.5" data-title="KV Cache"
+    <div id="kvPanel" class="kv-panel" data-anchor="0,-1.9,1.5" data-title="KV Cache" data-glossary="gloss-kv"
          data-info="Paged <b>K/V cache</b> — stored keys and values for every past token, so attention doesn't recompute them. Grows by one entry per token, per layer (32 layers × seq_len).">
       <div class="kv-label">
         <span>KV Cache</span>
@@ -2503,28 +2509,28 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
     </div>
 
     <!-- Head Activity Heatmap — floats above the attention ring -->
-    <div class="heatmap-panel scene-only" data-anchor="-0.5,2.1,1.5" data-title="Heatmap"
+    <div class="heatmap-panel scene-only" data-anchor="-0.5,2.1,1.5" data-title="Heatmap" data-glossary="gloss-attention"
          data-info="Live magnitudes of all <b>32 × 32 = 1,024 attention heads</b>. Rows = layers, columns = heads. Bright cells = heads doing heavy work <i>this</i> token. A good <b>interpretability probe</b>.">
       <div class="heatmap-title">Head Activity (32 layers × 32 heads)</div>
       <div id="heatmapGrid" class="heatmap-grid"></div>
     </div>
 
     <!-- Residual Stream Magnitude — left of embedding -->
-    <div class="residual-panel scene-only" data-anchor="-4.4,1.4,1.5" data-title="Residual Norm"
+    <div class="residual-panel scene-only" data-anchor="-4.4,1.4,1.5" data-title="Residual Norm" data-glossary="gloss-residual"
          data-info="<b>L2 norm</b> of the 3,072-dim residual at each of 32 layers. The classic <b>norm-grows-with-depth</b> curve you see in interpretability papers.">
       <div class="residual-title">Residual Stream Norm (per layer)</div>
       <canvas id="residualChart" class="residual-canvas" width="384" height="32"></canvas>
     </div>
 
     <!-- Layer Contribution Delta — stacked under residual -->
-    <div class="delta-panel scene-only" data-anchor="-4.4,0.4,1.5" data-title="Layer Δ"
+    <div class="delta-panel scene-only" data-anchor="-4.4,0.4,1.5" data-title="Layer Δ" data-glossary="gloss-residual"
          data-info="<b>||residual(L) − residual(L−1)||</b> per layer — how much each transformer block <i>changes</i> the signal. Spiky = some layers matter more than others for this prompt.">
       <div class="delta-title">Layer Contribution Δ (change per layer)</div>
       <canvas id="deltaChart" class="delta-canvas" width="384" height="32"></canvas>
     </div>
 
     <!-- Residual Stream Strip — under delta -->
-    <div class="resstrip-panel scene-only" data-anchor="-4.4,-0.6,1.5" data-title="Residual Strip"
+    <div class="resstrip-panel scene-only" data-anchor="-4.4,-0.6,1.5" data-title="Residual Strip" data-glossary="gloss-residual"
          data-info="All <b>3,072 residual dimensions × 32 layers</b> as a single heatmap. Cyan = positive, amber = negative. Vertical stripes = <b>persistent features</b>; diagonal flow = information propagating through depth.">
       <div class="resstrip-title">
         <span>Residual Stream (3072 dims × 32 layers)</span>
@@ -2534,7 +2540,7 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
     </div>
 
     <!-- Per-Head Attention (Layer 31) — orb in scene/journey, full-bleed in Attention mode -->
-    <div class="attn-panel" data-anchor="0,-1.1,2" data-title="Attn L31"
+    <div class="attn-panel" data-anchor="0,-1.1,2" data-title="Attn L31" data-glossary="gloss-attention"
          data-info="<b>Layer 31 attention</b> — the last block's 32 heads × past tokens. Bright stripes = where each head looks. The full <b>32×32</b> grid is the Attention mode hero.">
       <div class="attn-title">
         <span>Attention Patterns — Layer 31 (32 heads × past tokens)</span>
@@ -2544,7 +2550,7 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
     </div>
 
     <!-- Logit Lens — orb in scene/journey, full-bleed in Lens mode -->
-    <div class="lens-panel" data-anchor="0,1.1,2" data-title="Logit Lens"
+    <div class="lens-panel" data-anchor="0,1.1,2" data-title="Logit Lens" data-glossary="gloss-logitlens"
          data-info="<b>Logit Lens</b> — if the model stopped at each layer and ran <code>lm_head</code>, what would it predict? Watch the answer crystallize from L0 → L31. Full stack lives in Logit Lens mode.">
       <div class="lens-title">
         <span>Logit Lens (what each layer would predict next)</span>
@@ -2744,20 +2750,20 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
     <h2 id="glossary-title" class="glossary-title">Concepts · in <em>neuropulse</em></h2>
     <div class="glossary-list">
 
-      <div class="glossary-item" data-highlight="all">
-        <div class="glossary-term">Token <button class="glossary-show" type="button" data-highlight="all" aria-label="Show in scene">show</button></div>
+      <div class="glossary-item" id="gloss-token" data-highlight="all">
+        <div class="glossary-term">Token<button class="glossary-show" type="button" data-highlight="all" aria-label="Show in scene">show</button></div>
         <div class="glossary-def">A fragment of text the model reads and writes — typically 3–4 characters. Phi-3's vocabulary holds <b>32,064 tokens</b>, so every step picks one of those.</div>
         <div class="glossary-hint">→ Output panel · Top-K probabilities</div>
       </div>
 
-      <div class="glossary-item" data-highlight="residual">
-        <div class="glossary-term">Residual stream <button class="glossary-show" type="button" data-highlight="residual" aria-label="Show residual in scene">show</button></div>
+      <div class="glossary-item" id="gloss-residual" data-highlight="residual">
+        <div class="glossary-term">Residual stream<button class="glossary-show" type="button" data-highlight="residual" aria-label="Show residual in scene">show</button></div>
         <div class="glossary-def">The <b>3,072-dimensional vector</b> flowing through the model. Every layer <i>reads</i> from it and <i>adds</i> back to it — information accumulates rather than being replaced.</div>
         <div class="glossary-hint">→ Residual Norm · Residual Strip · the central axis in 3D</div>
       </div>
 
-      <div class="glossary-item" data-highlight="attention">
-        <div class="glossary-term">Attention head <button class="glossary-show" type="button" data-highlight="attention" aria-label="Show attention heads in scene">show</button></div>
+      <div class="glossary-item" id="gloss-attention" data-highlight="attention">
+        <div class="glossary-term">Attention head<button class="glossary-show" type="button" data-highlight="attention" aria-label="Show attention heads in scene">show</button></div>
         <div class="glossary-def">A <b>96-dim projection</b> that decides which past tokens to look at. Phi-3 has <b>32 heads × 32 layers = 1,024</b> heads. Each specializes in a different kind of pattern.</div>
         <div class="glossary-hint">→ Cyan heads in the ring · Heatmap panel</div>
       </div>
@@ -2768,13 +2774,13 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
         <div class="glossary-hint">→ Amber slab · FFN hover label on each layer</div>
       </div>
 
-      <div class="glossary-item">
+      <div class="glossary-item" id="gloss-kv">
         <div class="glossary-term">KV cache</div>
         <div class="glossary-def">Saved <b>keys and values</b> from every past token per layer, so attention doesn't recompute them. Paged memory — grows one slot per token, per layer.</div>
         <div class="glossary-hint">→ KV Cache panel · strips below the residual axis</div>
       </div>
 
-      <div class="glossary-item">
+      <div class="glossary-item" id="gloss-softmax">
         <div class="glossary-term">Softmax</div>
         <div class="glossary-def">Turns raw <b>logits</b> into probabilities: exponentiate, then normalize to sum to 1. Peaky softmax = confident; flat = guessing.</div>
         <div class="glossary-hint">→ Top-K panel · Confidence panel</div>
@@ -2790,6 +2796,12 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
         <div class="glossary-term">Dispatch</div>
         <div class="glossary-def">One WebGPU kernel invocation. Phi-3 takes <b>292 dispatches per output token</b> in the headless engine path; the visualizer adds <b>~56 more</b> for live attention-score readback and the 8-layer logit-lens probes. Every one is visible in the 3D scene as its tensor lights up.</div>
         <div class="glossary-hint">→ Cinematic mode shows the running counter on the scrub bar (N / 292)</div>
+      </div>
+
+      <div class="glossary-item" id="gloss-logitlens" data-highlight="residual">
+        <div class="glossary-term">Logit lens <button class="glossary-show" type="button" data-highlight="residual" aria-label="Show residual in scene">show</button></div>
+        <div class="glossary-def">A peek at the model's "current guess" at <b>every layer</b>, not just the last. If you took the residual after layer L and ran the final <code>lm_head</code> on it, what token would pop out? Watching L0 → L31 shows the answer <b>crystallize</b> with depth — early layers guess generically, later layers lock in the real answer.</div>
+        <div class="glossary-hint">→ Logit Lens panel · Logit Lens view mode</div>
       </div>
 
       <div class="glossary-item" id="gloss-ablation" data-highlight="attention">

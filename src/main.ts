@@ -817,6 +817,16 @@ function wirePanelToggles(): void {
       const body = document.createElement('div')
       body.className = 'panel-info-body'
       body.innerHTML = info  // data-info is trusted copy from our own HTML
+      // "Learn more →" deep-links to the roomy glossary entry for this panel.
+      const glossAnchor = panel.dataset.glossary
+      if (glossAnchor) {
+        const more = document.createElement('button')
+        more.className = 'panel-info-more'
+        more.type = 'button'
+        more.textContent = 'Learn more →'
+        more.addEventListener('click', (e) => { e.stopPropagation(); openGlossaryAt(glossAnchor) })
+        body.appendChild(more)
+      }
       btn.addEventListener('click', (e) => {
         e.stopPropagation()
         btn.classList.toggle('on')
