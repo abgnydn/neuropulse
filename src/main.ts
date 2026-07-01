@@ -135,6 +135,12 @@ function initAblationPanel() {
     .ablate-info-body b { color: #ffd28a; font-weight: 600; }
     .ablate-info-body p { margin: 0 0 7px; }
     .ablate-info-body p:last-child { margin-bottom: 0; }
+    .ablate-learnmore {
+      background: transparent; border: none; color: #00e5ff; cursor: pointer;
+      font-family: inherit; font-size: 12px; padding: 2px 0; text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .ablate-learnmore:hover { color: #7df; }
     .ablate-hint { color: #8a7f6c; font-size: 11px; font-style: italic; }
     .ablate-btn {
       background: rgba(255, 154, 31, 0.18); color: #ffd28a;
@@ -198,11 +204,9 @@ function initAblationPanel() {
       <button class="ablate-close" id="ablateCloseBtn" type="button" aria-label="Hide ablation panel (A)" title="Hide · A">✕</button>
     </div>
     <div class="ablate-info-body" id="ablateInfoBody">
-      <p><b>Ablation</b> switches off parts of the model so you can see what each part actually does.</p>
-      <p><b>1.</b> Shift-click the glowing attention heads in the 3D scene — they turn amber to show they're covered.</p>
-      <p><b>2.</b> Hit <b>Run ablated</b>. The model answers your prompt twice: once normally (<b>Baseline</b>) and once with those heads switched off (<b>Ablated</b>). If the two answers differ, those heads were doing real work.</p>
-      <p>Switching off just one or two heads usually changes nothing — the model has 1,024 heads and is very redundant, so it routes around a few missing ones. Identical answers are a real result, not a glitch.</p>
-      <p><b>Sweep 32 heads</b> finds the important ones for you: it switches off each head in one layer, one at a time, and colors the strip by impact — <b>cyan</b> = didn't matter, <b>red</b> = changed the answer a lot. Then ablate the red ones.</p>
+      <p><b>Ablation</b> switches off attention heads to see what they do. Shift-click heads in the 3D scene, then <b>Run ablated</b> — the model answers with and without them, side by side.</p>
+      <p>Turning off 1–2 of 1,024 heads usually changes nothing (the model is very redundant) — that's expected, not a glitch. <b>Sweep</b> finds the heads that matter.</p>
+      <p><button class="ablate-learnmore" id="ablateLearnMore" type="button">Full explanation →</button></p>
     </div>
     <div class="ablate-sweep-row">
       <label for="ablateSweepLayer">Sweep layer</label>
@@ -238,6 +242,7 @@ function initAblationPanel() {
   const closeBtn = panel.querySelector<HTMLButtonElement>('#ablateCloseBtn')!
   const infoBtn = panel.querySelector<HTMLButtonElement>('#ablateInfoBtn')!
   const infoBody = panel.querySelector<HTMLDivElement>('#ablateInfoBody')!
+  const learnMore = panel.querySelector<HTMLButtonElement>('#ablateLearnMore')!
 
   function setPanelOpen(open: boolean) {
     panel.classList.toggle('open', open)
@@ -254,11 +259,16 @@ function initAblationPanel() {
     e.stopPropagation()
     setCollapsed(true)
   })
-  // "i" toggles the plain-English explanation of what ablation does.
+  // "i" toggles the plain-English teaser; "Full explanation →" opens the
+  // glossary (the roomy home for detail) at the Ablation entry.
   infoBtn.addEventListener('click', (e) => {
     e.stopPropagation()
     infoBtn.classList.toggle('on')
     infoBody.classList.toggle('on')
+  })
+  learnMore.addEventListener('click', (e) => {
+    e.stopPropagation()
+    openGlossaryAt('gloss-ablation')
   })
   panel.addEventListener('click', (e) => {
     if (!panel.classList.contains('collapsed')) return
@@ -1185,6 +1195,23 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
     }
   })
 })()
+
+/** Open the glossary overlay and scroll to / flash a specific entry by id.
+ *  Used by panel "Learn more →" links so detail lives in the roomy glossary
+ *  rather than cramped floating cards. */
+function openGlossaryAt(entryId?: string): void {
+  const overlay = document.getElementById('glossary-overlay')
+  if (!overlay) return
+  overlay.classList.add('visible')
+  if (!entryId) return
+  const el = document.getElementById(entryId)
+  if (!el) return
+  requestAnimationFrame(() => {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('gloss-flash')
+    setTimeout(() => el.classList.remove('gloss-flash'), 1600)
+  })
+}
 
 // ─── Preset-hint floating toast (educational annotation for each preset) ───
 ;(function wirePresetHints() {
