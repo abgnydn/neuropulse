@@ -118,6 +118,23 @@ function initAblationPanel() {
       flex: 0 0 auto;
     }
     .ablate-close:hover { color: #f4ecdf; border-color: #f4ecdf; }
+    .ablate-info {
+      background: transparent; border: 1px solid rgba(255,154,31,0.5);
+      color: #ffd28a; width: 22px; height: 22px; border-radius: 50%;
+      cursor: pointer; font-family: 'Fraunces', Georgia, serif; font-style: italic;
+      font-size: 13px; line-height: 1; display: inline-flex; align-items: center;
+      justify-content: center; flex: 0 0 auto; padding: 0 0 1px 0;
+    }
+    .ablate-info:hover, .ablate-info.on { background: rgba(255,154,31,0.2); border-color: #ff9a1f; color: #fff; }
+    .ablate-info-body {
+      display: none; margin: 0 0 10px; padding: 10px 12px;
+      background: rgba(255,154,31,0.06); border: 1px solid rgba(255,154,31,0.25);
+      border-radius: 6px; font-size: 12px; line-height: 1.5; color: #d8cdb8;
+    }
+    .ablate-info-body.on { display: block; }
+    .ablate-info-body b { color: #ffd28a; font-weight: 600; }
+    .ablate-info-body p { margin: 0 0 7px; }
+    .ablate-info-body p:last-child { margin-bottom: 0; }
     .ablate-hint { color: #8a7f6c; font-size: 11px; font-style: italic; }
     .ablate-btn {
       background: rgba(255, 154, 31, 0.18); color: #ffd28a;
@@ -177,7 +194,15 @@ function initAblationPanel() {
       <span class="ablate-status" id="ablateStatus">No heads ablated — shift-click attention spheres, or sweep a layer to see impact.</span>
       <button class="ablate-btn" id="ablateRunBtn" type="button" disabled>Run ablated</button>
       <button class="ablate-btn clear" id="ablateClearBtn" type="button">Clear</button>
+      <button class="ablate-info" id="ablateInfoBtn" type="button" aria-label="What is ablation?" title="What is this?">i</button>
       <button class="ablate-close" id="ablateCloseBtn" type="button" aria-label="Hide ablation panel (A)" title="Hide · A">✕</button>
+    </div>
+    <div class="ablate-info-body" id="ablateInfoBody">
+      <p><b>Ablation</b> switches off parts of the model so you can see what each part actually does.</p>
+      <p><b>1.</b> Shift-click the glowing attention heads in the 3D scene — they turn amber to show they're covered.</p>
+      <p><b>2.</b> Hit <b>Run ablated</b>. The model answers your prompt twice: once normally (<b>Baseline</b>) and once with those heads switched off (<b>Ablated</b>). If the two answers differ, those heads were doing real work.</p>
+      <p>Switching off just one or two heads usually changes nothing — the model has 1,024 heads and is very redundant, so it routes around a few missing ones. Identical answers are a real result, not a glitch.</p>
+      <p><b>Sweep 32 heads</b> finds the important ones for you: it switches off each head in one layer, one at a time, and colors the strip by impact — <b>cyan</b> = didn't matter, <b>red</b> = changed the answer a lot. Then ablate the red ones.</p>
     </div>
     <div class="ablate-sweep-row">
       <label for="ablateSweepLayer">Sweep layer</label>
@@ -211,6 +236,8 @@ function initAblationPanel() {
   const sweepStatus = panel.querySelector<HTMLSpanElement>('#ablateSweepStatus')!
   const stripEl = panel.querySelector<HTMLDivElement>('#ablateStrip')!
   const closeBtn = panel.querySelector<HTMLButtonElement>('#ablateCloseBtn')!
+  const infoBtn = panel.querySelector<HTMLButtonElement>('#ablateInfoBtn')!
+  const infoBody = panel.querySelector<HTMLDivElement>('#ablateInfoBody')!
 
   function setPanelOpen(open: boolean) {
     panel.classList.toggle('open', open)
@@ -226,6 +253,12 @@ function initAblationPanel() {
   closeBtn.addEventListener('click', (e) => {
     e.stopPropagation()
     setCollapsed(true)
+  })
+  // "i" toggles the plain-English explanation of what ablation does.
+  infoBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    infoBtn.classList.toggle('on')
+    infoBody.classList.toggle('on')
   })
   panel.addEventListener('click', (e) => {
     if (!panel.classList.contains('collapsed')) return
