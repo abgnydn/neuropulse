@@ -1335,26 +1335,25 @@ export class BrainVisualizer {
 
     this.controls.update()
 
-    // Journey-mode camera — only drives the camera when actively playing.
-    // Otherwise OrbitControls controls the camera; we keep journey targets
-    // as the natural orbit center.
-    if (this.journeyActive) {
-      if (this.journeyDriving) {
-        this.camera.position.lerp(this.journeyCamPos, 0.18)
-        this.camera.lookAt(this.journeyCamLookAt)
-      } else {
-        // User-controlled camera: keep OrbitControls target synced to current
-        // journey focus point so orbit feels centered on what they're seeing.
-        this.controls.target.lerp(this.journeyCamLookAt, 0.1)
-      }
-      // subtle starfield counter-rotation for parallax feel
-      if (this.starfield && !this.reducedMotion) this.starfield.rotation.y += 0.0004
-      // dust drift, spotlight pulse — decorative, skipped under reduce-motion
-      if (!this.reducedMotion) this.journeyTick()
+    // Camera flythrough drives whenever journeyDriving is set — journey
+    // autoplay OR a guided tour (which can run from the glossary WITHOUT
+    // journey mode being active, so this must NOT be gated on journeyActive).
+    if (this.journeyDriving) {
+      this.camera.position.lerp(this.journeyCamPos, 0.18)
+      this.camera.lookAt(this.journeyCamLookAt)
+    } else if (this.journeyActive) {
+      // User-controlled camera in journey mode: keep OrbitControls target
+      // synced to the current focus so orbit feels centered on it.
+      this.controls.target.lerp(this.journeyCamLookAt, 0.1)
     } else if (this.cinematicCamera) {
       // Cinematic camera tween — tracks the active layer when enabled.
       this.camera.position.lerp(this._cameraTweenTarget, 0.06)
       this.camera.lookAt(this._cameraTweenLookAt)
+    }
+    // Journey-mode ambient motion (starfield/dust) — only in journey mode.
+    if (this.journeyActive) {
+      if (this.starfield && !this.reducedMotion) this.starfield.rotation.y += 0.0004
+      if (!this.reducedMotion) this.journeyTick()
     }
 
     // ─── Update neurons (activation-driven only) ───
