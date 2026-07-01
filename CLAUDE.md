@@ -78,9 +78,13 @@ The project aspires to lab-grade reproducibility. Three gates exist:
    the "scroll advances Journey" class of doc/code drift.
 3. **`tools/reference/parity.json`** — pinned HF cross-validation artifact:
    weight URLs + SHA-256s, validation prompts, expected per-layer L2/cosine
-   bounds. The in-app validation suite (`accurateBtn`) writes a fresh
-   sample; CI compares it against the snapshot. See `METHODS.md` for the
-   tolerance derivation.
+   bounds. The in-app validation suite (`accurateBtn`) regenerates a fresh
+   sample on the visitor's own GPU and compares it against this snapshot
+   **in-browser**. It is deliberately NOT run in CI — it needs the ~2 GB
+   `q4f16_1` weights and a WebGPU device, which stock runners lack. CI
+   (`.github/workflows/check.yml`) guards only the weight-free gates
+   (#1, #2, `tsc`, `vite build`). See `METHODS.md` for the tolerance
+   derivation.
 
 `METHODS.md` documents precision (f16 weights, f32 accumulators, ε_norm),
 known divergences from HF, and per-kernel ULP error budgets.
@@ -95,9 +99,11 @@ them there for now (will become a shared partial in a later refactor).
 
 ## Known gaps
 
-- No automated browser tests yet. Playwright is in `devDependencies` but
-  no test files exist; a runtime-fingerprint smoke test would be the
-  highest-leverage first one.
+- Browser tests exist but aren't wired into a gate. Playwright specs live
+  in `tests/*.spec.mjs` (`ablation-ui`, `webgpu-probe`, `butterfly-sweep`),
+  but there's no `test` npm script and CI doesn't run them — they need a
+  browser + WebGPU device. Wiring a headless runtime-fingerprint smoke test
+  into a GPU-capable runner would be the highest-leverage next step.
 - Two entry points (`index.html` + `app/index.html`) duplicate the
   footer block (JSON-LD lives only on the marketing page). Consolidation
   blocked on sites-shared HTML partials.
@@ -111,6 +117,15 @@ them there for now (will become a shared partial in a later refactor).
   across the CF Pages project, GitHub repo, directory name, and weight
   cache. Pages project was recreated (immutable name); domains
   `neuropulse.live` + `www.neuropulse.live` migrated over.
+- **2026-07-01** — Consistency/quality pass: added
+  `.github/workflows/check.yml` (weight-free CI gate: verify-claims +
+  check-shortcuts + `tsc` + `vite build`), which finally backs the README's
+  "runs in CI" claim. Reworded the parity-in-CI note above (parity runs
+  in-browser, never in CI). Trimmed the README Experiments section from ~358
+  lines to a summary + links after butterfly moved to its own repo, removing
+  seven broken `node tools/butterfly-*.mjs` reproduce commands. Softened the
+  "nothing is smoothed" / "every pixel" copy to match what the renderer
+  actually does (real tensor values, designer visual encoding).
 - **2026-05-09** — Empirical-lab pass: introduced `phi3-facts.ts`,
   `verify-claims.mjs`, `METHODS.md`, `PREDICTIONS.md`, runtime fingerprint
   footer, and `getStoredWeightStats` / `clearStoredWeights` for the
