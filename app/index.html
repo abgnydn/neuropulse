@@ -1089,6 +1089,97 @@ body.panels-hidden .side { display: none !important; }
 /* When the hide-everything toggle is on, hide this one too. */
 body.panels-hidden #panels-expand-all { display: none !important; }
 
+/* ── Lessons: 📚 Learn button + overlay + check card ── */
+#lessons-toggle {
+  position: fixed; top: 18px; right: 280px; z-index: 102;
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px;
+  background: rgba(8, 6, 15, 0.55); border: 1px solid rgba(244, 236, 223, 0.22);
+  border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+  letter-spacing: 0.14em; text-transform: uppercase; color: #8a8170; cursor: pointer;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+#lessons-toggle .jx-icon { opacity: 0.9; }
+#lessons-toggle:hover { border-color: #00e5ff; color: #00e5ff; background: rgba(0, 229, 255, 0.08); }
+#lessons-toggle:focus-visible { outline: 2px solid rgba(0, 229, 255, 0.6); outline-offset: 2px; }
+body.panels-hidden #lessons-toggle { display: none !important; }
+
+#lessons-overlay {
+  position: fixed; inset: 0; z-index: 170; display: none;
+  align-items: center; justify-content: center; padding: 32px;
+  background: rgba(8, 6, 15, 0.86); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  animation: welcomeFade 0.35s cubic-bezier(0.16, 1, 0.3, 1); overflow-y: auto;
+}
+#lessons-overlay.visible { display: flex; }
+#lessons-overlay .glossary-card { max-width: 640px; }
+
+.lessons-progress { display: flex; align-items: center; gap: 12px; margin: 0 0 22px; }
+.lessons-progress-track { flex: 1; height: 6px; border-radius: 3px; background: rgba(244, 236, 223, 0.10); overflow: hidden; }
+.lessons-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #5eead4, #00e5ff); transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.lessons-progress-label { font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; color: #8a8170; white-space: nowrap; }
+
+.lessons-list { display: flex; flex-direction: column; gap: 10px; }
+.lesson-item {
+  display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+  border: 1px solid rgba(244, 236, 223, 0.12); border-radius: 10px; cursor: pointer;
+  background: rgba(244, 236, 223, 0.02); transition: border-color 0.18s, background 0.18s, transform 0.12s;
+}
+.lesson-item:hover { border-color: rgba(0, 229, 255, 0.5); background: rgba(0, 229, 255, 0.05); transform: translateX(2px); }
+.lesson-item:focus-visible { outline: 2px solid rgba(0, 229, 255, 0.6); outline-offset: 2px; }
+.lesson-item.done { border-color: rgba(94, 234, 212, 0.35); }
+.lesson-status {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 600;
+  border: 1px solid rgba(244, 236, 223, 0.25); color: #8a8170;
+}
+.lesson-item.done .lesson-status { border-color: #5eead4; color: #5eead4; background: rgba(94, 234, 212, 0.12); }
+.lesson-body { flex: 1; min-width: 0; }
+.lesson-title { font-size: 0.95rem; color: #f4ecdf; margin-bottom: 2px; }
+.lesson-blurb { font-size: 0.78rem; color: #8a8170; line-height: 1.4; }
+.lesson-start {
+  flex: 0 0 auto; background: rgba(0, 229, 255, 0.12); color: #00e5ff;
+  border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 6px; padding: 5px 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; text-transform: uppercase;
+  letter-spacing: 0.08em; cursor: pointer; transition: all 0.15s;
+}
+.lesson-start:hover { background: rgba(0, 229, 255, 0.22); color: #fff; }
+
+/* Floating check card shown while a lesson is active (bottom-left, clears HUD) */
+.lesson-check-card {
+  position: fixed; bottom: 120px; left: 24px; z-index: 60; width: 340px; max-width: calc(100vw - 48px);
+  background: rgba(12, 14, 20, 0.94); border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 12px;
+  padding: 16px 16px 14px; color: #f4ecdf; font-family: 'Inter', -apple-system, sans-serif; font-size: 13px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 229, 255, 0.12); backdrop-filter: blur(14px);
+  animation: welcomeRise 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lesson-check-card.passed { border-color: rgba(94, 234, 212, 0.6); }
+.lcc-title { font-family: 'Fraunces', Georgia, serif; font-size: 1rem; margin-bottom: 8px; padding-right: 24px; }
+.lcc-q { font-size: 13px; line-height: 1.45; margin-bottom: 10px; }
+.lcc-instruction { font-size: 13px; line-height: 1.5; color: #cbc1ad; margin-bottom: 8px; }
+.lcc-waiting { font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; color: #00e5ff; }
+.lcc-opts { display: flex; flex-direction: column; gap: 6px; }
+.lcc-opt {
+  text-align: left; background: rgba(244, 236, 223, 0.04); border: 1px solid rgba(244, 236, 223, 0.16);
+  color: #f4ecdf; border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 12px; cursor: pointer; transition: all 0.15s;
+}
+.lcc-opt:hover { border-color: rgba(0, 229, 255, 0.5); background: rgba(0, 229, 255, 0.06); }
+.lcc-opt.correct { border-color: #5eead4; background: rgba(94, 234, 212, 0.14); color: #eafff8; }
+.lcc-opt.wrong { border-color: rgba(255, 120, 120, 0.6); background: rgba(255, 120, 120, 0.10); }
+.lcc-feedback { margin-top: 10px; font-size: 12px; line-height: 1.45; color: #5eead4; }
+.lesson-reading { margin: 0 0 10px; font-size: 12px; color: #8a8170; }
+.lesson-read-link {
+  background: transparent; border: none; color: #00e5ff; cursor: pointer; font: inherit; font-size: 12px;
+  text-decoration: underline; text-underline-offset: 2px; padding: 0;
+}
+.lesson-read-link:hover { color: #7de3ff; }
+.lcc-close {
+  position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid rgba(244, 236, 223, 0.18); background: transparent; color: #8a7f6c; cursor: pointer;
+  font-size: 12px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+}
+.lcc-close:hover { color: #f4ecdf; border-color: #f4ecdf; }
+
 /* ── Runtime fingerprint — bottom-left pill ── */
 #fingerprint {
   position: fixed;
@@ -2673,6 +2764,9 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
 <button id="panels-expand-all" type="button" aria-label="Expand or collapse all panels (O)" title="Expand / collapse all panels · O">
   <span class="jx-icon">◱</span> <span class="jx-label">expand all</span>
 </button>
+<button id="lessons-toggle" type="button" aria-label="Lessons and learning path (L)" title="Lessons · L">
+  <span class="jx-icon">📚</span> <span class="jx-label">learn</span>
+</button>
 
 <!-- Runtime fingerprint — what code, what GPU, what browser. Click to expand. -->
 <div id="fingerprint" role="complementary" aria-label="Build + runtime fingerprint" title="Click to expand">
@@ -2837,11 +2931,26 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
         <kbd>Home / End</kbd><span>Jump to first / last layer — <i>Journey mode only</i></span>
         <kbd>P</kbd> / <kbd>Tab</kbd><span>Toggle all panels on / off</span>
         <kbd>O</kbd><span>Expand / collapse all panels to orbs</span>
+        <kbd>L</kbd><span>Open / close Lessons — the guided learning path</span>
         <kbd>R</kbd><span>Reset camera to default view</span>
         <kbd>?</kbd><span>Open / close this glossary</span>
         <kbd>Esc</kbd><span>Close overlays</span>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Lessons overlay (📚 Learn button or L key) — a sequenced learning path -->
+<div id="lessons-overlay" role="dialog" aria-labelledby="lessons-title">
+  <div class="glossary-card">
+    <button id="lessons-close" class="glossary-close" type="button" aria-label="Close lessons">×</button>
+    <div class="glossary-eyebrow">Press <b>L</b> or Esc to close</div>
+    <h2 id="lessons-title" class="glossary-title">Learn <em>neuropulse</em></h2>
+    <div class="lessons-progress">
+      <div class="lessons-progress-track"><div id="lessons-progress-bar" class="lessons-progress-bar"></div></div>
+      <span id="lessons-progress-label" class="lessons-progress-label">0 / 0 done</span>
+    </div>
+    <div class="lessons-list" id="lessons-list"><!-- populated by main.ts wireLessons() --></div>
   </div>
 </div>
 

@@ -7,6 +7,7 @@ import { reduceQKVForAttnHeads, reduceForAttnHeads, reduceForFFNGroups, reduceFo
 import { createJourney, JourneyHandle } from './journey'
 import { SpatialPanels } from './spatial-panels'
 import { TOURS, createTourRunner } from './tours'
+import { LESSONS, type Lesson } from './lessons'
 // Ask-mode reference docs — Vite imports markdown as a raw string. See
 // src/docs.md. Budgeted to ~1500 tokens so Phi-3 has room for the reply.
 import NEUROPULSE_DOCS from './docs.md?raw'
@@ -350,6 +351,10 @@ function initAblationPanel() {
       )
       const abl = await engine.generate(prompt, 40, merged, abls)
       ablOut.textContent = abl || '(empty)'
+      // Lessons: report how much the ablation changed the output (0..1).
+      window.dispatchEvent(new CustomEvent('neuropulse:lesson-signal', {
+        detail: { type: 'ablation', impact: impactScore(base, abl) },
+      }))
       if (base !== abl) {
         storyteller.say(`Look! My answer changed when I covered those lookers — they were doing important work.`, 'good')
       } else {
@@ -668,6 +673,9 @@ window.addEventListener('keydown', (e) => {
     // Reset camera to home position via OrbitControls
     const controls = (viz as unknown as { controls?: { reset?: () => void } }).controls
     controls?.reset?.()
+  } else if (e.key === 'l' || e.key === 'L') {
+    // Toggle the Lessons learning-path overlay.
+    ;(window as unknown as { __toggleLessons?: () => void }).__toggleLessons?.()
   }
 })
 
@@ -1142,6 +1150,9 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
     document.body.classList.remove('tour-running')
   }
 
+  // Exposed so the Lessons flow can start a tour for a lesson.
+  ;(window as unknown as { __playTour?: (id: string) => void }).__playTour = playTour
+
   list.querySelectorAll<HTMLElement>('.tour-item').forEach((item) => {
     const id = item.dataset.tourId
     if (!id) return
@@ -1236,6 +1247,176 @@ function openGlossaryAt(entryId?: string): void {
     setTimeout(() => el.classList.remove('gloss-flash'), 1600)
   })
 }
+
+// ─── Lessons — sequenced learning path (📚 Learn overlay / L key) ───
+;(function wireLessons() {
+  const overlay = document.getElementById('lessons-overlay')
+  const list = document.getElementById('lessons-list')
+  if (!overlay || !list) return
+  const bar = document.getElementById('lessons-progress-bar')
+  const barLabel = document.getElementById('lessons-progress-label')
+  const closeBtn = document.getElementById('lessons-close')
+  const toggleBtn = document.getElementById('lessons-toggle')
+
+  const KEY = 'neuropulse:lessons:progress'
+  function load(): Record<string, boolean> {
+    try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : {} } catch { return {} }
+  }
+  function save(p: Record<string, boolean>): void {
+    try { localStorage.setItem(KEY, JSON.stringify(p)) } catch { /* quota / disabled */ }
+  }
+  const progress = load()
+  const isDone = (id: string) => progress[id] === true
+  function markDone(id: string): void { progress[id] = true; save(progress) }
+
+  // A signal-kind check waiting for a runtime event (generate / ablation / sweep).
+  let armed: { lesson: Lesson; card: HTMLElement } | null = null
+
+  const GLOSS_LABEL: Record<string, string> = {
+    'gloss-token': 'Token', 'gloss-attention': 'Attention head', 'gloss-softmax': 'Softmax',
+    'gloss-ablation': 'Ablation', 'gloss-sweep': 'Sweep', 'gloss-residual': 'Residual stream',
+    'gloss-kv': 'KV cache', 'gloss-logitlens': 'Logit lens',
+  }
+  const label = (id: string) => GLOSS_LABEL[id] ?? id.replace(/^gloss-/, '')
+
+  function render(): void {
+    const total = LESSONS.length
+    const done = LESSONS.filter((l) => isDone(l.id)).length
+    if (bar) bar.style.width = `${Math.round((done / total) * 100)}%`
+    if (barLabel) barLabel.textContent = `${done} / ${total} done`
+    list!.innerHTML = LESSONS.map((l, i) => `
+      <div class="lesson-item ${isDone(l.id) ? 'done' : ''}" data-lesson-id="${l.id}" role="button" tabindex="0">
+        <div class="lesson-status">${isDone(l.id) ? '✓' : i + 1}</div>
+        <div class="lesson-body">
+          <div class="lesson-title">${l.title}</div>
+          <div class="lesson-blurb">${l.blurb}</div>
+        </div>
+        <button class="lesson-start" type="button">${isDone(l.id) ? 'replay' : 'start'}</button>
+      </div>`).join('')
+    list!.querySelectorAll<HTMLElement>('.lesson-item').forEach((el) => {
+      const id = el.dataset.lessonId
+      if (!id) return
+      el.addEventListener('click', () => startLesson(id))
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startLesson(id) }
+      })
+    })
+  }
+
+  function open(show?: boolean): void {
+    const willShow = show ?? !overlay!.classList.contains('visible')
+    if (willShow) render()
+    overlay!.classList.toggle('visible', willShow)
+  }
+
+  function readingHtml(l: Lesson): string {
+    if (!l.reading?.length) return ''
+    return `<div class="lesson-reading">Read: ${l.reading
+      .map((r) => `<button class="lesson-read-link" data-gloss="${r}" type="button">${label(r)}</button>`)
+      .join(' · ')}</div>`
+  }
+
+  function passLesson(l: Lesson, card: HTMLElement): void {
+    markDone(l.id)
+    armed = null
+    card.classList.add('passed')
+    const body = card.querySelector('.lcc-body') ?? card
+    body.innerHTML = `<div class="lcc-title">✓ Lesson complete</div>
+      <div class="lcc-feedback">Nice — “${l.title}” done. Press L for the next one.</div>`
+    window.setTimeout(() => card.remove(), 4200)
+  }
+
+  function startLesson(id: string): void {
+    const lesson = LESSONS.find((l) => l.id === id)
+    if (!lesson) return
+    open(false)
+    if (lesson.tourId) {
+      ;(window as unknown as { __playTour?: (t: string) => void }).__playTour?.(lesson.tourId)
+    }
+    presentCheck(lesson)
+  }
+
+  function presentCheck(lesson: Lesson): void {
+    document.getElementById('lesson-check-card')?.remove()
+    armed = null
+    const card = document.createElement('div')
+    card.id = 'lesson-check-card'
+    card.className = 'lesson-check-card'
+
+    if (lesson.check.kind === 'quiz') {
+      const c = lesson.check
+      card.innerHTML = `
+        <button class="lcc-close" type="button" aria-label="Close">✕</button>
+        <div class="lcc-body">
+          <div class="lcc-title">${lesson.title}</div>
+          ${readingHtml(lesson)}
+          <div class="lcc-q">${c.question}</div>
+          <div class="lcc-opts">${c.options
+            .map((o, i) => `<button class="lcc-opt" data-i="${i}" type="button">${o}</button>`)
+            .join('')}</div>
+          <div class="lcc-feedback"></div>
+        </div>`
+      const fb = card.querySelector<HTMLElement>('.lcc-feedback')!
+      card.querySelectorAll<HTMLButtonElement>('.lcc-opt').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const i = Number(btn.dataset.i)
+          if (i === c.answer) {
+            btn.classList.add('correct')
+            fb.textContent = c.why
+            card.querySelectorAll<HTMLButtonElement>('.lcc-opt').forEach((b) => { b.disabled = true })
+            markDone(lesson.id)
+            window.setTimeout(() => card.remove(), 5000)
+          } else {
+            btn.classList.add('wrong')
+            btn.disabled = true
+          }
+        })
+      })
+    } else {
+      const c = lesson.check
+      card.innerHTML = `
+        <button class="lcc-close" type="button" aria-label="Close">✕</button>
+        <div class="lcc-body">
+          <div class="lcc-title">${lesson.title}</div>
+          ${readingHtml(lesson)}
+          <div class="lcc-instruction">${c.instruction}</div>
+          <div class="lcc-waiting">Waiting for you to try it…</div>
+        </div>`
+      armed = { lesson, card }
+    }
+
+    card.querySelector('.lcc-close')?.addEventListener('click', () => {
+      if (armed?.card === card) armed = null
+      card.remove()
+    })
+    card.querySelectorAll<HTMLElement>('.lesson-read-link').forEach((lnk) => {
+      lnk.addEventListener('click', () => {
+        const g = lnk.dataset.gloss
+        if (g) openGlossaryAt(g)
+      })
+    })
+    document.body.appendChild(card)
+  }
+
+  // Consume runtime signals for the armed signal-check.
+  window.addEventListener('neuropulse:lesson-signal', (e) => {
+    if (!armed) return
+    const check = armed.lesson.check
+    if (check.kind !== 'signal') return
+    const detail = (e as CustomEvent).detail as { type?: string; impact?: number }
+    if (detail.type !== check.signal) return
+    if (check.minImpact != null && !(typeof detail.impact === 'number' && detail.impact >= check.minImpact)) return
+    passLesson(armed.lesson, armed.card)
+  })
+
+  toggleBtn?.addEventListener('click', () => open())
+  closeBtn?.addEventListener('click', () => open(false))
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) open(false) })
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('visible')) open(false)
+  })
+  ;(window as unknown as { __toggleLessons?: () => void }).__toggleLessons = () => open()
+})()
 
 // ─── Preset-hint floating toast (educational annotation for each preset) ───
 ;(function wirePresetHints() {
@@ -2944,6 +3125,8 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
     isRunning = false
     goBtn.disabled = false
     goBtn.textContent = 'Think'
+    // Lessons: a normal forward pass completed.
+    window.dispatchEvent(new CustomEvent('neuropulse:lesson-signal', { detail: { type: 'generate' } }))
   }
 }
 
