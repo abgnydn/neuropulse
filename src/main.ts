@@ -510,6 +510,84 @@ let engine: InferenceEngine | null = null
 // Off by default; merged into engine.generate callbacks when active.
 const storyteller = initStoryteller()
 
+// ─── Learner levels — presentation presets over one lesson set ─────────────
+// Kid = storyteller narration on + simplified vocabulary; Explorer (default
+// for new visitors) = expert chrome hidden (.xp-only); Expert = the full
+// cockpit. Levels change PRESENTATION only — same lessons, same glossary.
+type LearnerLevel = 'kid' | 'explorer' | 'expert'
+const LEVEL_KEY = 'neuropulse:level'
+const LEVELS: LearnerLevel[] = ['kid', 'explorer', 'expert']
+
+function loadLevel(): LearnerLevel | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(LEVEL_KEY) ?? 'null')
+    return LEVELS.includes(v) ? v : null
+  } catch { return null }
+}
+
+/** Anyone with prior neuropulse:* state has used the full UI — don't yank
+ *  their chrome; suggest Expert. Fresh visitors get Explorer. */
+function suggestedLevel(): LearnerLevel {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      if (localStorage.key(i)?.startsWith('neuropulse:')) return 'expert'
+    }
+  } catch { /* storage disabled */ }
+  return 'explorer'
+}
+
+let currentLevel: LearnerLevel = loadLevel() ?? suggestedLevel()
+
+function applyLevel(level: LearnerLevel, persist = true): void {
+  currentLevel = level
+  for (const l of LEVELS) document.body.classList.toggle(`level-${l}`, l === level)
+  // Kid mode drives the storyteller; leaving kid turns narration back off
+  // (the K key stays a session-only override and never writes the level).
+  storyteller.setActive(level === 'kid')
+  const label = document.getElementById('level-toggle-label')
+  if (label) label.textContent = level
+  if (persist) { try { localStorage.setItem(LEVEL_KEY, JSON.stringify(level)) } catch { /* ok */ } }
+}
+
+/** First overlay after the boot fade (the slot the welcome overlay vacated).
+ *  Shows once — the stored level doubles as the "seen" flag. */
+function maybeShowLevelChooser(): void {
+  if (loadLevel() !== null) return
+  const overlay = document.getElementById('level-overlay')
+  if (!overlay) return
+  const suggest = suggestedLevel()
+  overlay.querySelectorAll<HTMLButtonElement>('.level-option').forEach((btn) => {
+    btn.classList.toggle('suggested', btn.dataset.level === suggest)
+  })
+  window.setTimeout(() => overlay.classList.add('visible'), 900)
+}
+
+;(function wireLevels() {
+  // Apply the stored/suggested level immediately (no persist for the implicit
+  // default — the chooser stays pending until an explicit pick).
+  applyLevel(currentLevel, loadLevel() !== null)
+
+  const overlay = document.getElementById('level-overlay')
+  overlay?.querySelectorAll<HTMLButtonElement>('.level-option').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const lv = btn.dataset.level as LearnerLevel
+      if (LEVELS.includes(lv)) applyLevel(lv)
+      overlay.classList.remove('visible')
+    })
+  })
+  // Backdrop click = accept the suggested default (recorded as chosen so the
+  // chooser doesn't nag on every visit).
+  overlay?.addEventListener('click', (e) => {
+    if (e.target === overlay) { applyLevel(currentLevel); overlay.classList.remove('visible') }
+  })
+
+  // Top-right pill cycles kid → explorer → expert.
+  document.getElementById('level-toggle')?.addEventListener('click', () => {
+    const next = LEVELS[(LEVELS.indexOf(currentLevel) + 1) % LEVELS.length]!
+    applyLevel(next)
+  })
+})()
+
 // Speed control
 const speedSlider = document.getElementById('speedSlider') as HTMLInputElement
 const speedLabel = document.getElementById('speedLabel')!
@@ -2889,6 +2967,9 @@ function hideLoading() {
   if (container) {
     container.classList.add('revealed')
   }
+  // First-run learner-level chooser appears once the boot has settled
+  // (no-ops when a level was already chosen).
+  maybeShowLevelChooser()
 }
 
 // ─── Demo mode (no WebGPU fallback) ───
@@ -3314,10 +3395,12 @@ function makeDemoSink(): PlaybackSink {
       updateDeltaChart(layer, residualNorm)
       viz.activateLayer(layer, 0.75)
     },
-    onLens(layer, text) {
+    onLens(layer, text, id) {
       displayLensToken(layer, text)
+      // Kid-mode narration rides the replay too.
+      if (storyteller.isActive()) storyteller.hooks().onLayerLogitLens?.(layer, id, text)
     },
-    onToken(tok) {
+    onToken(tok, index) {
       appendToken(tok.text)
       viz.addOutputToken(tok.text, tok.topK[0]?.p ?? 0)
       tokenStripAppendGenerated(tok.text)
@@ -3326,6 +3409,7 @@ function makeDemoSink(): PlaybackSink {
       updateConfidence(topK)
       captureTokenSnapshot(tok.text, topK) // token-strip scrubbing works post-replay
       displayLensToken(31, tok.text)
+      if (storyteller.isActive()) storyteller.hooks().onToken?.(tok.text, tok.id, index, topK, undefined)
     },
     onAttentionL31(rows, kvLen) {
       updateAttentionHeatmapL31(rows, kvLen)
