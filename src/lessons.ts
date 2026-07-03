@@ -38,10 +38,31 @@ export interface Lesson {
   tourId?: string
   /** glossary entry ids (gloss-*) surfaced as "Read:" deep-links */
   reading?: string[]
+  /** optional HTML shown above the check — short orientation copy */
+  intro?: string
+  /** true = the check needs the live engine (can't complete in demo mode) */
+  requiresLive?: boolean
   check: LessonCheck
 }
 
 export const LESSONS: Lesson[] = [
+  {
+    id: 'bearings',
+    title: 'Get your bearings',
+    blurb: 'The four moves that unlock everything else.',
+    intro:
+      '<p><b>1.</b> Type a prompt (or click a preset) and watch the model process it — every point of light is a real tensor.</p>' +
+      '<p><b>2.</b> Press <b>space</b> or the arrow keys to journey through the layers; the wheel zooms.</p>' +
+      '<p><b>3.</b> Click a glowing pip to open its panel — each has an <b>i</b> button explaining what it shows.</p>' +
+      '<p><b>4.</b> Click any head or slab in the 3D scene to inspect it. Drag to orbit.</p>',
+    check: {
+      kind: 'quiz',
+      question: 'What does every point of light in the 3D scene represent?',
+      options: ['A decorative particle', 'A real value read from the running model', 'A random animation', 'A pixel of a video'],
+      answer: 1,
+      why: 'Strict 1:1 — brightness is the activation value, read straight from the model. Nothing on screen is decorative.',
+    },
+  },
   {
     id: 'intro',
     title: 'What am I looking at?',
@@ -100,6 +121,7 @@ export const LESSONS: Lesson[] = [
     title: 'Ablation: prove a part is doing work',
     blurb: 'Switch off attention heads and make the answer change.',
     reading: ['gloss-ablation', 'gloss-sweep'],
+    requiresLive: true,
     check: {
       kind: 'signal',
       signal: 'ablation',
