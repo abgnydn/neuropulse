@@ -8,7 +8,8 @@ import { createJourney, JourneyHandle } from './journey'
 import { SpatialPanels } from './spatial-panels'
 import { TOURS, createTourRunner } from './tours'
 import { LESSONS, type Lesson } from './lessons'
-import { createRecorder, type Recorder } from './recording'
+import { createRecorder, type Recorder, type NpRecording } from './recording'
+import { createPlaybackDriver, type PlaybackHandle, type PlaybackSink } from './playback'
 // Ask-mode reference docs — Vite imports markdown as a raw string. See
 // src/docs.md. Budgeted to ~1500 tokens so Phi-3 has room for the reply.
 import NEUROPULSE_DOCS from './docs.md?raw'
@@ -1336,7 +1337,7 @@ function openGlossaryAt(entryId?: string): void {
         <div class="lesson-status">${isDone(l.id) ? '✓' : i + 1}</div>
         <div class="lesson-body">
           <div class="lesson-title">${l.title}</div>
-          <div class="lesson-blurb">${l.blurb}</div>
+          <div class="lesson-blurb">${l.blurb}${l.requiresLive && demoMode ? ' <span class="lesson-live-tag">needs live model</span>' : ''}</div>
         </div>
         <button class="lesson-start" type="button">${isDone(l.id) ? 'replay' : 'start'}</button>
       </div>`).join('')
@@ -1382,6 +1383,8 @@ function openGlossaryAt(entryId?: string): void {
     }
     presentCheck(lesson)
   }
+  // Exposed so the boot fork can open the learning path directly.
+  ;(window as unknown as { __openLesson?: (id: string) => void }).__openLesson = startLesson
 
   function presentCheck(lesson: Lesson): void {
     document.getElementById('lesson-check-card')?.remove()
@@ -1396,6 +1399,7 @@ function openGlossaryAt(entryId?: string): void {
         <button class="lcc-close" type="button" aria-label="Close">✕</button>
         <div class="lcc-body">
           <div class="lcc-title">${lesson.title}</div>
+          ${lesson.intro ? `<div class="lcc-instruction">${lesson.intro}</div>` : ''}
           ${readingHtml(lesson)}
           <div class="lcc-q">${c.question}</div>
           <div class="lcc-opts">${c.options
@@ -1419,12 +1423,25 @@ function openGlossaryAt(entryId?: string): void {
           }
         })
       })
+    } else if (lesson.requiresLive && demoMode) {
+      // Signal check that needs the real engine — in demo mode, explain
+      // rather than arm (the recorded run can't be ablated).
+      card.innerHTML = `
+        <button class="lcc-close" type="button" aria-label="Close">✕</button>
+        <div class="lcc-body">
+          <div class="lcc-title">${lesson.title}</div>
+          ${lesson.intro ? `<div class="lcc-instruction">${lesson.intro}</div>` : ''}
+          ${readingHtml(lesson)}
+          <div class="lcc-instruction">${lesson.check.instruction}</div>
+          <div class="lcc-waiting" style="color:#ffd28a">This check needs the live model — download &amp; run to complete it.</div>
+        </div>`
     } else {
       const c = lesson.check
       card.innerHTML = `
         <button class="lcc-close" type="button" aria-label="Close">✕</button>
         <div class="lcc-body">
           <div class="lcc-title">${lesson.title}</div>
+          ${lesson.intro ? `<div class="lcc-instruction">${lesson.intro}</div>` : ''}
           ${readingHtml(lesson)}
           <div class="lcc-instruction">${c.instruction}</div>
           <div class="lcc-waiting">Waiting for you to try it…</div>
@@ -1494,38 +1511,10 @@ function openGlossaryAt(entryId?: string): void {
 })()
 
 // ─── Welcome overlay (first visit) ───
-;(function wireWelcomeOverlay() {
-  const STORAGE_KEY = 'np:welcome-dismissed'
-  const overlay = document.getElementById('welcome-overlay')
-  const dismiss = document.getElementById('welcome-dismiss') as HTMLButtonElement | null
-  if (!overlay || !dismiss) return
-  let seen = false
-  try { seen = localStorage.getItem(STORAGE_KEY) === '1' } catch { /* storage disabled */ }
-  // Show after a short delay so the boot screen fade has settled
-  if (!seen) {
-    setTimeout(() => {
-      overlay.classList.add('visible')
-    }, 900)
-  }
-  dismiss.addEventListener('click', () => {
-    overlay.classList.remove('visible')
-    try { localStorage.setItem(STORAGE_KEY, '1') } catch { /* ok */ }
-  })
-  // Click outside card also dismisses
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      overlay.classList.remove('visible')
-      try { localStorage.setItem(STORAGE_KEY, '1') } catch { /* ok */ }
-    }
-  })
-  // Esc dismisses
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.classList.contains('visible')) {
-      overlay.classList.remove('visible')
-      try { localStorage.setItem(STORAGE_KEY, '1') } catch { /* ok */ }
-    }
-  })
-})()
+// (The old first-visit "Four things to try" welcome overlay was folded into
+// Lesson 0 "Get your bearings" — see src/lessons.ts. Its localStorage key
+// np:welcome-dismissed is intentionally orphaned so returning users see no
+// surprise overlays.)
 
 // Repurpose the old 🔬 button as a manual "Run validation test" trigger.
 // The HF cross-validation suite no longer runs automatically on boot; the
@@ -2051,7 +2040,21 @@ function updateAttentionHeatmap(scores: Float32Array, kvLen: number) {
   lastAttentionScores = scores
   lastAttentionKvLen = kvLen
   if (currentMode === 'attention') renderAttentionGrid(scores, kvLen)
-  // Fall through to the legacy mini canvas (still used in scene mode)
+  // Slice layer 31 out of the full buffer for the legacy mini canvas.
+  const cols = Math.min(kvLen, ATTN_MAX_SLOTS)
+  if (cols === 0) return
+  const layerOff = ATTN_LAYER * ATTN_HEADS * ATTN_MAX_SLOTS
+  const rows = new Float32Array(ATTN_HEADS * cols)
+  for (let h = 0; h < ATTN_HEADS; h++) {
+    for (let s = 0; s < cols; s++) rows[h * cols + s] = scores[layerOff + h * ATTN_MAX_SLOTS + s]!
+  }
+  updateAttentionHeatmapL31(rows, kvLen)
+}
+
+/** Paint the layer-31 mini attention canvas from head-major rows
+ *  (32 × min(kvLen, 256)). Engine-free — demo playback calls this directly
+ *  with dequantized recorded rows. */
+function updateAttentionHeatmapL31(rows: Float32Array, kvLen: number) {
   if (!attnCtx) return
   attnCtx.fillStyle = '#08060f'
   attnCtx.fillRect(0, 0, attnCanvas.width, attnCanvas.height)
@@ -2059,19 +2062,18 @@ function updateAttentionHeatmap(scores: Float32Array, kvLen: number) {
   if (cols === 0) return
   const cellW = attnCanvas.width / cols
   const cellH = attnCanvas.height / ATTN_HEADS
-  const layerOff = ATTN_LAYER * ATTN_HEADS * ATTN_MAX_SLOTS
   for (let h = 0; h < ATTN_HEADS; h++) {
-    const headBase = layerOff + h * ATTN_MAX_SLOTS
+    const headBase = h * cols
     // Per-head max for contrast scaling (softmax sums to 1, but a head that
     // attends uniformly would have ~1/kvLen per slot, so we re-scale).
     let rowMax = 0
     for (let s = 0; s < cols; s++) {
-      const v = scores[headBase + s]
+      const v = rows[headBase + s]!
       if (v > rowMax) rowMax = v
     }
     if (rowMax < 1e-6) rowMax = 1
     for (let s = 0; s < cols; s++) {
-      const v = scores[headBase + s] / rowMax
+      const v = rows[headBase + s]! / rowMax
       // cyan → violet gradient based on magnitude, dark for low
       const r = Math.round(v * 124)
       const g = Math.round(v * 229)
@@ -3240,6 +3242,143 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
   }
 }
 
+// ─── Demo mode — replay a recorded run (no download, no WebGPU) ───────────
+// Real tensors, captured live earlier (public/recordings/, see src/recording
+// .ts), replayed through the same panel-update functions the live engine
+// drives. The RECORDED RUN badge stays visible the whole time — honesty is
+// the product here.
+let demoMode = false
+let demoDriver: PlaybackHandle | null = null
+let demoRec: NpRecording | null = null
+let exitDemoAfterPlayback = false
+
+function enterDemoMode(): void {
+  if (demoMode) return
+  demoMode = true
+  document.body.classList.add('demo-mode')
+  goBtn.disabled = false
+  goBtn.textContent = 'Play recording'
+  promptInput.readOnly = true
+  promptInput.title = 'Recorded run replays this prompt — download the model to ask your own.'
+  document.getElementById('demo-badge-live')?.addEventListener('click', () => {
+    // Back to the gate to pick the live download.
+    location.href = location.pathname
+  })
+}
+
+/** Called when the live engine finishes loading underneath a demo session
+ *  (the "learn while you wait" path) — hand the controls back to live. */
+function exitDemoMode(): void {
+  if (!demoMode) return
+  if (demoDriver?.isPlaying()) { exitDemoAfterPlayback = true; return }
+  demoMode = false
+  exitDemoAfterPlayback = false
+  promptInput.readOnly = false
+  promptInput.title = ''
+  promptInput.value = ''
+  goBtn.textContent = 'Think'
+  const badge = document.getElementById('demo-badge')
+  if (badge) {
+    badge.classList.add('live-ready')
+    badge.innerHTML = '<span class="db-dot">●</span> LIVE — model ready, prompts are yours now'
+    setTimeout(() => document.body.classList.remove('demo-mode'), 6000)
+  } else {
+    document.body.classList.remove('demo-mode')
+  }
+}
+
+async function loadDemoRecording(): Promise<NpRecording> {
+  if (demoRec) return demoRec
+  const resp = await fetch('/recordings/intro-01.json')
+  if (!resp.ok) throw new Error(`recording fetch failed: HTTP ${resp.status}`)
+  demoRec = (await resp.json()) as NpRecording
+  return demoRec
+}
+
+function makeDemoSink(): PlaybackSink {
+  return {
+    onPrefillStart(total) {
+      goBtn.textContent = `Prefill (${total} tok)...`
+    },
+    onPrefillToken(i, total, text) {
+      showPrefillToken(i, total, text)
+      viz.activateLayer(Math.floor((i / total) * 32), (i % 4) / 4)
+    },
+    onPrefillEnd() {
+      goBtn.textContent = 'Stop'
+      hidePrefill()
+    },
+    onLayerPulse(layer, attnHeads, residualNorm) {
+      updateHeatmapLayer(layer, attnHeads instanceof Float32Array ? attnHeads : new Float32Array(attnHeads))
+      updateResidualChart(layer, residualNorm)
+      updateDeltaChart(layer, residualNorm)
+      viz.activateLayer(layer, 0.75)
+    },
+    onLens(layer, text) {
+      displayLensToken(layer, text)
+    },
+    onToken(tok) {
+      appendToken(tok.text)
+      viz.addOutputToken(tok.text, tok.topK[0]?.p ?? 0)
+      tokenStripAppendGenerated(tok.text)
+      const topK: TopKEntry[] = tok.topK.map((k) => ({ token: k.t, id: k.id, prob: k.p }))
+      updateTopK(topK)
+      updateConfidence(topK)
+      captureTokenSnapshot(tok.text, topK) // token-strip scrubbing works post-replay
+      displayLensToken(31, tok.text)
+    },
+    onAttentionL31(rows, kvLen) {
+      updateAttentionHeatmapL31(rows, kvLen)
+    },
+    onKV(position, totalPages, usedPages) {
+      updateKVCache(position, totalPages, usedPages)
+      const frac = usedPages / totalPages
+      for (let L = 0; L < 32; L++) viz.setKvCacheStrip(L, frac)
+    },
+    onDone() {
+      viz.setDone()
+      isRunning = false
+      goBtn.textContent = 'Play recording'
+      const c = output.querySelector('.cursor')
+      if (c) c.remove()
+      // A replayed forward pass still counts for the "watch a generation"
+      // lesson check — the tensors are real.
+      window.dispatchEvent(new CustomEvent('neuropulse:lesson-signal', { detail: { type: 'generate' } }))
+      if (exitDemoAfterPlayback) exitDemoMode()
+    },
+  }
+}
+
+async function playDemoRecording(): Promise<void> {
+  if (demoDriver?.isPlaying()) return
+  let rec: NpRecording
+  try {
+    rec = await loadDemoRecording()
+  } catch (err) {
+    console.warn('[demo] recording unavailable:', err)
+    return
+  }
+  // Reset run surfaces exactly like a live run.
+  isRunning = true
+  clearReplayBuffer()
+  output.innerHTML = ''
+  const promptEcho = document.createElement('div')
+  promptEcho.style.cssText = 'color:#ff8c42;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
+  promptEcho.textContent = `> ${rec.prompt}`
+  output.appendChild(promptEcho)
+  const cursor = document.createElement('span')
+  cursor.className = 'cursor'
+  output.appendChild(cursor)
+  tokenStripStart(rec.prompt)
+  promptInput.value = rec.prompt
+  goBtn.textContent = 'Stop'
+  goBtn.disabled = false
+
+  demoDriver = createPlaybackDriver(rec, makeDemoSink(), () =>
+    parseInt(speedSlider.value, 10) || 5)
+  await demoDriver.start()
+}
+
 // ─── Cancellation ───
 /** Ask the engine to stop the in-flight generation at the next token. Returns
  *  true if a run was actually interrupted. */
@@ -3263,6 +3402,7 @@ function waitForInferenceIdle(maxFrames = 600): Promise<boolean> {
 
 // ─── Dispatch ───
 function startInference(mode: 'think' | 'ask' = 'think') {
+  if (demoMode) { void playDemoRecording(); return } // demo replays the recording
   const prompt = promptInput.value.trim()
   if (!prompt) return
   if (isValidating) return  // never interrupt the validation suite
@@ -3296,6 +3436,12 @@ function startInference(mode: 'think' | 'ask' = 'think') {
 
 // While a generation is running the Think button reads "Stop" and cancels it.
 goBtn.addEventListener('click', () => {
+  if (demoMode) {
+    // Play/Stop toggle for the recorded run — engine interrupt doesn't apply.
+    if (demoDriver?.isPlaying()) demoDriver.stop()
+    else void playDemoRecording()
+    return
+  }
   if (isRunning) { cancelInFlightInference(); return }
   startInference('think')
 })
@@ -3311,6 +3457,11 @@ promptInput.addEventListener('keydown', (e) => {
 window.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return
   if (document.body.classList.contains('tour-running')) return
+  if (demoMode && demoDriver?.isPlaying()) {
+    e.preventDefault()
+    demoDriver.stop()
+    return
+  }
   if (isRunning && !isValidating) {
     e.preventDefault()
     cancelInFlightInference()
@@ -3398,6 +3549,9 @@ async function initEngine() {
     })
 
     hideLoading()
+    // "Learn while you wait" handoff: the download finished under a demo
+    // session — return the controls to live (waits for any in-flight replay).
+    if (demoMode) exitDemoMode()
 
     // E45 / P-20260526-07: apply continuous-attention fixed-point probe flags
     // from URL. ?attn=fixedpoint activates the Picard-iterated kernel;
@@ -3605,36 +3759,76 @@ async function modelIsCached(): Promise<boolean> {
   return false
 }
 
-function waitForGateClick(): Promise<void> {
+function waitForGateClick(): Promise<'live' | 'demo'> {
   return new Promise((resolve) => {
-    const btn = document.getElementById('bootGoBtn')
-    if (!btn) { resolve(); return }
-    btn.addEventListener('click', () => resolve(), { once: true })
+    const live = document.getElementById('bootGoBtn')
+    const learn = document.getElementById('bootLearnBtn')
+    if (!live && !learn) { resolve('live'); return }
+    live?.addEventListener('click', () => resolve('live'), { once: true })
+    learn?.addEventListener('click', () => resolve('demo'), { once: true })
   })
+}
+
+/** Boot straight into demo mode: WebGL scene + recorded-run replay, no
+ *  engine, no download, no WebGPU requirement. The single seam future mobile
+ *  support will call too. */
+function enterDemoBoot(openLessonId?: string): void {
+  try { initVisualizer() } catch { /* WebGL missing — panels still work */ }
+  enterDemoMode()
+  hideLoading()
+  if (openLessonId) {
+    // Give the boot fade a beat, then open the learning path where the
+    // welcome overlay used to appear.
+    window.setTimeout(() => {
+      ;(window as unknown as { __openLesson?: (id: string) => void }).__openLesson?.(openLessonId)
+    }, 1000)
+  }
 }
 
 ;(async () => {
   // Mobile guard — the inline script in app/index.html sets this flag when
   // the user is on a phone. Skip engine init entirely; the mobile block
-  // phase is already visible.
+  // phase is already visible. (Future mobile demo support = call
+  // enterDemoBoot() here instead of returning.)
   if ((window as any).__NEUROPULSE_MOBILE_BLOCK__) return
+
+  const params = new URLSearchParams(location.search)
 
   // Test bypass: ?bypass=1 skips both the cache check and the download gate,
   // boots the visualizer immediately, and (crucially) skips engine init so
   // Playwright UI tests don't trigger a 2 GB weight download per test.
-  const bypass = new URLSearchParams(location.search).has('bypass')
-  if (bypass) {
+  if (params.has('bypass')) {
     try { initVisualizer() } catch {}
     return
   }
+
+  // ?demo=1 — shareable demo-mode link. Overrides the cached-model skip so
+  // the link behaves identically for everyone.
+  if (params.has('demo')) {
+    enterDemoBoot('bearings')
+    return
+  }
+
+  // "Learn while you wait" — visible in the loading phase during the 2 GB
+  // download; starts the demo immediately, download continues underneath,
+  // and initEngine hands control back to live when it finishes.
+  document.getElementById('bootDemoWait')?.addEventListener('click', () => {
+    enterDemoBoot('bearings')
+  }, { once: true })
+
   if (await modelIsCached()) {
     // Cached — skip gate, go straight to loading phase
     showBootLoading()
     try { initVisualizer() } catch {}
     initEngine()
   } else {
-    // First visit — show gate, wait for click
-    await waitForGateClick()
+    // First visit — the education fork: learn now (recorded run) or
+    // download and run live.
+    const choice = await waitForGateClick()
+    if (choice === 'demo') {
+      enterDemoBoot('bearings')
+      return
+    }
     try { initVisualizer() } catch {}
     initEngine()
   }
