@@ -2152,6 +2152,62 @@ body.mode-journey .side > *.expanded .panel-info { display: flex; }
 body.tour-running .tour-running-badge { display: inline-flex; align-items: center; }
 body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color: #8a8170; margin-left: 6px; }
 
+/* Tour transport bar — pause/play · prev/next · counter · stop. Fixed
+   bottom-center, above the journey HUD, visible whenever a tour runs
+   (independent of HUD hide state so a paused tour is always recoverable). */
+#tour-transport {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 105;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(8, 6, 15, 0.88);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: #8a8170;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+body.tour-running #tour-transport { display: inline-flex; }
+#tour-transport button {
+  background: transparent;
+  border: 1px solid rgba(244, 236, 223, 0.2);
+  color: #f4ecdf;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+#tour-transport button:hover { border-color: #00e5ff; color: #00e5ff; }
+#tour-transport #tt-stop {
+  width: auto;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a8170;
+}
+#tour-transport #tt-stop:hover { color: #ff9a1f; border-color: rgba(255, 154, 31, 0.6); }
+#tour-transport #tt-count { min-width: 34px; text-align: center; color: #00e5ff; }
+#tour-transport #tt-paused-label { display: none; color: #ffd28a; font-size: 0.62rem; letter-spacing: 0.06em; }
+#tour-transport.paused { border-color: rgba(255, 154, 31, 0.55); }
+#tour-transport.paused #tt-paused-label { display: inline; }
+#tour-transport.paused #tt-stop { color: #f4ecdf; border-color: rgba(255, 154, 31, 0.6); }
+
 .glossary-keys {
   border-top: 1px solid rgba(94, 234, 212, 0.18);
   padding-top: 18px;
