@@ -1186,6 +1186,46 @@ body.panels-hidden #lessons-toggle { display: none !important; }
 }
 .lcc-close:hover { color: #f4ecdf; border-color: #f4ecdf; }
 
+/* ── Learner levels — presentation presets over one lesson set ── */
+/* Expert chrome hides at kid/explorer; body.level-* is set by applyLevel(). */
+body.level-kid .xp-only,
+body.level-explorer .xp-only { display: none !important; }
+
+#level-toggle {
+  position: fixed; top: 18px; right: 388px; z-index: 102;
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px;
+  background: rgba(8, 6, 15, 0.55); border: 1px solid rgba(244, 236, 223, 0.22);
+  border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 0.66rem;
+  letter-spacing: 0.14em; text-transform: uppercase; color: #8a8170; cursor: pointer;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  transition: all 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+#level-toggle:hover { border-color: #5eead4; color: #5eead4; background: rgba(94, 234, 212, 0.08); }
+#level-toggle:focus-visible { outline: 2px solid rgba(0, 229, 255, 0.6); outline-offset: 2px; }
+body.panels-hidden #level-toggle { display: none !important; }
+
+#level-overlay {
+  position: fixed; inset: 0; z-index: 180; display: none;
+  align-items: center; justify-content: center; padding: 32px;
+  background: rgba(8, 6, 15, 0.86); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  animation: welcomeFade 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#level-overlay.visible { display: flex; }
+.level-options { display: flex; flex-direction: column; gap: 12px; }
+.level-option {
+  text-align: left; background: rgba(244, 236, 223, 0.03); color: #f4ecdf;
+  border: 1px solid rgba(244, 236, 223, 0.16); border-radius: 12px; padding: 14px 16px;
+  cursor: pointer; font-family: inherit; transition: all 0.18s;
+}
+.level-option:hover { border-color: rgba(0, 229, 255, 0.55); background: rgba(0, 229, 255, 0.06); transform: translateX(2px); }
+.level-option.suggested { border-color: rgba(94, 234, 212, 0.5); }
+.level-option .lv-name { font-family: 'Fraunces', Georgia, serif; font-size: 1.1rem; margin-bottom: 4px; color: #f4ecdf; }
+.level-option.suggested .lv-name::after {
+  content: 'suggested'; margin-left: 10px; font-family: 'JetBrains Mono', monospace;
+  font-size: 0.55rem; letter-spacing: 0.12em; text-transform: uppercase; color: #5eead4;
+}
+.level-option .lv-desc { font-size: 0.82rem; color: #8a8170; line-height: 1.45; }
+
 /* ── Runtime fingerprint — bottom-left pill ── */
 #fingerprint {
   position: fixed;
@@ -2625,7 +2665,7 @@ body.tour-running #tour-transport { display: inline-flex; }
     </div>
 
     <!-- Layer Contribution Delta — stacked under residual -->
-    <div class="delta-panel scene-only" data-anchor="-4.4,0.4,1.5" data-title="Layer Δ" data-glossary="gloss-residual"
+    <div class="delta-panel scene-only xp-only" data-anchor="-4.4,0.4,1.5" data-title="Layer Δ" data-glossary="gloss-residual"
          data-info="<b>||residual(L) − residual(L−1)||</b> per layer — how much each transformer block <i>changes</i> the signal. Spiky = some layers matter more than others for this prompt.">
       <div class="delta-title">Layer Contribution Δ (change per layer)</div>
       <canvas id="deltaChart" class="delta-canvas" width="384" height="32"></canvas>
@@ -2662,7 +2702,7 @@ body.tour-running #tour-transport { display: inline-flex; }
     </div>
 
     <!-- Raw GPU State — tucked bottom-left -->
-    <div class="raw-panel" id="rawPanel" data-anchor="-4.4,-1.7,1.5" data-title="Raw State"
+    <div class="raw-panel xp-only" id="rawPanel" data-anchor="-4.4,-1.7,1.5" data-title="Raw State"
          data-info="Live <b>f32</b> readback straight from the GPU — no smoothing, no reduction. The first 16 floats of the current residual, plus per-layer max/min. The <b>strict 1:1</b> proof.">
       <div class="raw-title">Raw GPU State (f32, strict mode)</div>
       <div class="raw-grid" id="rawGrid"></div>
@@ -2778,9 +2818,12 @@ body.tour-running #tour-transport { display: inline-flex; }
 <button id="lessons-toggle" type="button" aria-label="Lessons and learning path (L)" title="Lessons · L">
   <span class="jx-icon">📚</span> <span class="jx-label">learn</span>
 </button>
+<button id="level-toggle" type="button" aria-label="Switch learner level" title="Learner level — click to switch">
+  <span class="jx-icon">◔</span> <span class="jx-label" id="level-toggle-label">explorer</span>
+</button>
 
 <!-- Runtime fingerprint — what code, what GPU, what browser. Click to expand. -->
-<div id="fingerprint" role="complementary" aria-label="Build + runtime fingerprint" title="Click to expand">
+<div id="fingerprint" class="xp-only" role="complementary" aria-label="Build + runtime fingerprint" title="Click to expand">
   <span class="fp-line fp-summary">
     <span class="fp-dot"></span>
     <span id="fp-sha">—</span> · <span id="fp-gpu">gpu —</span>
@@ -2927,6 +2970,28 @@ body.tour-running #tour-transport { display: inline-flex; }
         <kbd>?</kbd><span>Open / close this glossary</span>
         <kbd>Esc</kbd><span>Close overlays</span>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Learner-level chooser — first overlay after boot; presets, not tracks -->
+<div id="level-overlay" role="dialog" aria-labelledby="level-title">
+  <div class="glossary-card" style="max-width: 560px">
+    <div class="glossary-eyebrow">One question · change anytime with the ◔ button</div>
+    <h2 id="level-title" class="glossary-title">How deep do you want to <em>go</em>?</h2>
+    <div class="level-options">
+      <button class="level-option" data-level="kid" type="button">
+        <div class="lv-name">Kid</div>
+        <div class="lv-desc">Phi narrates everything in plain words — word pieces, thinking steps, lookers. Great for young learners.</div>
+      </button>
+      <button class="level-option" data-level="explorer" type="button">
+        <div class="lv-name">Explorer</div>
+        <div class="lv-desc">The full visualization with the expert instruments tucked away. The recommended starting point.</div>
+      </button>
+      <button class="level-option" data-level="expert" type="button">
+        <div class="lv-name">Expert</div>
+        <div class="lv-desc">Every instrument on deck — raw f32 readouts, per-layer deltas, build fingerprint. The full cockpit.</div>
+      </button>
     </div>
   </div>
 </div>
