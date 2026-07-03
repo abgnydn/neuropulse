@@ -8,6 +8,7 @@ import { createJourney, JourneyHandle } from './journey'
 import { SpatialPanels } from './spatial-panels'
 import { TOURS, createTourRunner } from './tours'
 import { LESSONS, type Lesson } from './lessons'
+import { createRecorder, type Recorder } from './recording'
 // Ask-mode reference docs — Vite imports markdown as a raw string. See
 // src/docs.md. Budgeted to ~1500 tokens so Phi-3 has room for the reply.
 import NEUROPULSE_DOCS from './docs.md?raw'
@@ -1881,6 +1882,61 @@ const deltaCtx = deltaCanvas?.getContext('2d')
 const layerDeltas = new Float32Array(32)
 let prevResidualNorm = 0
 
+// ─── Run recorder (?record=1) — capture a real run for demo-mode playback ───
+// Dev/curation tool: taps the generate() callback stream via mergeCallbacks
+// (same seam the storyteller uses) and offers the result as a JSON download.
+// See src/recording.ts for the schema; committed files live in
+// public/recordings/ and are CI-validated by tools/verify-recordings.mjs.
+let recorderRunMeta: { prompt: string; mode: 'ask' | 'complete' } | null = null
+const recorder: Recorder | null = new URLSearchParams(location.search).has('record')
+  ? createRecorder({
+      getResidualNorms: () => residualNorms,
+      getLayerDeltas: () => layerDeltas,
+      getHeadHeatmap: () => headHeatmap,
+      getFingerprint: () => {
+        const sha = typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'dev'
+        const gpu = document.getElementById('fp-gpu')?.textContent ?? 'gpu unknown'
+        return `${sha} · ${gpu}`
+      },
+    })
+  : null
+
+if (recorder) {
+  // Show the download strip whenever a run settles with captured tokens.
+  window.addEventListener('neuropulse:lesson-signal', (e) => {
+    const detail = (e as CustomEvent).detail as { type?: string }
+    if (detail.type !== 'generate' || recorder.tokenCount() === 0) return
+    let strip = document.getElementById('record-strip')
+    if (!strip) {
+      strip = document.createElement('div')
+      strip.id = 'record-strip'
+      strip.style.cssText =
+        'position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:120;' +
+        'background:rgba(12,14,20,.94);border:1px solid rgba(255,154,31,.5);border-radius:10px;' +
+        'padding:10px 14px;font-family:JetBrains Mono,monospace;font-size:12px;color:#ffd28a;' +
+        'display:flex;gap:10px;align-items:center;'
+      document.body.appendChild(strip)
+    }
+    strip.innerHTML = `<span>● rec — ${recorder.tokenCount()} tokens captured</span>`
+    const btn = document.createElement('button')
+    btn.textContent = 'Download recording JSON'
+    btn.style.cssText =
+      'background:rgba(255,154,31,.18);color:#ffd28a;border:1px solid rgba(255,154,31,.5);' +
+      'border-radius:5px;padding:5px 12px;cursor:pointer;font:inherit;'
+    btn.addEventListener('click', () => {
+      const rec = recorder.build(recorderRunMeta?.prompt ?? '', recorderRunMeta?.mode ?? 'complete')
+      if (!rec) return
+      const blob = new Blob([JSON.stringify(rec)], { type: 'application/json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `np-recording-${Date.now()}.json`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    })
+    strip.appendChild(btn)
+  })
+}
+
 function updateDeltaChart(layer: number, residualValue: number) {
   const delta = Math.abs(residualValue - prevResidualNorm)
   layerDeltas[layer] = delta
@@ -3086,6 +3142,9 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
       }
       if (phase === 'end') {
         goBtn.textContent = 'Stop'
+        // Re-enable so Stop is actually clickable mid-generation — the button
+        // is disabled at run start and was shipping as a dead control.
+        goBtn.disabled = false
         hidePrefill()
       }
     },
@@ -3106,10 +3165,15 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
       renderRawReadout()
     },
   }
+  let genCallbacks = mergeCallbacks(baseCallbacks, storyteller.hooks())
+  if (recorder) {
+    genCallbacks = mergeCallbacks(genCallbacks, recorder.hooks())
+    recorderRunMeta = { prompt, mode: mode === 'ask' ? 'ask' : 'complete' }
+  }
   await engine.generate(
     realPrompt,
     mode === 'ask' ? 140 : 180,
-    mergeCallbacks(baseCallbacks, storyteller.hooks()),
+    genCallbacks,
   )
 
   viz.setDone()

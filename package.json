@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "verify:claims": "node tools/verify-claims.mjs",
     "verify:shortcuts": "node tools/check-shortcuts.mjs",
-    "verify": "npm run verify:claims && npm run verify:shortcuts",
+    "verify:recordings": "node tools/verify-recordings.mjs",
+    "verify": "npm run verify:claims && npm run verify:shortcuts && npm run verify:recordings",
     "check": "npm run typecheck && npm run verify && npm run build"
   },
   "devDependencies": {
