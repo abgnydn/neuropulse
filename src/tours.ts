@@ -204,72 +204,149 @@ export const TOURS: Tour[] = [
   },
 ]
 
+export interface TourRunnerState {
+  tourId: string | null
+  step: number
+  total: number
+  paused: boolean
+}
+
 interface TourRunnerHandle {
   play(id: string): void
   stop(): void
+  pause(): void
+  resume(): void
+  next(): void
+  prev(): void
   isPlaying(): boolean
+  isPaused(): boolean
+  state(): TourRunnerState
 }
 
-export function createTourRunner(vis: BrainVisualizer, onCaption?: (caption: string, sub: string) => void): TourRunnerHandle {
+export function createTourRunner(
+  vis: BrainVisualizer,
+  onCaption?: (caption: string, sub: string) => void,
+  /** Fired on every step entry AND on pause/resume — drives the transport UI. */
+  onStepChange?: (index: number, total: number, paused: boolean) => void,
+  /** Fired when a tour finishes naturally or is stopped. */
+  onEnd?: () => void,
+): TourRunnerHandle {
   let stepTimer: number | null = null
-  let playing = false
-  let currentTourId: string | null = null
+  let tour: Tour | null = null
+  let index = 0
+  let paused = false
+  // Hold bookkeeping so pause/resume can freeze and restore the countdown.
+  let armedAt = 0
+  let holdMs = 0
+  let remainingMs = 0
 
-  function stop(): void {
+  function clearTimer(): void {
     if (stepTimer !== null) {
       clearTimeout(stepTimer)
       stepTimer = null
     }
-    playing = false
-    currentTourId = null
   }
 
-  function runStep(tour: Tour, index: number): void {
-    if (!playing || index >= tour.steps.length) {
-      stop()
-      return
-    }
-    const step = tour.steps[index]!
-    const pos = new THREE.Vector3(...step.pos)
-    const lookAt = new THREE.Vector3(...step.lookAt)
-    vis.setJourneyCamera(pos, lookAt)
-
-    onCaption?.(step.caption, step.sub ?? '')
-
-    if (step.highlight) {
-      vis.highlightGroup(step.highlight)
-    }
-
-    if (step.prompt) {
-      const input = document.getElementById('promptInput') as HTMLInputElement | null
-      if (input) input.value = step.prompt
-    }
-
+  function holdFor(step: TourStep): number {
     // Pace follows the Speed slider (default 5×), but a hard 1.8s floor keeps
     // captions readable even at 20× — one control, still legible.
     const speed = (window as unknown as { __npSpeed?: () => number }).__npSpeed?.() ?? 5
     const mult = Math.max(0.3, Math.min(1.1, 2.5 / speed))
-    const hold = Math.max(1800, step.hold * mult)
-    stepTimer = window.setTimeout(() => runStep(tour, index + 1), hold)
+    return Math.max(1800, step.hold * mult)
+  }
+
+  function armHold(ms: number): void {
+    clearTimer()
+    armedAt = performance.now()
+    holdMs = ms
+    stepTimer = window.setTimeout(() => advance(1, true), ms)
+  }
+
+  /** Apply step `i`'s camera pose, caption, highlight, and prompt — a pure
+   *  function of the step, so transport prev/next can jump anywhere. */
+  function applyStep(i: number): void {
+    if (!tour) return
+    const step = tour.steps[i]!
+    vis.setJourneyCamera(new THREE.Vector3(...step.pos), new THREE.Vector3(...step.lookAt))
+    onCaption?.(step.caption, step.sub ?? '')
+    if (step.highlight) vis.highlightGroup(step.highlight)
+    if (step.prompt) {
+      const input = document.getElementById('promptInput') as HTMLInputElement | null
+      if (input) input.value = step.prompt
+    }
+    onStepChange?.(i, tour.steps.length, paused)
+  }
+
+  function advance(delta: number, fromTimer = false): void {
+    if (!tour) return
+    const nextIdx = index + delta
+    if (nextIdx >= tour.steps.length) {
+      // Natural completion (timer) or Next past the last step — finish.
+      stopInternal()
+      return
+    }
+    index = Math.max(0, nextIdx)
+    applyStep(index)
+    if (paused && !fromTimer) {
+      // Jumping while paused shows the step but stays paused.
+      remainingMs = holdFor(tour.steps[index]!)
+      return
+    }
+    armHold(holdFor(tour.steps[index]!))
+  }
+
+  function stopInternal(): void {
+    clearTimer()
+    tour = null
+    index = 0
+    paused = false
+    vis.setJourneyDriving(false)
+    onEnd?.()
   }
 
   return {
     play(id: string): void {
-      const tour = TOURS.find((t) => t.id === id)
-      if (!tour) return
-      stop()
-      playing = true
-      currentTourId = id
+      const t = TOURS.find((x) => x.id === id)
+      if (!t) return
+      clearTimer()
+      tour = t
+      index = 0
+      paused = false
       // Journey needs to own the camera during a tour
       vis.setJourneyDriving(true)
-      runStep(tour, 0)
+      applyStep(0)
+      armHold(holdFor(t.steps[0]!))
     },
     stop(): void {
-      stop()
-      vis.setJourneyDriving(false)
+      if (tour) stopInternal()
     },
-    isPlaying(): boolean {
-      return playing
+    pause(): void {
+      if (!tour || paused) return
+      paused = true
+      remainingMs = Math.max(300, holdMs - (performance.now() - armedAt))
+      clearTimer()
+      // Camera yields to the user while paused so they can orbit freely.
+      vis.setJourneyDriving(false)
+      onStepChange?.(index, tour.steps.length, true)
+    },
+    resume(): void {
+      if (!tour || !paused) return
+      paused = false
+      vis.setJourneyDriving(true)
+      // Re-apply the current step so the camera glides back to the tour pose.
+      applyStep(index)
+      armHold(remainingMs)
+    },
+    next(): void { if (tour) advance(1) },
+    prev(): void {
+      if (!tour) return
+      if (index === 0) { applyStep(0); if (!paused) armHold(holdFor(tour.steps[0]!)); return }
+      advance(-1)
+    },
+    isPlaying(): boolean { return tour !== null },
+    isPaused(): boolean { return paused },
+    state(): TourRunnerState {
+      return { tourId: tour?.id ?? null, step: index, total: tour?.steps.length ?? 0, paused }
     },
   }
 }

@@ -1142,8 +1142,38 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
     if (subEl) subEl.innerHTML = sub
   }
 
+  // ── Transport bar: pause/play · prev/next · step counter · stop ──
+  // Buttons only (no new keyboard keys — check-shortcuts stays untouched).
+  const transport = document.createElement('div')
+  transport.id = 'tour-transport'
+  transport.setAttribute('role', 'toolbar')
+  transport.setAttribute('aria-label', 'Tour controls')
+  transport.innerHTML = `
+    <button id="tt-prev" type="button" aria-label="Previous step" title="Previous step">◀</button>
+    <button id="tt-toggle" type="button" aria-label="Pause tour" title="Pause / resume">⏸</button>
+    <button id="tt-next" type="button" aria-label="Next step" title="Next step">▶</button>
+    <span id="tt-count" aria-live="polite">–/–</span>
+    <span id="tt-paused-label">paused — you have the camera</span>
+    <button id="tt-stop" type="button" aria-label="Stop tour" title="Stop tour">✕ stop</button>
+  `
+  document.body.appendChild(transport)
+  const ttToggle = transport.querySelector<HTMLButtonElement>('#tt-toggle')!
+  const ttCount = transport.querySelector<HTMLSpanElement>('#tt-count')!
+
+  function onStepChange(index: number, total: number, paused: boolean): void {
+    ttCount.textContent = `${index + 1}/${total}`
+    ttToggle.textContent = paused ? '▶' : '⏸'
+    ttToggle.setAttribute('aria-label', paused ? 'Resume tour' : 'Pause tour')
+    transport.classList.toggle('paused', paused)
+  }
+
+  function onTourEnd(): void {
+    document.body.classList.remove('tour-running')
+    transport.classList.remove('paused')
+  }
+
   function playTour(id: string): void {
-    if (!runner) runner = createTourRunner(viz, updateCaption)
+    if (!runner) runner = createTourRunner(viz, updateCaption, onStepChange, onTourEnd)
     runner.play(id)
     document.body.classList.add('tour-running')
     // Close the glossary so the tour is visible
@@ -1151,9 +1181,18 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
   }
 
   function stopTour(): void {
-    runner?.stop()
+    runner?.stop() // runner fires onTourEnd for class cleanup
     document.body.classList.remove('tour-running')
   }
+
+  transport.querySelector('#tt-prev')?.addEventListener('click', () => runner?.prev())
+  transport.querySelector('#tt-next')?.addEventListener('click', () => runner?.next())
+  transport.querySelector('#tt-stop')?.addEventListener('click', () => stopTour())
+  ttToggle.addEventListener('click', () => {
+    if (!runner) return
+    if (runner.isPaused()) runner.resume()
+    else runner.pause()
+  })
 
   // Exposed so the Lessons flow can start a tour for a lesson.
   ;(window as unknown as { __playTour?: (id: string) => void }).__playTour = playTour
@@ -1173,12 +1212,14 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
     }
   })
 
-  // Any manual journey interaction also stops the tour
+  // Manual interaction PAUSES the tour (camera yields to the user) rather than
+  // silently killing it — resume/stop from the transport bar.
   window.addEventListener('pointerdown', (e) => {
     if (!document.body.classList.contains('tour-running')) return
+    if (!runner || runner.isPaused()) return
     const t = e.target as HTMLElement | null
-    if (t && t.closest('#journey-hud, .side, #journey-exit, #glossary-overlay')) return
-    stopTour()
+    if (t && t.closest('#journey-hud, .side, #journey-exit, #glossary-overlay, #tour-transport, #lessons-overlay, #lesson-check-card')) return
+    runner.pause()
   })
 
   // Suppress unused warning for `badge` — its visibility is CSS-driven
