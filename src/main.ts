@@ -514,6 +514,11 @@ const speedLabel = document.getElementById('speedLabel')!
 speedSlider.addEventListener('input', () => {
   speedLabel.textContent = speedSlider.value + 'x'
 })
+// Single source of truth for pace: the Speed slider (1–20). Tours (src/tours.ts)
+// and journey autoplay (src/journey.ts) read this so one control drives the
+// forward-pass tokens, the tour camera, and the journey flythrough together.
+function currentSpeed(): number { return parseInt(speedSlider.value, 10) || 5 }
+;(window as unknown as { __npSpeed?: () => number }).__npSpeed = currentSpeed
 
 // SVG icon helpers for tool buttons
 const SVG_SOUND_ON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>'
@@ -1716,7 +1721,7 @@ function showPrefillToken(index: number, total: number, token: string) {
   const pct = ((index + 1) / total * 100).toFixed(0)
   const display = token.replace(/</g, '&lt;').replace(/>/g, '&gt;')
   prefillOverlay.innerHTML = `
-    Prefill: <span class="prefill-token">${display}</span> <span style="color:#8a8170">${index + 1}/${total}</span>
+    Reading prompt: <span class="prefill-token">${display}</span> <span style="color:#8a8170">${index + 1}/${total}</span>
     <div class="prefill-bar-bg"><div class="prefill-bar-fill" style="width:${pct}%"></div></div>
   `
   prefillOverlay.style.display = 'block'
