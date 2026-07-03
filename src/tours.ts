@@ -245,7 +245,12 @@ export function createTourRunner(vis: BrainVisualizer, onCaption?: (caption: str
       if (input) input.value = step.prompt
     }
 
-    stepTimer = window.setTimeout(() => runStep(tour, index + 1), step.hold)
+    // Pace follows the Speed slider (default 5×), but a hard 1.8s floor keeps
+    // captions readable even at 20× — one control, still legible.
+    const speed = (window as unknown as { __npSpeed?: () => number }).__npSpeed?.() ?? 5
+    const mult = Math.max(0.3, Math.min(1.1, 2.5 / speed))
+    const hold = Math.max(1800, step.hold * mult)
+    stepTimer = window.setTimeout(() => runStep(tour, index + 1), hold)
   }
 
   return {

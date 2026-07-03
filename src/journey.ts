@@ -319,7 +319,12 @@ export function createJourney(vis: BrainVisualizer): JourneyHandle {
   // ─── main animation loop ───
   function tick(): void {
     if (active) {
-      if (autoPlay) progTarget = clamp01(progTarget + AUTO_RATE)
+      // Autoplay pace follows the shared Speed slider (default 5×) so the
+      // flythrough stays in sync with the tour + token pace. sqrt keeps the
+      // range gentle: 1× ≈ 0.45×, 20× ≈ 2× the base rate.
+      const speed = (window as unknown as { __npSpeed?: () => number }).__npSpeed?.() ?? 5
+      const rate = AUTO_RATE * Math.sqrt(speed / 5)
+      if (autoPlay) progTarget = clamp01(progTarget + rate)
       // Smooth the progress we actually render — prevents jittery input
       progCurrent += (progTarget - progCurrent) * LERP_TO_PROG
       if (Math.abs(progTarget - progCurrent) < 1e-4) progCurrent = progTarget
