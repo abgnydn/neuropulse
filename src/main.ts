@@ -1409,13 +1409,17 @@ function openGlossaryAt(entryId?: string): void {
     const total = LESSONS.length
     const done = LESSONS.filter((l) => isDone(l.id)).length
     if (bar) bar.style.width = `${Math.round((done / total) * 100)}%`
-    if (barLabel) barLabel.textContent = `${done} / ${total} done`
-    list!.innerHTML = LESSONS.map((l, i) => `
+    if (barLabel) barLabel.textContent = done === total ? `all ${total} done ✓` : `${done} / ${total} done`
+    const banner = done === total
+      ? `<div class="lessons-done-banner">Path complete — you've seen the whole machine. Replay anything, or go free-range: sweep a layer, break a circuit, ask it something strange.</div>`
+      : ''
+    list!.innerHTML = banner + LESSONS.map((l, i) => `
       <div class="lesson-item ${isDone(l.id) ? 'done' : ''}" data-lesson-id="${l.id}" role="button" tabindex="0">
         <div class="lesson-status">${isDone(l.id) ? '✓' : i + 1}</div>
         <div class="lesson-body">
-          <div class="lesson-title">${l.title}</div>
+          <div class="lesson-title">${l.title} <span class="lesson-min">≈${l.minutes} min</span></div>
           <div class="lesson-blurb">${l.blurb}${l.requiresLive && demoMode ? ' <span class="lesson-live-tag">needs live model</span>' : ''}</div>
+          <div class="lesson-objective">You'll be able to: ${l.objective}</div>
         </div>
         <button class="lesson-start" type="button">${isDone(l.id) ? 'replay' : 'start'}</button>
       </div>`).join('')
@@ -1442,14 +1446,39 @@ function openGlossaryAt(entryId?: string): void {
       .join(' · ')}</div>`
   }
 
+  function removeCard(card: HTMLElement): void {
+    if (armed?.card === card) armed = null
+    card.remove()
+    document.body.classList.remove('lesson-active')
+  }
+
+  /** The next not-yet-done lesson in path order (skipping live-only ones in
+   *  demo mode), or null when the path is complete. */
+  function nextLesson(afterId: string): Lesson | null {
+    const rest = LESSONS.filter((l) => !isDone(l.id) && l.id !== afterId && !(l.requiresLive && demoMode))
+    return rest[0] ?? null
+  }
+
   function passLesson(l: Lesson, card: HTMLElement): void {
     markDone(l.id)
     armed = null
     card.classList.add('passed')
     const body = card.querySelector('.lcc-body') ?? card
+    const next = nextLesson(l.id)
     body.innerHTML = `<div class="lcc-title">✓ Lesson complete</div>
-      <div class="lcc-feedback">Nice — “${l.title}” done. Press L for the next one.</div>`
-    window.setTimeout(() => card.remove(), 4200)
+      <div class="lcc-feedback">Nice — “${l.title}” done.</div>
+      <div class="lcc-next-row">
+        ${next ? `<button class="lcc-next" type="button">Next lesson: ${next.title} →</button>` : ''}
+        <button class="lcc-done-close" type="button">${next ? 'later' : 'see the full path'}</button>
+      </div>`
+    body.querySelector('.lcc-next')?.addEventListener('click', () => {
+      removeCard(card)
+      if (next) startLesson(next.id)
+    })
+    body.querySelector('.lcc-done-close')?.addEventListener('click', () => {
+      removeCard(card)
+      if (!next) open(true) // path complete — show the banner
+    })
   }
 
   function startLesson(id: string): void {
@@ -1480,27 +1509,54 @@ function openGlossaryAt(entryId?: string): void {
           ${lesson.intro ? `<div class="lcc-instruction">${lesson.intro}</div>` : ''}
           ${readingHtml(lesson)}
           <div class="lcc-q">${c.question}</div>
-          <div class="lcc-opts">${c.options
-            .map((o, i) => `<button class="lcc-opt" data-i="${i}" type="button">${o}</button>`)
-            .join('')}</div>
+          <div class="lcc-opts"></div>
           <div class="lcc-feedback"></div>
         </div>`
+      const optsEl = card.querySelector<HTMLElement>('.lcc-opts')!
       const fb = card.querySelector<HTMLElement>('.lcc-feedback')!
-      card.querySelectorAll<HTMLButtonElement>('.lcc-opt').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const i = Number(btn.dataset.i)
-          if (i === c.answer) {
-            btn.classList.add('correct')
-            fb.textContent = c.why
-            card.querySelectorAll<HTMLButtonElement>('.lcc-opt').forEach((b) => { b.disabled = true })
-            markDone(lesson.id)
-            window.setTimeout(() => card.remove(), 5000)
-          } else {
-            btn.classList.add('wrong')
-            btn.disabled = true
-          }
+      let attempts = 0
+
+      // Options render in shuffled order and RESHUFFLE after a wrong pick —
+      // guessing costs a re-read and position memory won't help. Wrong
+      // answers teach: each option carries its own `why`.
+      function renderOptions(): void {
+        const order = c.options.map((_, i) => i)
+        for (let i = order.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[order[i], order[j]] = [order[j]!, order[i]!]
+        }
+        optsEl.innerHTML = order
+          .map((oi) => `<button class="lcc-opt" data-i="${oi}" type="button">${c.options[oi]!.text}</button>`)
+          .join('')
+        optsEl.querySelectorAll<HTMLButtonElement>('.lcc-opt').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const i = Number(btn.dataset.i)
+            const opt = c.options[i]!
+            if (i === c.answer) {
+              btn.classList.add('correct')
+              fb.textContent = opt.why
+              optsEl.querySelectorAll<HTMLButtonElement>('.lcc-opt').forEach((b) => { b.disabled = true })
+              window.setTimeout(() => passLesson(lesson, card), 1600)
+            } else {
+              attempts++
+              btn.classList.add('wrong')
+              optsEl.querySelectorAll<HTMLButtonElement>('.lcc-opt').forEach((b) => { b.disabled = true })
+              const retryCta = attempts >= 3 && lesson.tourId
+                ? ` <button class="lesson-read-link lcc-retry-tour" type="button">Take the tour again →</button>`
+                : ''
+              fb.innerHTML = `${opt.why}${retryCta}`
+              fb.querySelector('.lcc-retry-tour')?.addEventListener('click', () => {
+                ;(window as unknown as { __playTour?: (t: string) => void }).__playTour?.(lesson.tourId!)
+              })
+              // Let the explanation land, then reshuffle for another go.
+              // (Feedback clears; the tour CTA re-appears on the next miss
+              // since `attempts` persists.)
+              window.setTimeout(() => { fb.innerHTML = ''; renderOptions() }, 2600)
+            }
+          })
         })
-      })
+      }
+      renderOptions()
     } else if (lesson.requiresLive && demoMode) {
       // Signal check that needs the real engine — in demo mode, explain
       // rather than arm (the recorded run can't be ablated).
@@ -1527,10 +1583,7 @@ function openGlossaryAt(entryId?: string): void {
       armed = { lesson, card }
     }
 
-    card.querySelector('.lcc-close')?.addEventListener('click', () => {
-      if (armed?.card === card) armed = null
-      card.remove()
-    })
+    card.querySelector('.lcc-close')?.addEventListener('click', () => removeCard(card))
     card.querySelectorAll<HTMLElement>('.lesson-read-link').forEach((lnk) => {
       lnk.addEventListener('click', () => {
         const g = lnk.dataset.gloss
@@ -1538,6 +1591,9 @@ function openGlossaryAt(entryId?: string): void {
       })
     })
     document.body.appendChild(card)
+    // Focus mode: dim non-relevant chrome while a lesson is active (CSS-only,
+    // no pointer-events change — the ablation lesson needs its panel usable).
+    document.body.classList.add('lesson-active')
   }
 
   // Consume runtime signals for the armed signal-check.
@@ -1558,6 +1614,28 @@ function openGlossaryAt(entryId?: string): void {
     if (e.key === 'Escape' && overlay.classList.contains('visible')) open(false)
   })
   ;(window as unknown as { __toggleLessons?: () => void }).__toggleLessons = () => open()
+
+  // "Continue where you left off" — a dismissible chip on return visits with
+  // partial progress. Session-scoped dismissal, so it returns next visit.
+  ;(function continueChip() {
+    const done = LESSONS.filter((l) => isDone(l.id)).length
+    if (done === 0 || done >= LESSONS.length) return
+    try { if (sessionStorage.getItem('np:continue-dismissed') === '1') return } catch { /* ok */ }
+    const next = LESSONS.find((l) => !isDone(l.id))
+    if (!next) return
+    const chip = document.createElement('div')
+    chip.id = 'lessons-continue-chip'
+    chip.innerHTML = `
+      <button class="lcc-continue" type="button">Continue: ${next.title} →</button>
+      <button class="lcc-continue-x" type="button" aria-label="Dismiss">✕</button>`
+    document.body.appendChild(chip)
+    const dismiss = () => {
+      chip.remove()
+      try { sessionStorage.setItem('np:continue-dismissed', '1') } catch { /* ok */ }
+    }
+    chip.querySelector('.lcc-continue')?.addEventListener('click', () => { dismiss(); startLesson(next.id) })
+    chip.querySelector('.lcc-continue-x')?.addEventListener('click', dismiss)
+  })()
 })()
 
 // ─── Preset-hint floating toast (educational annotation for each preset) ───

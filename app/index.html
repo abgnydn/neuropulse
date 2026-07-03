@@ -1151,6 +1151,56 @@ body.panels-hidden #lessons-toggle { display: none !important; }
 }
 .lesson-start:hover { background: rgba(0, 229, 255, 0.22); color: #fff; }
 
+/* Lesson list meta + completion + continue chip + focus mode */
+.lesson-min {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #514a3e;
+  margin-left: 8px; letter-spacing: 0.06em;
+}
+.lesson-objective { font-size: 0.72rem; color: #6b6358; margin-top: 3px; font-style: italic; }
+.lessons-done-banner {
+  padding: 12px 14px; border: 1px solid rgba(94, 234, 212, 0.45); border-radius: 10px;
+  background: rgba(94, 234, 212, 0.07); color: #5eead4; font-size: 0.85rem; line-height: 1.5;
+}
+.lcc-next-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.lcc-next {
+  background: rgba(94, 234, 212, 0.14); color: #5eead4; border: 1px solid rgba(94, 234, 212, 0.5);
+  border-radius: 6px; padding: 7px 12px; cursor: pointer; font: inherit; font-size: 12px; transition: all 0.15s;
+}
+.lcc-next:hover { background: rgba(94, 234, 212, 0.24); color: #eafff8; }
+.lcc-done-close {
+  background: transparent; color: #8a7f6c; border: 1px solid rgba(244, 236, 223, 0.16);
+  border-radius: 6px; padding: 7px 10px; cursor: pointer; font: inherit; font-size: 11px;
+}
+.lcc-done-close:hover { color: #f4ecdf; }
+
+#lessons-continue-chip {
+  position: fixed; top: 62px; left: 18px; z-index: 103;
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 12px;
+  background: rgba(8, 6, 15, 0.85); border: 1px solid rgba(0, 229, 255, 0.4);
+  border-radius: 999px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+#lessons-continue-chip .lcc-continue {
+  background: transparent; border: none; cursor: pointer; padding: 0;
+  color: #00e5ff; font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; letter-spacing: 0.06em;
+}
+#lessons-continue-chip .lcc-continue:hover { color: #7de3ff; }
+#lessons-continue-chip .lcc-continue-x {
+  background: transparent; border: none; cursor: pointer; color: #514a3e; font-size: 11px; padding: 2px 4px;
+}
+#lessons-continue-chip .lcc-continue-x:hover { color: #f4ecdf; }
+body.panels-hidden #lessons-continue-chip { display: none !important; }
+
+/* Focus mode — while a lesson check card is open, dim non-relevant chrome.
+   Visual only (no pointer-events change: the ablation lesson needs its
+   panel fully usable). The scene canvas, prompt row, HUD, and the card
+   itself stay at full strength. */
+body.lesson-active .side > [data-anchor]:not(#output),
+body.lesson-active #fingerprint,
+body.lesson-active #lessons-toggle,
+body.lesson-active #level-toggle,
+body.lesson-active #panels-expand-all { opacity: 0.35; transition: opacity 0.3s; }
+body.lesson-active .ablate-panel { opacity: 0.9; }
+
 /* Floating check card shown while a lesson is active (bottom-left, clears HUD) */
 .lesson-check-card {
   position: fixed; bottom: 120px; left: 24px; z-index: 60; width: 340px; max-width: calc(100vw - 48px);
@@ -2946,13 +2996,6 @@ body.tour-running #tour-transport { display: inline-flex; }
 
     </div>
 
-    <!-- Guided tours — short curated narratives that drive the camera + captions -->
-    <div class="glossary-tours" id="glossary-tours">
-      <div class="glossary-tours-title">Guided tours</div>
-      <div class="glossary-tours-list" id="tours-list">
-        <!-- populated by main.ts from src/tours.ts -->
-      </div>
-    </div>
 
     <div class="glossary-keys">
       <div class="glossary-keys-title">Controls</div>
@@ -3007,6 +3050,15 @@ body.tour-running #tour-transport { display: inline-flex; }
       <span id="lessons-progress-label" class="lessons-progress-label">0 / 0 done</span>
     </div>
     <div class="lessons-list" id="lessons-list"><!-- populated by main.ts wireLessons() --></div>
+    <!-- Free-play tours — the guided camera narratives, outside the lesson path.
+         (Moved here from the glossary: lessons own the learning catalog; the
+         glossary stays a pure dictionary + controls reference.) -->
+    <div class="glossary-tours" id="glossary-tours">
+      <div class="glossary-tours-title">Free-play tours</div>
+      <div class="glossary-tours-list" id="tours-list">
+        <!-- populated by main.ts from src/tours.ts -->
+      </div>
+    </div>
   </div>
 </div>
 
