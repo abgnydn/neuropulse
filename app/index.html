@@ -1969,6 +1969,23 @@ body.demo-mode #demo-badge { display: inline-flex; }
 #demo-badge.live-ready { border-color: rgba(94, 234, 212, 0.6); color: #5eead4; }
 
 .boot-learn-sub { max-width: 460px; margin: 10px auto 0; color: #8a8170; }
+
+/* Recorded-run picker — demo mode only, sits left of the prompt box. */
+#demoRecPicker {
+  display: none;
+  max-width: 220px;
+  background: rgba(8, 6, 15, 0.8);
+  color: #ffd28a;
+  border: 1px solid rgba(255, 154, 31, 0.45);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+body.demo-mode #demoRecPicker { display: inline-block; }
+#demoRecPicker:hover { border-color: #ff9a1f; }
+#demoRecPicker:focus-visible { outline: 2px solid rgba(0, 229, 255, 0.6); outline-offset: 2px; }
 .boot-demo-wait { margin-top: 14px; }
 /* Demo mode: the prompt input is a replay, not a free-text box. */
 body.demo-mode #promptInput { opacity: 0.75; cursor: default; }
@@ -2815,6 +2832,7 @@ body.tour-running #tour-transport { display: flex; }
 
   <!-- Prompt + tool buttons — world-anchored below the model in 3D -->
   <div class="input-wrap" data-anchor="0,-2.3,2.8" data-title="Prompt">
+    <select id="demoRecPicker" aria-label="Choose a recorded run" title="Recorded runs — pick one to replay"></select>
     <input type="text" id="promptInput" placeholder="Ask anything... (e.g. What is consciousness?)" autofocus>
     <div class="speed-control">
       <label for="speedSlider">Speed</label>

@@ -22,6 +22,46 @@ import type { TopKEntry } from './engine/inference'
 
 export const RECORDING_SCHEMA_VERSION = 1 as const
 
+/** Demo-mode recording gallery. Every entry is a real captured run committed
+ *  under public/recordings/ and CI-validated. Add a capture → add a row. */
+export interface RecordingMeta {
+  id: string
+  file: string
+  /** picker label — for normal runs this is the prompt itself */
+  title: string
+  note: string
+  /** true = captured with attention heads ablated (the knock-out demo) */
+  ablated?: boolean
+}
+
+export const RECORDINGS: RecordingMeta[] = [
+  {
+    id: 'intro',
+    file: '/recordings/intro-01.json',
+    title: 'What is consciousness?',
+    note: 'open-ended — watch the model hedge between candidates',
+  },
+  {
+    id: 'capital',
+    file: '/recordings/capital-01.json',
+    title: 'The capital of Japan is',
+    note: 'factual recall — one confident answer, peaky top-K',
+  },
+  {
+    id: 'capital-ablated',
+    file: '/recordings/capital-ablated-01.json',
+    title: 'The capital of Japan is — six layers of attention off',
+    note: 'same prompt with early-layer attention ablated — it never even finds Tokyo',
+    ablated: true,
+  },
+  {
+    id: 'code',
+    file: '/recordings/code-01.json',
+    title: 'def fibonacci(n):',
+    note: 'code completion — different heads light up than prose',
+  },
+]
+
 export interface RecordedToken {
   /** decoded text delta for this token */
   text: string
