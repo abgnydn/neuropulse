@@ -1165,6 +1165,25 @@ body.panels-hidden #lessons-toggle { display: none !important; }
   padding: 12px 14px; border: 1px solid rgba(94, 234, 212, 0.45); border-radius: 10px;
   background: rgba(94, 234, 212, 0.07); color: #5eead4; font-size: 0.85rem; line-height: 1.5;
 }
+.lessons-share-row { margin-top: 10px; }
+
+/* Completion share-card preview modal */
+#share-card-modal {
+  position: fixed; inset: 0; z-index: 220; display: flex;
+  align-items: center; justify-content: center; padding: 32px;
+  background: rgba(8, 6, 15, 0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  animation: welcomeFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.share-card-box {
+  position: relative; max-width: 720px; width: 100%;
+  background: rgba(8, 6, 15, 0.96); border: 1px solid rgba(94, 234, 212, 0.35);
+  border-radius: 16px; padding: 28px;
+  box-shadow: 0 20px 80px rgba(0, 229, 255, 0.14);
+  animation: welcomeRise 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.share-card-img { width: 100%; border-radius: 10px; display: block; border: 1px solid rgba(244, 236, 223, 0.12); }
+.share-card-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: center; }
+
 .lcc-next-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
 .lcc-next {
   background: rgba(94, 234, 212, 0.14); color: #5eead4; border: 1px solid rgba(94, 234, 212, 0.5);

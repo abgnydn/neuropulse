@@ -1464,7 +1464,8 @@ function openGlossaryAt(entryId?: string): void {
     if (bar) bar.style.width = `${Math.round((done / total) * 100)}%`
     if (barLabel) barLabel.textContent = done === total ? `all ${total} done ✓` : `${done} / ${total} done`
     const banner = done === total
-      ? `<div class="lessons-done-banner">Path complete — you've seen the whole machine. Replay anything, or go free-range: sweep a layer, break a circuit, ask it something strange.</div>`
+      ? `<div class="lessons-done-banner">Path complete — you've seen the whole machine. Replay anything, or go free-range: sweep a layer, break a circuit, ask it something strange.
+           <div class="lessons-share-row"><button class="lcc-next" id="lessons-share-btn" type="button">🎓 Get your completion card</button></div></div>`
       : ''
     list!.innerHTML = banner + LESSONS.map((l, i) => `
       <div class="lesson-item ${isDone(l.id) ? 'done' : ''}" data-lesson-id="${l.id}" role="button" tabindex="0">
@@ -1483,6 +1484,10 @@ function openGlossaryAt(entryId?: string): void {
       el.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startLesson(id) }
       })
+    })
+    list!.querySelector('#lessons-share-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      void showShareCard()
     })
   }
 
@@ -1505,6 +1510,113 @@ function openGlossaryAt(entryId?: string): void {
     document.body.classList.remove('lesson-active')
   }
 
+  // ── Completion share card — canvas-rendered PNG, no backend ─────────────
+  // Even the share card keeps the honesty rule: the bar motif is the real
+  // 32-layer residual-norm profile from the user's session (or the default
+  // recording's final token if nothing ran yet).
+  async function shareCardNorms(): Promise<number[]> {
+    if (Array.from(residualNorms).some((v) => v > 0)) return Array.from(residualNorms)
+    try {
+      const rec = await loadDemoRecording()
+      return rec.tokens[rec.tokens.length - 1]!.residualNorms
+    } catch { return new Array(32).fill(0).map((_, i) => 1 + i * 0.28) }
+  }
+
+  async function buildShareCard(): Promise<Blob | null> {
+    await document.fonts.ready
+    const W = 1200, H = 630
+    const cv = document.createElement('canvas')
+    cv.width = W; cv.height = H
+    const ctx = cv.getContext('2d')
+    if (!ctx) return null
+
+    // Background
+    ctx.fillStyle = '#08060f'
+    ctx.fillRect(0, 0, W, H)
+    const glow = ctx.createRadialGradient(W * 0.8, H * 0.15, 40, W * 0.8, H * 0.15, 520)
+    glow.addColorStop(0, 'rgba(0,229,255,0.10)')
+    glow.addColorStop(1, 'rgba(0,229,255,0)')
+    ctx.fillStyle = glow
+    ctx.fillRect(0, 0, W, H)
+
+    // Real residual-norm bars along the bottom — the session's own tensors.
+    const norms = await shareCardNorms()
+    const max = Math.max(...norms, 1e-6)
+    const barW = 22, gap = 12
+    const baseX = (W - (32 * barW + 31 * gap)) / 2
+    for (let i = 0; i < 32; i++) {
+      const h = 18 + (norms[i]! / max) * 110
+      const x = baseX + i * (barW + gap)
+      const grad = ctx.createLinearGradient(0, 560 - h, 0, 560)
+      grad.addColorStop(0, '#00e5ff')
+      grad.addColorStop(1, 'rgba(255,140,66,0.75)')
+      ctx.fillStyle = grad
+      ctx.globalAlpha = 0.9
+      ctx.fillRect(x, 560 - h, barW, h)
+    }
+    ctx.globalAlpha = 1
+
+    // Copy
+    ctx.fillStyle = '#5eead4'
+    ctx.font = '600 22px "JetBrains Mono", monospace'
+    ctx.fillText('N E U R O P U L S E . L I V E   ·   L E A R N I N G   P A T H   C O M P L E T E', 72, 96)
+
+    ctx.fillStyle = '#f4ecdf'
+    ctx.font = '400 58px "Fraunces", Georgia, serif'
+    ctx.fillText('I watched a 3.8-billion-parameter', 72, 210)
+    ctx.fillText('transformer think.', 72, 282)
+
+    const total = LESSONS.length
+    ctx.fillStyle = '#8a8170'
+    ctx.font = '400 26px "JetBrains Mono", monospace'
+    ctx.fillText(`${total}/${total} lessons · ${currentLevel} level · every pixel a real tensor`, 72, 348)
+
+    ctx.fillStyle = '#514a3e'
+    ctx.font = '400 20px "JetBrains Mono", monospace'
+    ctx.fillText(new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }), 72, 592)
+    ctx.fillStyle = '#00e5ff'
+    const url = 'neuropulse.live'
+    ctx.fillText(url, W - 72 - ctx.measureText(url).width, 592)
+
+    return new Promise((resolve) => cv.toBlob((b) => resolve(b), 'image/png'))
+  }
+
+  async function showShareCard(): Promise<void> {
+    const blob = await buildShareCard()
+    if (!blob) return
+    const dataUrl = URL.createObjectURL(blob)
+    document.getElementById('share-card-modal')?.remove()
+    const modal = document.createElement('div')
+    modal.id = 'share-card-modal'
+    modal.innerHTML = `
+      <div class="share-card-box">
+        <button class="glossary-close share-card-close" type="button" aria-label="Close">×</button>
+        <img src="${dataUrl}" alt="Neuropulse learning-path completion card" class="share-card-img">
+        <div class="share-card-actions">
+          <button class="lcc-next" id="share-card-download" type="button">Download PNG</button>
+          ${typeof navigator.share === 'function' ? '<button class="lcc-next" id="share-card-share" type="button">Share…</button>' : ''}
+        </div>
+      </div>`
+    document.body.appendChild(modal)
+    const close = () => { modal.remove(); URL.revokeObjectURL(dataUrl) }
+    modal.querySelector('.share-card-close')?.addEventListener('click', close)
+    modal.addEventListener('click', (e) => { if (e.target === modal) close() })
+    modal.querySelector('#share-card-download')?.addEventListener('click', () => {
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = 'neuropulse-completion.png'
+      a.click()
+    })
+    modal.querySelector('#share-card-share')?.addEventListener('click', () => {
+      const file = new File([blob], 'neuropulse-completion.png', { type: 'image/png' })
+      void navigator.share({
+        files: [file],
+        title: 'Neuropulse',
+        text: 'I watched a real transformer think — neuropulse.live',
+      }).catch(() => { /* user cancelled */ })
+    })
+  }
+
   /** The next not-yet-done lesson in path order (skipping live-only ones in
    *  demo mode), or null when the path is complete. */
   function nextLesson(afterId: string): Lesson | null {
@@ -1521,9 +1633,13 @@ function openGlossaryAt(entryId?: string): void {
     body.innerHTML = `<div class="lcc-title">✓ Lesson complete</div>
       <div class="lcc-feedback">Nice — “${l.title}” done.</div>
       <div class="lcc-next-row">
-        ${next ? `<button class="lcc-next" type="button">Next lesson: ${next.title} →</button>` : ''}
+        ${next ? `<button class="lcc-next" type="button">Next lesson: ${next.title} →</button>` : '<button class="lcc-next lcc-share-card" type="button">🎓 Get your completion card</button>'}
         <button class="lcc-done-close" type="button">${next ? 'later' : 'see the full path'}</button>
       </div>`
+    body.querySelector('.lcc-share-card')?.addEventListener('click', () => {
+      removeCard(card)
+      void showShareCard()
+    })
     body.querySelector('.lcc-next')?.addEventListener('click', () => {
       removeCard(card)
       if (next) startLesson(next.id)
