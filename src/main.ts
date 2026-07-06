@@ -1237,18 +1237,59 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
   transport.setAttribute('role', 'toolbar')
   transport.setAttribute('aria-label', 'Tour controls')
   transport.innerHTML = `
-    <button id="tt-prev" type="button" aria-label="Previous step" title="Previous step">◀</button>
-    <button id="tt-toggle" type="button" aria-label="Pause tour" title="Pause / resume">⏸</button>
-    <button id="tt-next" type="button" aria-label="Next step" title="Next step">▶</button>
-    <span id="tt-count" aria-live="polite">–/–</span>
-    <span id="tt-paused-label">paused — you have the camera</span>
-    <button id="tt-stop" type="button" aria-label="Stop tour" title="Stop tour">✕ stop</button>
+    <div id="tt-segments" aria-hidden="true"></div>
+    <div id="tt-controls">
+      <button id="tt-prev" type="button" aria-label="Previous step" title="Previous step">◀</button>
+      <button id="tt-toggle" type="button" aria-label="Pause tour" title="Pause / resume">⏸</button>
+      <button id="tt-next" type="button" aria-label="Next step" title="Next step">▶</button>
+      <span id="tt-count" aria-live="polite">–/–</span>
+      <span id="tt-paused-label">paused — you have the camera</span>
+      <button id="tt-stop" type="button" aria-label="Stop tour" title="Stop tour">✕ stop</button>
+    </div>
   `
   document.body.appendChild(transport)
   const ttToggle = transport.querySelector<HTMLButtonElement>('#tt-toggle')!
   const ttCount = transport.querySelector<HTMLSpanElement>('#tt-count')!
+  const ttSegments = transport.querySelector<HTMLDivElement>('#tt-segments')!
+
+  // Story-style step segments: past = full, current = fills over its hold,
+  // future = empty. Click a segment to jump straight to that step.
+  let segCurrent = 0
+  function buildSegments(total: number): void {
+    if (ttSegments.childElementCount === total) return
+    ttSegments.innerHTML = ''
+    for (let i = 0; i < total; i++) {
+      const seg = document.createElement('button')
+      seg.className = 'tt-seg'
+      seg.type = 'button'
+      seg.setAttribute('aria-label', `Go to step ${i + 1}`)
+      seg.innerHTML = '<span class="tt-seg-fill"></span>'
+      seg.addEventListener('click', () => runner?.goTo(i))
+      ttSegments.appendChild(seg)
+    }
+  }
+  function paintSegments(index: number): void {
+    segCurrent = index
+    ttSegments.querySelectorAll<HTMLElement>('.tt-seg-fill').forEach((f, i) => {
+      if (i < index) f.style.width = '100%'
+      else if (i > index) f.style.width = '0%'
+      // current segment is driven by the rAF fill loop below
+    })
+  }
+  // rAF loop fills the current segment from the runner's hold progress —
+  // survives pause (frozen), resume, prev/next/goTo jumps, and speed changes.
+  function segTick(): void {
+    if (runner && runner.isPlaying()) {
+      const fill = ttSegments.children[segCurrent]?.querySelector<HTMLElement>('.tt-seg-fill')
+      if (fill) fill.style.width = `${(runner.holdProgress() * 100).toFixed(1)}%`
+    }
+    requestAnimationFrame(segTick)
+  }
+  requestAnimationFrame(segTick)
 
   function onStepChange(index: number, total: number, paused: boolean): void {
+    buildSegments(total)
+    paintSegments(index)
     ttCount.textContent = `${index + 1}/${total}`
     ttToggle.textContent = paused ? '▶' : '⏸'
     ttToggle.setAttribute('aria-label', paused ? 'Resume tour' : 'Pause tour')
@@ -1258,6 +1299,7 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
   function onTourEnd(): void {
     document.body.classList.remove('tour-running')
     transport.classList.remove('paused')
+    ttSegments.querySelectorAll<HTMLElement>('.tt-seg-fill').forEach((f) => { f.style.width = '100%' })
   }
 
   function playTour(id: string): void {

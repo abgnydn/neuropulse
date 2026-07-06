@@ -218,9 +218,14 @@ interface TourRunnerHandle {
   resume(): void
   next(): void
   prev(): void
+  /** Jump straight to step i (clamped) — segment clicks in the transport. */
+  goTo(i: number): void
   isPlaying(): boolean
   isPaused(): boolean
   state(): TourRunnerState
+  /** 0..1 fill of the CURRENT step's hold — drives the story-style segment
+   *  bars. Frozen while paused. */
+  holdProgress(): number
 }
 
 export function createTourRunner(
@@ -343,10 +348,23 @@ export function createTourRunner(
       if (index === 0) { applyStep(0); if (!paused) armHold(holdFor(tour.steps[0]!)); return }
       advance(-1)
     },
+    goTo(i: number): void {
+      if (!tour) return
+      const target = Math.max(0, Math.min(i, tour.steps.length - 1))
+      index = target
+      applyStep(index)
+      if (paused) { remainingMs = holdFor(tour.steps[index]!); return }
+      armHold(holdFor(tour.steps[index]!))
+    },
     isPlaying(): boolean { return tour !== null },
     isPaused(): boolean { return paused },
     state(): TourRunnerState {
       return { tourId: tour?.id ?? null, step: index, total: tour?.steps.length ?? 0, paused }
+    },
+    holdProgress(): number {
+      if (!tour || holdMs <= 0) return 0
+      if (paused) return Math.max(0, Math.min(1, 1 - remainingMs / holdMs))
+      return Math.max(0, Math.min(1, (performance.now() - armedAt) / holdMs))
     },
   }
 }

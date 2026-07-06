@@ -2209,12 +2209,13 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
   transform: translateX(-50%);
   z-index: 105;
   display: none;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 8px;
+  min-width: 320px;
   background: rgba(8, 6, 15, 0.88);
   border: 1px solid rgba(0, 229, 255, 0.35);
-  border-radius: 999px;
+  border-radius: 16px;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   font-family: 'JetBrains Mono', monospace;
@@ -2222,7 +2223,21 @@ body.tour-running .tour-running-badge::after { content: ' · Esc to stop'; color
   color: #8a8170;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
 }
-body.tour-running #tour-transport { display: inline-flex; }
+body.tour-running #tour-transport { display: flex; }
+#tt-controls { display: flex; align-items: center; gap: 10px; justify-content: center; }
+/* Story-style step segments — past full, current filling, future empty. */
+#tt-segments { display: flex; gap: 4px; }
+#tour-transport .tt-seg {
+  flex: 1; height: 4px; padding: 0; border: none; border-radius: 2px;
+  background: rgba(244, 236, 223, 0.14); cursor: pointer; overflow: hidden;
+  position: relative; min-width: 24px;
+}
+#tour-transport .tt-seg:hover { background: rgba(244, 236, 223, 0.28); }
+#tour-transport .tt-seg-fill {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, #5eead4, #00e5ff); border-radius: 2px;
+}
+#tour-transport.paused .tt-seg-fill { background: linear-gradient(90deg, #ffd28a, #ff9a1f); }
 #tour-transport button {
   background: transparent;
   border: 1px solid rgba(244, 236, 223, 0.2);
