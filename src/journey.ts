@@ -329,13 +329,20 @@ export function createJourney(vis: BrainVisualizer): JourneyHandle {
       progCurrent += (progTarget - progCurrent) * LERP_TO_PROG
       if (Math.abs(progTarget - progCurrent) < 1e-4) progCurrent = progTarget
 
-      const basePose = poseFor(progCurrent)
-      // Orbit offsets are no longer applied here — OrbitControls owns orbit
-      // when journey isn't driving. Journey only writes when autoplay is on.
-      vis.setJourneyCamera(basePose.pos, basePose.lookAt)
-      vis.setJourneyFocusLayer(focusLayerFor(progCurrent))
-      // Tell visualizer whether we're in control of the camera right now.
-      vis.setJourneyDriving(autoPlay)
+      // While a guided tour runs it owns the camera — journey must not stomp
+      // its poses or its driving flag every frame (this was why tours changed
+      // captions but never flew: setJourneyCamera/Driving got overwritten
+      // within a frame whenever journey mode was active).
+      const tourRunning = document.body.classList.contains('tour-running')
+      if (!tourRunning) {
+        const basePose = poseFor(progCurrent)
+        // Orbit offsets are no longer applied here — OrbitControls owns orbit
+        // when journey isn't driving. Journey only writes when autoplay is on.
+        vis.setJourneyCamera(basePose.pos, basePose.lookAt)
+        vis.setJourneyFocusLayer(focusLayerFor(progCurrent))
+        // Tell visualizer whether we're in control of the camera right now.
+        vis.setJourneyDriving(autoPlay)
+      }
       updateHUD(progCurrent)
     }
     requestAnimationFrame(tick)
