@@ -8,7 +8,7 @@ import { createJourney, JourneyHandle } from './journey'
 import { SpatialPanels } from './spatial-panels'
 import { TOURS, createTourRunner } from './tours'
 import { LESSONS, type Lesson } from './lessons'
-import { createRecorder, type Recorder, type NpRecording } from './recording'
+import { createRecorder, RECORDINGS, dequantizeU8, type Recorder, type NpRecording } from './recording'
 import { createPlaybackDriver, type PlaybackHandle, type PlaybackSink } from './playback'
 // Ask-mode reference docs — Vite imports markdown as a raw string. See
 // src/docs.md. Budgeted to ~1500 tokens so Phi-3 has room for the reply.
@@ -1621,7 +1621,12 @@ function openGlossaryAt(entryId?: string): void {
           ${readingHtml(lesson)}
           <div class="lcc-instruction">${lesson.check.instruction}</div>
           <div class="lcc-waiting" style="color:#ffd28a">This check needs the live model — download &amp; run to complete it.</div>
+          <div class="lcc-next-row"><button class="lcc-next lcc-watch-ablation" type="button">▶ Watch a recorded ablation instead</button></div>
         </div>`
+      card.querySelector('.lcc-watch-ablation')?.addEventListener('click', () => {
+        removeCard(card)
+        ;(window as unknown as { __demoPlayRec?: (id: string) => void }).__demoPlayRec?.('capital-ablated')
+      })
     } else {
       const c = lesson.check
       card.innerHTML = `
@@ -2086,6 +2091,28 @@ let prevResidualNorm = 0
 // See src/recording.ts for the schema; committed files live in
 // public/recordings/ and are CI-validated by tools/verify-recordings.mjs.
 let recorderRunMeta: { prompt: string; mode: 'ask' | 'complete' } | null = null
+
+// Dev/capture flag: ?ablate=18:*,19:*,20:* applies head ablations to the MAIN
+// prompt flow (normally ablation runs only through the panel's compare path).
+// "L:*" expands to all 32 heads of layer L; "L:H" is a single head. Used with
+// ?record=1 to capture the pre-recorded ablation runs for the demo gallery.
+const devAblations: Ablation[] | null = (() => {
+  const raw = new URLSearchParams(location.search).get('ablate')
+  if (!raw) return null
+  const out: Ablation[] = []
+  for (const part of raw.split(',')) {
+    const [ls, hs] = part.split(':')
+    const layer = Number(ls)
+    if (!Number.isInteger(layer) || layer < 0 || layer > 31) continue
+    if (hs === '*') { for (let h = 0; h < 32; h++) out.push({ layer, head: h }) }
+    else {
+      const head = Number(hs)
+      if (Number.isInteger(head) && head >= 0 && head < 32) out.push({ layer, head })
+    }
+  }
+  if (out.length) console.warn(`[dev] ?ablate active — ${out.length} heads zeroed on every main-flow generation`)
+  return out.length ? out : null
+})()
 const recorder: Recorder | null = new URLSearchParams(location.search).has('record')
   ? createRecorder({
       getResidualNorms: () => residualNorms,
@@ -2854,8 +2881,23 @@ function captureRawResidual(layer: number, activations: Float32Array) {
 const shareBtn = document.getElementById('shareBtn') as HTMLButtonElement
 if (shareBtn) {
   shareBtn.addEventListener('click', () => {
-    const prompt = promptInput.value.trim() || 'What is consciousness?'
     const url = new URL(window.location.href)
+    if (demoMode) {
+      // Share THIS moment of the recorded run: ?demo=1&rec=<id>&t=<token>.
+      // Prefer the scrubbed token if the user clicked a chip, else the
+      // playback position.
+      url.search = ''
+      url.searchParams.set('demo', '1')
+      url.searchParams.set('rec', demoRecId)
+      const t = replayActiveIdx ?? (demoResumeAt > 0 ? demoResumeAt - 1 : null)
+      if (t !== null && t >= 0) url.searchParams.set('t', String(t))
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        shareBtn.textContent = '✓'
+        setTimeout(() => { shareBtn.textContent = '🔗' }, 1500)
+      }).catch(() => { /* clipboard blocked */ })
+      return
+    }
+    const prompt = promptInput.value.trim() || 'What is consciousness?'
     url.searchParams.set('q', prompt)
     navigator.clipboard.writeText(url.toString()).then(() => {
       shareBtn.textContent = '✓'
@@ -3388,6 +3430,7 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
     realPrompt,
     mode === 'ask' ? 140 : 180,
     genCallbacks,
+    devAblations ?? undefined,
   )
 
   viz.setDone()
@@ -3461,11 +3504,13 @@ async function runRealInference(prompt: string, mode: 'think' | 'ask' = 'think')
 // the product here.
 let demoMode = false
 let demoDriver: PlaybackHandle | null = null
-let demoRec: NpRecording | null = null
 let exitDemoAfterPlayback = false
 // Video-player model: Stop keeps your place and Play resumes from it; a run
 // that finishes naturally resets so the next Play starts from the top.
 let demoResumeAt = 0
+// Recording gallery — which committed recording is loaded (see RECORDINGS).
+let demoRecId: string = RECORDINGS[0]!.id
+const demoRecCache = new Map<string, NpRecording>()
 
 function enterDemoMode(): void {
   if (demoMode) return
@@ -3474,11 +3519,31 @@ function enterDemoMode(): void {
   goBtn.disabled = false
   goBtn.textContent = 'Play recording'
   promptInput.readOnly = true
-  promptInput.title = 'Recorded run replays this prompt — download the model to ask your own.'
+  promptInput.title = 'Recorded run replays this prompt — pick another from the gallery, or download the model to ask your own.'
   document.getElementById('demo-badge-live')?.addEventListener('click', () => {
     // Back to the gate to pick the live download.
     location.href = location.pathname
   })
+  // Recording gallery picker.
+  const picker = document.getElementById('demoRecPicker') as HTMLSelectElement | null
+  if (picker && picker.options.length === 0) {
+    for (const r of RECORDINGS) {
+      const opt = document.createElement('option')
+      opt.value = r.id
+      opt.textContent = (r.ablated ? '⊘ ' : '▸ ') + r.title
+      opt.title = r.note
+      picker.appendChild(opt)
+    }
+    picker.value = demoRecId
+    picker.addEventListener('change', () => switchDemoRecording(picker.value))
+  }
+  void loadDemoRecording().then((rec) => { promptInput.value = rec.prompt })
+  // Lessons (e.g. the ablation lesson's "watch a recorded ablation") can
+  // switch + play a specific gallery entry.
+  ;(window as unknown as { __demoPlayRec?: (id: string) => void }).__demoPlayRec = (id) => {
+    switchDemoRecording(id)
+    void playDemoRecording()
+  }
 }
 
 /** Called when the live engine finishes loading underneath a demo session
@@ -3502,12 +3567,85 @@ function exitDemoMode(): void {
   }
 }
 
-async function loadDemoRecording(): Promise<NpRecording> {
-  if (demoRec) return demoRec
-  const resp = await fetch('/recordings/intro-01.json')
+async function loadDemoRecording(id: string = demoRecId): Promise<NpRecording> {
+  const cached = demoRecCache.get(id)
+  if (cached) return cached
+  const meta = RECORDINGS.find((r) => r.id === id) ?? RECORDINGS[0]!
+  const resp = await fetch(meta.file)
   if (!resp.ok) throw new Error(`recording fetch failed: HTTP ${resp.status}`)
-  demoRec = (await resp.json()) as NpRecording
-  return demoRec
+  const rec = (await resp.json()) as NpRecording
+  demoRecCache.set(meta.id, rec)
+  return rec
+}
+
+/** Switch the gallery selection: stops any replay, resets the resume point,
+ *  syncs the prompt box / picker / URL. */
+function switchDemoRecording(id: string): void {
+  if (!RECORDINGS.some((r) => r.id === id) || id === demoRecId) return
+  demoDriver?.stop()
+  demoRecId = id
+  demoResumeAt = 0
+  goBtn.textContent = 'Play recording'
+  const picker = document.getElementById('demoRecPicker') as HTMLSelectElement | null
+  if (picker && picker.value !== id) picker.value = id
+  void loadDemoRecording(id).then((rec) => { promptInput.value = rec.prompt })
+  const url = new URL(location.href)
+  url.searchParams.set('rec', id)
+  url.searchParams.delete('t')
+  history.replaceState(null, '', url.toString())
+}
+
+/** Instant scrub to token index t of the current recording — used by
+ *  ?demo=1&rec=X&t=N deep links. Rebuilds text/strip/snapshots synchronously
+ *  (no animation), paints the final panel state, and leaves playback ready to
+ *  RESUME from t+1. */
+async function seekDemoTo(t: number): Promise<void> {
+  const rec = await loadDemoRecording()
+  const last = Math.max(0, Math.min(t, rec.tokens.length - 1))
+  demoDriver?.stop()
+  clearReplayBuffer()
+  output.innerHTML = ''
+  const promptEcho = document.createElement('div')
+  promptEcho.style.cssText = 'color:#ff8c42;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
+  promptEcho.textContent = `> ${rec.prompt}`
+  output.appendChild(promptEcho)
+  tokenStripStart(rec.prompt)
+  promptInput.value = rec.prompt
+
+  for (let i = 0; i <= last; i++) {
+    const tok = rec.tokens[i]!
+    // Keep the module-level panel arrays truthful per token so the replay
+    // scrubber's snapshots restore correctly after the seek.
+    for (let L = 0; L < 32; L++) {
+      residualNorms[L] = tok.residualNorms[L] ?? 0
+      layerDeltas[L] = tok.layerDeltas[L] ?? 0
+    }
+    const heat = dequantizeU8(tok.headActivity, tok.headActivityScale, 32 * 32)
+    for (let L = 0; L < 32; L++) headHeatmap[L] = heat.slice(L * 32, (L + 1) * 32)
+    appendToken(tok.text)
+    viz.addOutputToken(tok.text, tok.topK[0]?.p ?? 0)
+    tokenStripAppendGenerated(tok.text)
+    const topK: TopKEntry[] = tok.topK.map((k) => ({ token: k.t, id: k.id, prob: k.p }))
+    captureTokenSnapshot(tok.text, topK)
+    for (const l of tok.lens) displayLensToken(l.L, l.t)
+    displayLensToken(31, tok.text)
+  }
+  // Paint the final state once (charts, heatmap, top-K, attention, KV).
+  const tok = rec.tokens[last]!
+  const topK: TopKEntry[] = tok.topK.map((k) => ({ token: k.t, id: k.id, prob: k.p }))
+  updateTopK(topK)
+  updateConfidence(topK)
+  prevResidualNorm = 0
+  for (let L = 0; L < 32; L++) {
+    updateResidualChart(L, tok.residualNorms[L] ?? 0)
+    updateDeltaChart(L, tok.residualNorms[L] ?? 0)
+    updateHeatmapLayer(L, headHeatmap[L] ?? new Float32Array(32))
+  }
+  if (tok.attnL31) updateAttentionHeatmapL31(dequantizeU8(tok.attnL31, tok.attnL31Scale, 32 * tok.kvLen), tok.kvLen)
+  updateKVCache(tok.kvLen, rec.kvTotalPages, tok.kvUsedPages)
+  demoResumeAt = last + 1
+  goBtn.textContent = demoResumeAt < rec.tokens.length ? 'Resume recording' : 'Play recording'
+  if (demoResumeAt >= rec.tokens.length) demoResumeAt = 0
 }
 
 function makeDemoSink(): PlaybackSink {
@@ -3557,7 +3695,7 @@ function makeDemoSink(): PlaybackSink {
     onDone(interrupted) {
       viz.setDone()
       isRunning = false
-      const finished = !interrupted || demoResumeAt >= (demoRec?.tokens.length ?? 0)
+      const finished = !interrupted || demoResumeAt >= (demoRecCache.get(demoRecId)?.tokens.length ?? 0)
       if (finished) demoResumeAt = 0
       goBtn.textContent = demoResumeAt > 0 ? 'Resume recording' : 'Play recording'
       const c = output.querySelector('.cursor')
@@ -4034,9 +4172,19 @@ function enterDemoBoot(openLessonId?: string): void {
   }
 
   // ?demo=1 — shareable demo-mode link. Overrides the cached-model skip so
-  // the link behaves identically for everyone.
+  // the link behaves identically for everyone. Optional &rec=<id> picks a
+  // gallery recording; &t=<n> deep-links straight to that token (a shared
+  // "look at this moment" link — skips the lesson auto-open).
   if (params.has('demo')) {
-    enterDemoBoot('bearings')
+    const rec = params.get('rec')
+    if (rec && RECORDINGS.some((r) => r.id === rec)) demoRecId = rec
+    const tRaw = params.get('t')
+    const t = tRaw !== null ? Math.max(0, parseInt(tRaw, 10) || 0) : null
+    enterDemoBoot(t === null ? 'bearings' : undefined)
+    if (t !== null) {
+      // Let the boot fade settle, then jump to the shared moment.
+      window.setTimeout(() => { void seekDemoTo(t) }, 700)
+    }
     return
   }
 
