@@ -90,10 +90,13 @@ export const LESSONS: Lesson[] = [
     minutes: 3,
     tourId: 'factual-recall',
     reading: ['gloss-token'],
+    intro:
+      '<p>You are about to watch one <b>forward pass</b>: a prompt goes in, and 32 layers later a single word comes out. The tour follows <i>"The capital of Japan is"</i> to its answer.</p>' +
+      '<p>Watch the <b>Top-K</b> panel at the end — the winning token spikes above the rest. That spike <i>is</i> the model choosing a word.</p>',
     check: {
       kind: 'signal',
       signal: 'generate',
-      instruction: 'Run a generation and watch a token get picked as the answer streams out. (In demo mode, press Play recording.)',
+      instruction: 'Now run it yourself and watch a token get picked as the answer streams out. (In demo mode, press Play recording.)',
     },
   },
   {
@@ -104,6 +107,9 @@ export const LESSONS: Lesson[] = [
     minutes: 3,
     tourId: 'attention-story',
     reading: ['gloss-attention'],
+    intro:
+      '<p><b>Attention</b> is how each token decides which <i>earlier</i> tokens to look at. The tour walks the heads front to back: early ones track <b>position</b>, middle ones spot <b>repeated patterns</b>, late ones carry <b>long-range meaning</b>.</p>' +
+      '<p>Open the <b>Heatmap</b> when prompted — bright cells are heads doing heavy work right now. Then hold on to one number for the question below: how many heads there are in total.</p>',
     check: {
       kind: 'quiz',
       question: 'How many attention heads does Phi-3-mini have in total?',
@@ -124,6 +130,9 @@ export const LESSONS: Lesson[] = [
     minutes: 2,
     tourId: 'confidence',
     reading: ['gloss-softmax'],
+    intro:
+      '<p>The model does not just give an answer — it also reveals how <b>sure</b> it is. Two read-outs show this: the <b>Top-K</b> spread (one tall bar = confident; several even bars = hedging) and the <b>Confidence</b> meter (green = sure, amber = guessing).</p>' +
+      '<p>The tour compares a fact the model knows cold against an open-ended question it can only guess at. Watch the two signals move together.</p>',
     check: {
       kind: 'quiz',
       question: 'A flat top-K distribution and an amber confidence bar mean the model is…',
@@ -144,6 +153,9 @@ export const LESSONS: Lesson[] = [
     minutes: 5,
     reading: ['gloss-ablation', 'gloss-sweep'],
     requiresLive: true,
+    intro:
+      '<p>This is the real experiment. Switch off a few attention heads, re-run the prompt, and see if the answer changes. If it does, you have <b>proven</b> those heads were doing the work — that is <b>ablation</b>, the core method of interpretability.</p>' +
+      '<p>Turning off just 1–2 of 1,024 heads usually changes nothing — the model is very redundant, and that is expected, not a glitch. Use <b>Sweep</b> to find the heads that actually matter.</p>',
     check: {
       kind: 'signal',
       signal: 'ablation',
