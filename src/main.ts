@@ -43,6 +43,14 @@ function initVisualizer() {
   wireJourney()
   initAblationPanel()
 
+  // Test hook: current camera position. Lets Playwright assert that tours /
+  // journey actually FLY the camera (canvas pixels are unreadable in headless
+  // WebGL, which once hid a camera-stomp bug).
+  ;(window as unknown as { __npCamPos?: () => number[] }).__npCamPos = () => {
+    const cam = (viz as unknown as { getCamera?: () => { position: { toArray(): number[] } } }).getCamera?.()
+    return cam ? cam.position.toArray().map((v: number) => Math.round(v * 100) / 100) : []
+  }
+
   // Test hook: programmatic shift-click equivalent. Used by Playwright to
   // exercise the ablation UI without needing to raycast 3D screen coords.
   // No-op if the visualizer is the null stub.
@@ -1256,8 +1264,11 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
     if (!runner) runner = createTourRunner(viz, updateCaption, onStepChange, onTourEnd)
     runner.play(id)
     document.body.classList.add('tour-running')
-    // Close the glossary so the tour is visible
+    // Close any covering overlays so the flythrough is actually visible —
+    // the tour catalog now lives in the lessons overlay, which otherwise
+    // stayed open on top of the running tour.
     document.getElementById('glossary-overlay')?.classList.remove('visible')
+    document.getElementById('lessons-overlay')?.classList.remove('visible')
   }
 
   function stopTour(): void {
@@ -3410,6 +3421,9 @@ let demoMode = false
 let demoDriver: PlaybackHandle | null = null
 let demoRec: NpRecording | null = null
 let exitDemoAfterPlayback = false
+// Video-player model: Stop keeps your place and Play resumes from it; a run
+// that finishes naturally resets so the next Play starts from the top.
+let demoResumeAt = 0
 
 function enterDemoMode(): void {
   if (demoMode) return
@@ -3488,6 +3502,7 @@ function makeDemoSink(): PlaybackSink {
       captureTokenSnapshot(tok.text, topK) // token-strip scrubbing works post-replay
       displayLensToken(31, tok.text)
       if (storyteller.isActive()) storyteller.hooks().onToken?.(tok.text, tok.id, index, topK, undefined)
+      demoResumeAt = index + 1 // resume point if the user stops here
     },
     onAttentionL31(rows, kvLen) {
       updateAttentionHeatmapL31(rows, kvLen)
@@ -3497,15 +3512,20 @@ function makeDemoSink(): PlaybackSink {
       const frac = usedPages / totalPages
       for (let L = 0; L < 32; L++) viz.setKvCacheStrip(L, frac)
     },
-    onDone() {
+    onDone(interrupted) {
       viz.setDone()
       isRunning = false
-      goBtn.textContent = 'Play recording'
+      const finished = !interrupted || demoResumeAt >= (demoRec?.tokens.length ?? 0)
+      if (finished) demoResumeAt = 0
+      goBtn.textContent = demoResumeAt > 0 ? 'Resume recording' : 'Play recording'
       const c = output.querySelector('.cursor')
       if (c) c.remove()
-      // A replayed forward pass still counts for the "watch a generation"
-      // lesson check — the tensors are real.
-      window.dispatchEvent(new CustomEvent('neuropulse:lesson-signal', { detail: { type: 'generate' } }))
+      // A fully replayed forward pass counts for the "watch a generation"
+      // lesson check — the tensors are real. A stopped-after-two-tokens run
+      // doesn't.
+      if (finished) {
+        window.dispatchEvent(new CustomEvent('neuropulse:lesson-signal', { detail: { type: 'generate' } }))
+      }
       if (exitDemoAfterPlayback) exitDemoMode()
     },
   }
@@ -3520,24 +3540,31 @@ async function playDemoRecording(): Promise<void> {
     console.warn('[demo] recording unavailable:', err)
     return
   }
-  // Reset run surfaces exactly like a live run.
+  const resuming = demoResumeAt > 0 && demoResumeAt < rec.tokens.length
   isRunning = true
-  clearReplayBuffer()
-  output.innerHTML = ''
-  const promptEcho = document.createElement('div')
-  promptEcho.style.cssText = 'color:#ff8c42;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
-  promptEcho.textContent = `> ${rec.prompt}`
-  output.appendChild(promptEcho)
-  const cursor = document.createElement('span')
-  cursor.className = 'cursor'
-  output.appendChild(cursor)
-  tokenStripStart(rec.prompt)
+  if (!resuming) {
+    // Fresh run: reset all run surfaces exactly like a live run.
+    demoResumeAt = 0
+    clearReplayBuffer()
+    output.innerHTML = ''
+    const promptEcho = document.createElement('div')
+    promptEcho.style.cssText = 'color:#ff8c42;margin-bottom:16px;font-size:0.8rem;font-style:italic;opacity:0.7'
+    promptEcho.textContent = `> ${rec.prompt}`
+    output.appendChild(promptEcho)
+    tokenStripStart(rec.prompt)
+  }
+  // (Re)attach the streaming cursor.
+  if (!output.querySelector('.cursor')) {
+    const cursor = document.createElement('span')
+    cursor.className = 'cursor'
+    output.appendChild(cursor)
+  }
   promptInput.value = rec.prompt
   goBtn.textContent = 'Stop'
   goBtn.disabled = false
 
   demoDriver = createPlaybackDriver(rec, makeDemoSink(), () =>
-    parseInt(speedSlider.value, 10) || 5)
+    parseInt(speedSlider.value, 10) || 5, { startAt: resuming ? demoResumeAt : 0 })
   await demoDriver.start()
 }
 

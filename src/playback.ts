@@ -46,28 +46,33 @@ export function createPlaybackDriver(
   rec: NpRecording,
   sink: PlaybackSink,
   getSpeed: () => number,
+  opts?: { /** resume mid-run: first token index to play; skips prefill when > 0 */ startAt?: number },
 ): PlaybackHandle {
   let aborted = false
   let playing = false
+  const startAt = Math.max(0, Math.min(opts?.startAt ?? 0, rec.tokens.length))
 
   async function start(): Promise<void> {
     if (playing) return
     playing = true
     aborted = false
     try {
-      // ── Prefill phase: replay the prompt being read ──
-      const pf = rec.prefillTokens
-      sink.onPrefillStart(pf.length)
-      for (let i = 0; i < pf.length; i++) {
-        if (aborted) return
-        sink.onPrefillToken(i, pf.length, pf[i]!)
-        // Brisk fixed pace — prefill is context, not the show.
-        await sleep(Math.max(20, 260 / Math.max(1, getSpeed())))
+      // ── Prefill phase: replay the prompt being read (fresh starts only —
+      // a resume picks up mid-decode like a video scrubbed forward) ──
+      if (startAt === 0) {
+        const pf = rec.prefillTokens
+        sink.onPrefillStart(pf.length)
+        for (let i = 0; i < pf.length; i++) {
+          if (aborted) return
+          sink.onPrefillToken(i, pf.length, pf[i]!)
+          // Brisk fixed pace — prefill is context, not the show.
+          await sleep(Math.max(20, 260 / Math.max(1, getSpeed())))
+        }
+        sink.onPrefillEnd()
       }
-      sink.onPrefillEnd()
 
       // ── Decode phase: per token, sweep the 32 layers then land the token ──
-      for (let i = 0; i < rec.tokens.length; i++) {
+      for (let i = startAt; i < rec.tokens.length; i++) {
         if (aborted) return
         const tok = rec.tokens[i]!
         const heat = dequantizeU8(tok.headActivity, tok.headActivityScale, LAYERS * HEADS)
