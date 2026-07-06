@@ -2305,6 +2305,9 @@ body.tour-running #tour-transport { display: flex; }
 #tour-transport.paused { border-color: rgba(255, 154, 31, 0.55); }
 #tour-transport.paused #tt-paused-label { display: inline; }
 #tour-transport.paused #tt-stop { color: #f4ecdf; border-color: rgba(255, 154, 31, 0.6); }
+/* At the end the toggle becomes a replay — accent it cyan so it invites a click. */
+#tour-transport.ended #tt-toggle { color: #00e5ff; border-color: rgba(0, 229, 255, 0.6); }
+#tour-transport.ended #tt-paused-label { color: #5eead4; }
 
 .glossary-keys {
   border-top: 1px solid rgba(94, 234, 212, 0.18);
@@ -2855,8 +2858,8 @@ body.tour-running #tour-transport { display: flex; }
     <input type="text" id="promptInput" placeholder="Ask anything... (e.g. What is consciousness?)" autofocus>
     <div class="speed-control">
       <label for="speedSlider">Speed</label>
-      <input type="range" id="speedSlider" min="1" max="20" value="5" step="1">
-      <span id="speedLabel">5x</span>
+      <input type="range" id="speedSlider" min="1" max="20" value="1" step="1">
+      <span id="speedLabel">1x</span>
     </div>
     <button class="tool-btn" id="soundBtn" title="Toggle sound"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
     <button class="tool-btn" id="screenshotBtn" title="Screenshot the current mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>

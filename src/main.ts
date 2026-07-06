@@ -205,7 +205,7 @@ function initAblationPanel() {
   document.head.appendChild(style)
 
   const panel = document.createElement('div')
-  panel.className = 'ablate-panel open'
+  panel.className = 'ablate-panel'
   panel.innerHTML = `
     <div class="ablate-header">
       <span class="ablate-status" id="ablateStatus">No heads ablated — shift-click attention spheres, or sweep a layer to see impact.</span>
@@ -261,8 +261,10 @@ function initAblationPanel() {
   function setCollapsed(collapsed: boolean) {
     panel.classList.toggle('collapsed', collapsed)
   }
-  // Open by default. Shift-clicking heads will also force-open it.
-  setPanelOpen(true)
+  // Closed by default — it's an advanced instrument. Press A (or shift-click a
+  // head, which force-opens it) to reveal the panel. The ablation lesson tells
+  // learners to press A, so this keeps the lesson's instructions accurate.
+  setPanelOpen(false)
 
   // × button collapses to a pip rather than hiding entirely. Click the pip
   // to expand. Drag still works on both states.
@@ -602,6 +604,8 @@ const speedLabel = document.getElementById('speedLabel')!
 speedSlider.addEventListener('input', () => {
   speedLabel.textContent = speedSlider.value + 'x'
 })
+// Initialize the label from the slider's default so the two never disagree.
+speedLabel.textContent = speedSlider.value + 'x'
 // Single source of truth for pace: the Speed slider (1–20). Tours (src/tours.ts)
 // and journey autoplay (src/journey.ts) read this so one control drives the
 // forward-pass tokens, the tour camera, and the journey flythrough together.
@@ -1251,6 +1255,7 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
   const ttToggle = transport.querySelector<HTMLButtonElement>('#tt-toggle')!
   const ttCount = transport.querySelector<HTMLSpanElement>('#tt-count')!
   const ttSegments = transport.querySelector<HTMLDivElement>('#tt-segments')!
+  const ttPausedLabel = transport.querySelector<HTMLSpanElement>('#tt-paused-label')
 
   // Story-style step segments: past = full, current = fills over its hold,
   // future = empty. Click a segment to jump straight to that step.
@@ -1291,9 +1296,18 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
     buildSegments(total)
     paintSegments(index)
     ttCount.textContent = `${index + 1}/${total}`
-    ttToggle.textContent = paused ? '▶' : '⏸'
-    ttToggle.setAttribute('aria-label', paused ? 'Resume tour' : 'Pause tour')
+    const ended = !!runner?.isEnded()
+    // At the end the toggle becomes a replay (↻); otherwise pause/resume.
+    ttToggle.textContent = ended ? '↻' : paused ? '▶' : '⏸'
+    ttToggle.setAttribute('aria-label', ended ? 'Replay tour' : paused ? 'Resume tour' : 'Pause tour')
+    ttToggle.title = ended ? 'Replay from the start' : 'Pause / resume'
+    if (ttPausedLabel) {
+      ttPausedLabel.textContent = ended
+        ? 'tour complete — replay, step back, or stop'
+        : 'paused — you have the camera'
+    }
     transport.classList.toggle('paused', paused)
+    transport.classList.toggle('ended', ended)
   }
 
   function onTourEnd(): void {
@@ -1304,6 +1318,8 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
 
   function playTour(id: string): void {
     if (!runner) runner = createTourRunner(viz, updateCaption, onStepChange, onTourEnd)
+    // Clean slate first, then play — a prefilling tour sets its prompt in step 0.
+    resetRunSurfaces()
     runner.play(id)
     document.body.classList.add('tour-running')
     // Close any covering overlays so the flythrough is actually visible —
@@ -1323,6 +1339,12 @@ document.getElementById('tokenStripBody')?.addEventListener('click', (e) => {
   transport.querySelector('#tt-stop')?.addEventListener('click', () => stopTour())
   ttToggle.addEventListener('click', () => {
     if (!runner) return
+    if (runner.isEnded()) {
+      // Replay from the start once the tour has run to the end.
+      const id = runner.state().tourId
+      if (id) playTour(id)
+      return
+    }
     if (runner.isPaused()) runner.resume()
     else runner.pause()
   })
@@ -1655,7 +1677,11 @@ function openGlossaryAt(entryId?: string): void {
     if (!lesson) return
     open(false)
     if (lesson.tourId) {
+      // playTour clears surfaces itself, then prefills from the tour's step 0.
       ;(window as unknown as { __playTour?: (t: string) => void }).__playTour?.(lesson.tourId)
+    } else {
+      // Tourless lesson (bearings, ablation): still start from a clean slate.
+      resetRunSurfaces()
     }
     presentCheck(lesson)
   }
@@ -3869,6 +3895,19 @@ async function playDemoRecording(): Promise<void> {
  *  true if a run was actually interrupted. */
 function cancelInFlightInference(): boolean {
   return (engine as unknown as { interrupt?: () => boolean }).interrupt?.() ?? false
+}
+
+/** Starting a tour or lesson: stop anything mid-flight (live generation or demo
+ *  playback) and wipe stale output so the flythrough begins from a clean slate.
+ *  Clears the prompt too — a tour that prefills one sets it afterwards, so
+ *  order matters: this runs BEFORE the tour applies its first step. */
+function resetRunSurfaces(): void {
+  if (demoMode) demoDriver?.stop()
+  else cancelInFlightInference()
+  clearReplayBuffer()
+  output.innerHTML = ''
+  tokenStripStart('')
+  promptInput.value = ''
 }
 /** Resolve once no generation is running (isRunning clears in generate()'s
  *  finally). Resolves false if it doesn't settle within ~10s so callers don't

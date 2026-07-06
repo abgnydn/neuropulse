@@ -222,6 +222,9 @@ interface TourRunnerHandle {
   goTo(i: number): void
   isPlaying(): boolean
   isPaused(): boolean
+  /** true once the final step's hold has elapsed and the tour is holding at
+   *  the end (not torn down). Drives the transport's replay affordance. */
+  isEnded(): boolean
   state(): TourRunnerState
   /** 0..1 fill of the CURRENT step's hold — drives the story-style segment
    *  bars. Frozen while paused. */
@@ -240,6 +243,10 @@ export function createTourRunner(
   let tour: Tour | null = null
   let index = 0
   let paused = false
+  // Reached the final step and its hold elapsed. The tour does NOT tear down —
+  // it freezes on the last step with the transport controls live, so the
+  // learner can step back, replay, or stop on their own terms.
+  let ended = false
   // Hold bookkeeping so pause/resume can freeze and restore the countdown.
   let armedAt = 0
   let holdMs = 0
@@ -253,9 +260,9 @@ export function createTourRunner(
   }
 
   function holdFor(step: TourStep): number {
-    // Pace follows the Speed slider (default 5×), but a hard 1.8s floor keeps
+    // Pace follows the Speed slider (default 1×), but a hard 1.8s floor keeps
     // captions readable even at 20× — one control, still legible.
-    const speed = (window as unknown as { __npSpeed?: () => number }).__npSpeed?.() ?? 5
+    const speed = (window as unknown as { __npSpeed?: () => number }).__npSpeed?.() ?? 1
     const mult = Math.max(0.3, Math.min(1.1, 2.5 / speed))
     return Math.max(1800, step.hold * mult)
   }
@@ -286,11 +293,13 @@ export function createTourRunner(
     if (!tour) return
     const nextIdx = index + delta
     if (nextIdx >= tour.steps.length) {
-      // Natural completion (timer) or Next past the last step — finish.
-      stopInternal()
+      // Natural completion (timer) or Next past the last step — do NOT tear
+      // down. Freeze on the last step so the learner keeps the controls.
+      holdAtEnd()
       return
     }
     index = Math.max(0, nextIdx)
+    ended = false
     applyStep(index)
     if (paused && !fromTimer) {
       // Jumping while paused shows the step but stays paused.
@@ -298,6 +307,19 @@ export function createTourRunner(
       return
     }
     armHold(holdFor(tour.steps[index]!))
+  }
+
+  /** End of the last step: settle into a paused-on-the-final-step state with
+   *  the transport still alive. Camera yields so the user can orbit. */
+  function holdAtEnd(): void {
+    if (!tour) return
+    index = tour.steps.length - 1
+    ended = true
+    paused = true
+    remainingMs = 0 // last segment reads as 100% full
+    clearTimer()
+    vis.setJourneyDriving(false)
+    onStepChange?.(index, tour.steps.length, true)
   }
 
   function stopInternal(): void {
@@ -317,6 +339,7 @@ export function createTourRunner(
       tour = t
       index = 0
       paused = false
+      ended = false
       // Journey needs to own the camera during a tour
       vis.setJourneyDriving(true)
       applyStep(0)
@@ -337,6 +360,7 @@ export function createTourRunner(
     resume(): void {
       if (!tour || !paused) return
       paused = false
+      ended = false
       vis.setJourneyDriving(true)
       // Re-apply the current step so the camera glides back to the tour pose.
       applyStep(index)
@@ -345,11 +369,13 @@ export function createTourRunner(
     next(): void { if (tour) advance(1) },
     prev(): void {
       if (!tour) return
+      ended = false
       if (index === 0) { applyStep(0); if (!paused) armHold(holdFor(tour.steps[0]!)); return }
       advance(-1)
     },
     goTo(i: number): void {
       if (!tour) return
+      ended = false
       const target = Math.max(0, Math.min(i, tour.steps.length - 1))
       index = target
       applyStep(index)
@@ -358,6 +384,7 @@ export function createTourRunner(
     },
     isPlaying(): boolean { return tour !== null },
     isPaused(): boolean { return paused },
+    isEnded(): boolean { return ended },
     state(): TourRunnerState {
       return { tourId: tour?.id ?? null, step: index, total: tour?.steps.length ?? 0, paused }
     },
